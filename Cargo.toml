@@ -13,4 +13,4 @@ faer-cholesky = "0.9.1"
 faer-svd      = "0.9.1"
 
 num-traits = "0.2.15"
-rustc-hash = { version = "1.1", default-features = false }
+rustc-hash = "1.1.0"
