@@ -18,7 +18,7 @@ mod tests {
     fn matadd() {
         let m0 = Mat::with_dims(3, 3, |i, j| if i == j { 1.0 } else { 0.0 });
         let m1 = Mat::with_dims(3, 3, |i, j| if i == j { 1.0 } else { 0.0 });
-        // print!("{:?}", m0 + m1);
+        print!("{:?}", m0 + m1);
     }
     // #[test]
     // fn factor() {

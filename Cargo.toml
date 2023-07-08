@@ -6,11 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-faer-core     = "0.9.1"
-faer-lu       = "0.9.1"
-faer-qr       = "0.9.1"
-faer-cholesky = "0.9.1"
-faer-svd      = "0.9.1"
-
+faer-core = { git = "https://github.com/sarah-ek/faer-rs", rev="663f2e18aa4e6baf50667343f2cc519bc7043b40"}
 num-traits = "0.2.15"
 rustc-hash = "1.1.0"

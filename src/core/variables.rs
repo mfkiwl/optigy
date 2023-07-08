@@ -93,8 +93,6 @@ pub struct Variables<R>
 where
     R: RealField,
 {
-    val: Mat<R>,
-
     vars: (FxHashMap<Key, VarA<R>>, FxHashMap<Key, VarB<R>>),
 }
 
@@ -134,7 +132,6 @@ mod tests {
         vars_b.insert(Key(1), VarB { val: val_b });
 
         let mut variables = Variables::<f32> {
-            val: Mat::<Real>::new(),
             vars: (vars_a, vars_b),
         };
         variables
@@ -142,19 +139,19 @@ mod tests {
 
     #[test]
     fn factor_impl() {
-        struct E3Factor<E>
+        struct E3Factor<R>
         where
-            E: Entity,
+            R: RealField,
         {
-            orig: Mat<E>,
+            orig: Mat<R>,
         }
 
-        impl<E> Factor<E> for E3Factor<E>
+        impl<R> Factor<R> for E3Factor<R>
         where
-            E: RealField,
+            R: RealField,
         {
-            fn error(&self, variables: &Variables<E>) -> Mat<E> {
-                let v0: &VarA<E> = variables.at(self.keys()[0]);
+            fn error(&self, variables: &Variables<R>) -> Mat<R> {
+                let v0: &VarA<R> = variables.at(self.keys()[0]);
                 // let v1: &VarB<E> = variables.at(self.keys()[];
 
                 // let a = Mat::<E>::new();
@@ -162,12 +159,12 @@ mod tests {
 
                 // let c = a * b;
 
-                let e: Mat<E> = v0.val.clone() * self.orig.clone();
-                // e
-                todo!()
+                // let e: Mat<E> = v0.val.clone() * self.orig.clone();
+                let e = Mat::<R>::zeros(3, 1);
+                e
             }
 
-            fn jacobians(&self, variables: &Variables<E>) -> Vec<Mat<E>> {
+            fn jacobians(&self, variables: &Variables<R>) -> Vec<Mat<R>> {
                 todo!()
             }
 
@@ -179,7 +176,7 @@ mod tests {
                 vec![Key(0)]
             }
 
-            fn loss_function(&self) -> Option<&dyn crate::core::loss_function::LossFunction<E>> {
+            fn loss_function(&self) -> Option<&dyn crate::core::loss_function::LossFunction<R>> {
                 todo!()
             }
         }
