@@ -4,19 +4,25 @@ use crate::core::variable::Variable;
 use faer_core::{Entity, Mat};
 use rustc_hash::FxHashMap;
 #[derive(Debug, Clone)]
-struct VarA {
-    val: Mat<f32>,
+struct VarA<E>
+where
+    E: Entity,
+{
+    val: Mat<E>,
 }
 
-impl Variable<f32> for VarA {
-    fn local(&self, value: &Self) -> Mat<f32>
+impl<E> Variable<E> for VarA<E>
+where
+    E: Entity,
+{
+    fn local(&self, value: &Self) -> Mat<E>
     where
-        f32: Entity,
+        E: Entity,
     {
         todo!()
     }
 
-    fn retract(&mut self, delta: Mat<f32>)
+    fn retract(&mut self, delta: Mat<E>)
     where
         f32: Entity,
     {
@@ -28,19 +34,25 @@ impl Variable<f32> for VarA {
     }
 }
 #[derive(Debug, Clone)]
-struct VarB {
-    val: Mat<f32>,
+struct VarB<E>
+where
+    E: Entity,
+{
+    val: Mat<E>,
 }
 
-impl Variable<f32> for VarB {
-    fn local(&self, value: &Self) -> Mat<f32>
+impl<E> Variable<E> for VarB<E>
+where
+    E: Entity,
+{
+    fn local(&self, value: &Self) -> Mat<E>
     where
         f32: Entity,
     {
         todo!()
     }
 
-    fn retract(&mut self, delta: Mat<f32>)
+    fn retract(&mut self, delta: Mat<E>)
     where
         f32: Entity,
     {
@@ -54,24 +66,25 @@ impl Variable<f32> for VarB {
 
 trait VariableGetter<E, V>
 where
-    V: Variable<f32>,
+    V: Variable<E>,
+    E: Entity,
 {
     fn at(&self, key: Key) -> &V;
 }
 
-impl<E> VariableGetter<E, VarA> for Variables<E>
+impl<E> VariableGetter<E, VarA<E>> for Variables<E>
 where
     E: Entity,
 {
-    fn at(&self, key: Key) -> &VarA {
+    fn at(&self, key: Key) -> &VarA<E> {
         &self.vars.0.get(&key).unwrap()
     }
 }
-impl<E> VariableGetter<E, VarB> for Variables<E>
+impl<E> VariableGetter<E, VarB<E>> for Variables<E>
 where
     E: Entity,
 {
-    fn at(&self, key: Key) -> &VarB {
+    fn at(&self, key: Key) -> &VarB<E> {
         &self.vars.1.get(&key).unwrap()
     }
 }
@@ -82,7 +95,7 @@ where
 {
     val: Mat<E>,
 
-    vars: (FxHashMap<Key, VarA>, FxHashMap<Key, VarB>),
+    vars: (FxHashMap<Key, VarA<E>>, FxHashMap<Key, VarB<E>>),
 }
 
 impl<E> Variables<E>
@@ -120,9 +133,9 @@ mod tests {
             E: Entity,
         {
             fn error(&self, variables: &Variables<E>) -> Mat<E> {
-                let v: &VarA = variables.at(Key(0));
-                let v2: &VarB = variables.at(Key(0));
-                let v2: &VarA = variables.at(Key(0));
+                let v: &VarA<E> = variables.at(Key(0));
+                let v2: &VarB<E> = variables.at(Key(0));
+                let v2: &VarA<E> = variables.at(Key(0));
                 todo!()
             }
 
@@ -149,21 +162,22 @@ mod tests {
 
     #[test]
     fn variables_at() {
-        let mut vars_a: FxHashMap<Key, VarA> = FxHashMap::default();
-        let mut vars_b: FxHashMap<Key, VarB> = FxHashMap::default();
+        type Real = f32;
+        let mut vars_a: FxHashMap<Key, VarA<Real>> = FxHashMap::default();
+        let mut vars_b: FxHashMap<Key, VarB<Real>> = FxHashMap::default();
 
-        let val_a: Mat<f32> = mat![[0.1_f32, 0_f32], [1.0_f32, 2.0_f32]];
+        let val_a: Mat<Real> = mat![[0.1_f32, 0_f32], [1.0_f32, 2.0_f32]];
         vars_a.insert(Key(0), VarA { val: val_a });
 
-        let val_b: Mat<f32> = mat![[0.5_f32, 3_f32], [5.0_f32, 6.0_f32]];
-        vars_b.insert(Key(0), VarB { val: val_b });
+        let val_b: Mat<Real> = mat![[0.5_f32, 3_f32], [5.0_f32, 6.0_f32]];
+        vars_b.insert(Key(1), VarB { val: val_b });
 
         let variables = Variables::<f32> {
-            val: Mat::<f32>::new(),
+            val: Mat::<Real>::new(),
             vars: (vars_a, vars_b),
         };
-        let a: &VarA = variables.at(Key(0));
-        let b: &VarB = variables.at(Key(0));
+        let a: &VarA<Real> = variables.at(Key(0));
+        let b: &VarB<Real> = variables.at(Key(1));
         // print!("a {:?}", a.val);
         // print!("b {:?}", b.val);
     }
