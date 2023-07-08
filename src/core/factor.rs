@@ -1,27 +1,28 @@
 use crate::core::key::Key;
 use crate::core::loss_function::LossFunction;
 use crate::core::variables::Variables;
-use faer_core::{Entity, Mat};
+use faer_core::{Conjugate, Entity, Mat, RealField};
+use num_traits::Float;
 
-pub trait Factor<E>
+pub trait Factor<R>
 where
-    E: Entity,
+    R: RealField,
 {
     /// error function
     /// error vector dimension should meet dim()
-    fn error(&self, variables: &Variables<E>) -> Mat<E>;
+    fn error(&self, variables: &Variables<R>) -> Mat<R>;
 
     /// whiten error
-    fn weighted_error(&self, variables: &Variables<E>) -> Mat<E> {
+    fn weighted_error(&self, variables: &Variables<R>) -> Mat<R> {
         todo!()
     }
 
     /// jacobians function
     /// jacobians vector sequence meets key list, size error.dim x var.dim
-    fn jacobians(&self, variables: &Variables<E>) -> Vec<Mat<E>>;
+    fn jacobians(&self, variables: &Variables<R>) -> Vec<Mat<R>>;
 
     ///  whiten jacobian matrix
-    fn weighted_jacobians_error(&self, variables: &Variables<E>) -> (Vec<Mat<E>>, Mat<E>) {
+    fn weighted_jacobians_error(&self, variables: &Variables<R>) -> (Vec<Mat<R>>, Mat<R>) {
         todo!()
     }
 
@@ -37,5 +38,5 @@ where
     fn keys(&self) -> Vec<Key>;
 
     // const access of noisemodel
-    fn loss_function(&self) -> Option<&dyn LossFunction<E>>;
+    fn loss_function(&self) -> Option<&dyn LossFunction<R>>;
 }

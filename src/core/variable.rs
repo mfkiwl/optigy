@@ -1,17 +1,17 @@
-use faer_core::{Entity, Mat};
-pub trait Variable<E>
+use faer_core::{Mat, RealField};
+pub trait Variable<R>
 where
-    E: Entity,
+    R: RealField,
 {
     /// local coordinate
-    fn local(&self, value: &Self) -> Mat<E>
+    fn local(&self, value: &Self) -> Mat<R>
     where
-        E: Entity;
+        R: RealField;
 
     /// retract
-    fn retract(&mut self, delta: Mat<E>)
+    fn retract(&mut self, delta: Mat<R>)
     where
-        E: Entity;
+        R: RealField;
 
     fn dim(&self) -> usize;
 }
