@@ -40,7 +40,7 @@ pub struct VarB<R>
 where
     R: RealField,
 {
-    val: Mat<R>,
+    pub val: Mat<R>,
 }
 
 impl<R> Variable<R> for VarB<R>

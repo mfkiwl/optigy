@@ -13,9 +13,11 @@ where
     fn at(&self, key: Key) -> &V;
 }
 
-pub trait Variables<R>: VariableGetter<R, VarA<R>> + VariableGetter<R, VarB<R>>
+pub trait Variables<R, V0, V1>: VariableGetter<R, V0> + VariableGetter<R, V1>
 where
     R: RealField,
+    V0: Variable<R>,
+    V1: Variable<R>,
 {
     fn dim(&self) -> usize {
         todo!()
@@ -55,7 +57,7 @@ mod tests {
         // }
     }
 
-    impl<R> Variables<R> for SlamVariables<R>
+    impl<R> Variables<R, VarA<R>, VarB<R>> for SlamVariables<R>
     where
         R: RealField,
     {
@@ -105,19 +107,19 @@ mod tests {
             orig: Mat<R>,
         }
 
-        impl<R> Factor<R> for E3Factor<R>
+        impl<R> Factor<R, VarA<R>, VarB<R>> for E3Factor<R>
         where
             R: RealField,
         {
             fn error<Vs>(&self, variables: &Vs) -> Mat<R>
             where
-                Vs: Variables<R>,
+                Vs: Variables<R, VarA<R>, VarB<R>>,
             {
                 let v0: &VarA<R> = variables.at(Key(0));
                 let v1: &VarB<R> = variables.at(Key(1));
 
-                let e = Mat::<R>::zeros(4, 1);
-                let o = e.as_ref().subrows(0, 3);
+                // let e = Mat::<R>::zeros(4, 1);
+                // let o = e.as_ref().subrows(0, 3);
 
                 todo!()
             }
