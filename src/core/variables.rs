@@ -1,8 +1,11 @@
 use crate::core::factor::Factor;
 use crate::core::key::Key;
 use crate::core::variable::Variable;
+use crate::core::variable_ordering::VariableOrdering;
 use faer_core::{Conjugate, Entity, Mat, RealField};
 use rustc_hash::FxHashMap;
+
+use super::variable_ordering;
 #[derive(Debug, Clone)]
 struct VarA<R>
 where
@@ -100,16 +103,19 @@ impl<R> Variables<R>
 where
     R: RealField,
 {
-    // fn at<V>(&self, key: &Key) -> &V
-    // where
-    //     V: Variable<f32>,
-    // {
-    //     let a = <Variables<E> as VariableGetter<E, VarA>>::get(&self, &key);
-    //     // let a = self.get(&key).clone();
-    //     // let b = VariableGetter::<f32>::<VarB>::get(&self, &key).clone();
-    //     // a
-    //     todo!()
-    // }
+    fn dim(&self) -> usize {
+        todo!()
+    }
+
+    fn size(&self) -> usize {
+        todo!()
+    }
+
+    fn retract(&self, delta: &Mat<R>, variable_ordering: &VariableOrdering) {}
+
+    fn local(&self, variables: &Variables<R>, variable_ordering: &VariableOrdering) -> Mat<R> {
+        todo!()
+    }
 }
 
 #[cfg(test)]
