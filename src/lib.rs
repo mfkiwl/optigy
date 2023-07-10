@@ -1,6 +1,5 @@
 mod core;
 mod prelude;
-mod variables_impl;
 #[cfg(test)]
 mod tests {
     use super::prelude::{Factor, Key, LossFunction, Variable, Variables};

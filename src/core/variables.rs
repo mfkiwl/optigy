@@ -2,7 +2,6 @@ use crate::core::factor::Factor;
 use crate::core::key::Key;
 use crate::core::variable::Variable;
 use crate::core::variable_ordering::VariableOrdering;
-use crate::variables_impl::*;
 use faer_core::{Mat, RealField};
 use rustc_hash::FxHashMap;
 pub trait VariableGetter<R, V>
@@ -13,14 +12,38 @@ where
     fn at(&self, key: Key) -> &V;
 }
 
-pub trait Variables<R, V0, V1>: VariableGetter<R, V0> + VariableGetter<R, V1>
+pub trait Variables<R>
 where
     R: RealField,
-    V0: Variable<R>,
-    V1: Variable<R>,
 {
-    fn dim(&self) -> usize {
-        todo!()
+    /// dim (= A.cols)  
+    fn dim(&self) -> usize;
+
+    /// size
+    fn size(&self) -> usize;
+
+    fn retract(&mut self, delta: &Mat<R>, variable_ordering: &VariableOrdering);
+
+    fn local(variables: &Self, variable_ordering: &VariableOrdering) -> Mat<R>;
+}
+
+struct Comp<R>
+where
+    R: RealField,
+{
+    val: Mat<R>,
+}
+
+impl<R> Comp<R>
+where
+    R: RealField,
+{
+    fn err<F>(&self, f: &F, v: &F::Vs)
+    where
+        F: Factor<R>,
+    {
+        let a = v.dim();
+        let e = f.error(v);
     }
 }
 
@@ -30,6 +53,66 @@ mod tests {
     use super::*;
     use faer_core::{mat, Mat};
     use num_traits::Float;
+    #[derive(Debug, Clone)]
+    pub struct VarA<R>
+    where
+        R: RealField,
+    {
+        pub val: Mat<R>,
+    }
+
+    impl<R> Variable<R> for VarA<R>
+    where
+        R: RealField,
+    {
+        fn local(&self, value: &Self) -> Mat<R>
+        where
+            R: RealField,
+        {
+            todo!()
+        }
+
+        fn retract(&mut self, delta: Mat<R>)
+        where
+            R: RealField,
+        {
+            todo!()
+        }
+
+        fn dim(&self) -> usize {
+            todo!()
+        }
+    }
+    #[derive(Debug, Clone)]
+    pub struct VarB<R>
+    where
+        R: RealField,
+    {
+        pub val: Mat<R>,
+    }
+
+    impl<R> Variable<R> for VarB<R>
+    where
+        R: RealField,
+    {
+        fn local(&self, value: &Self) -> Mat<R>
+        where
+            R: RealField,
+        {
+            todo!()
+        }
+
+        fn retract(&mut self, delta: Mat<R>)
+        where
+            R: RealField,
+        {
+            todo!()
+        }
+
+        fn dim(&self) -> usize {
+            todo!()
+        }
+    }
 
     pub struct SlamVariables<R>
     where
@@ -57,11 +140,23 @@ mod tests {
         // }
     }
 
-    impl<R> Variables<R, VarA<R>, VarB<R>> for SlamVariables<R>
+    impl<R> Variables<R> for SlamVariables<R>
     where
         R: RealField,
     {
         fn dim(&self) -> usize {
+            todo!()
+        }
+
+        fn size(&self) -> usize {
+            todo!()
+        }
+
+        fn retract(&mut self, delta: &Mat<R>, variable_ordering: &VariableOrdering) {
+            todo!()
+        }
+
+        fn local(variables: &Self, variable_ordering: &VariableOrdering) -> Mat<R> {
             todo!()
         }
     }
@@ -107,24 +202,72 @@ mod tests {
             orig: Mat<R>,
         }
 
-        impl<R> Factor<R, VarA<R>, VarB<R>> for E3Factor<R>
+        impl<R> Factor<R> for E3Factor<R>
         where
             R: RealField,
         {
-            fn error<Vs>(&self, variables: &Vs) -> Mat<R>
-            where
-                Vs: Variables<R, VarA<R>, VarB<R>>,
-            {
+            type Vs = SlamVariables<R>;
+            fn error(&self, variables: &Self::Vs) -> Mat<R> {
                 let v0: &VarA<R> = variables.at(Key(0));
                 let v1: &VarB<R> = variables.at(Key(1));
+                let d = v0.val.clone() - v1.val.clone() + self.orig.clone();
+                d
+                // todo!()
+            }
 
-                // let e = Mat::<R>::zeros(4, 1);
-                // let o = e.as_ref().subrows(0, 3);
+            fn jacobians(&self, variables: &Self::Vs) -> Vec<Mat<R>> {
+                todo!()
+            }
 
+            fn dim(&self) -> usize {
+                todo!()
+            }
+
+            fn keys(&self) -> Vec<Key> {
+                todo!()
+            }
+
+            fn loss_function(&self) -> Option<&dyn crate::core::loss_function::LossFunction<R>> {
                 todo!()
             }
         }
 
+        struct E2Factor<R>
+        where
+            R: RealField,
+        {
+            orig: Mat<R>,
+        }
+
+        impl<R> Factor<R> for E2Factor<R>
+        where
+            R: RealField,
+        {
+            type Vs = SlamVariables<R>;
+            fn error(&self, variables: &Self::Vs) -> Mat<R> {
+                let v0: &VarA<R> = variables.at(Key(0));
+                let v1: &VarB<R> = variables.at(Key(1));
+                let d = v0.val.clone() - v1.val.clone() + self.orig.clone();
+                d
+                // todo!()
+            }
+
+            fn jacobians(&self, variables: &Self::Vs) -> Vec<Mat<R>> {
+                todo!()
+            }
+
+            fn dim(&self) -> usize {
+                todo!()
+            }
+
+            fn keys(&self) -> Vec<Key> {
+                todo!()
+            }
+
+            fn loss_function(&self) -> Option<&dyn crate::core::loss_function::LossFunction<R>> {
+                todo!()
+            }
+        }
         // impl<R, Vs> Factor<R, Vs> for E3Factor<R>
         // where
         // R: RealField,
@@ -164,9 +307,16 @@ mod tests {
 
         let orig = mat![[1.0, 2.0], [1.0, 1.0]];
 
-        let mut f = E3Factor::<Real> { orig };
+        let mut f = E3Factor::<Real> { orig: orig.clone() };
+        let mut f2 = E2Factor::<Real> { orig: orig.clone() };
 
         let e = f.error(&variables);
+
+        let cc = Comp::<Real> {
+            val: Mat::<Real>::zeros(1, 1),
+        };
+        cc.err(&f, &variables);
+        cc.err(&f2, &variables);
     }
     #[test]
     fn variables_at() {
