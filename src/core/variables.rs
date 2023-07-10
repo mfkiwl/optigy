@@ -20,7 +20,7 @@ where
     fn dim(&self) -> usize;
 
     /// size
-    fn size(&self) -> usize;
+    fn len(&self) -> usize;
 
     fn retract(&mut self, delta: &Mat<R>, variable_ordering: &VariableOrdering);
 
@@ -53,6 +53,7 @@ mod tests {
     use super::*;
     use faer_core::{mat, Mat};
     use num_traits::Float;
+    use seq_macro::seq;
     #[derive(Debug, Clone)]
     pub struct VarA<R>
     where
@@ -80,7 +81,7 @@ mod tests {
         }
 
         fn dim(&self) -> usize {
-            todo!()
+            3
         }
     }
     #[derive(Debug, Clone)]
@@ -110,7 +111,7 @@ mod tests {
         }
 
         fn dim(&self) -> usize {
-            todo!()
+            2
         }
     }
 
@@ -118,38 +119,35 @@ mod tests {
     where
         R: RealField,
     {
-        vars: (FxHashMap<Key, VarA<R>>, FxHashMap<Key, VarB<R>>),
+        keyvalues: (FxHashMap<Key, VarA<R>>, FxHashMap<Key, VarB<R>>),
     }
 
-    impl<R> SlamVariables<R>
-    where
-        R: RealField,
-    {
-        fn dim(&self) -> usize {
-            todo!()
-        }
-
-        fn size(&self) -> usize {
-            todo!()
-        }
-
-        // fn retract(&self, delta: &Mat<R>, variable_ordering: &VariableOrdering) {}
-
-        // fn local(&self, variables: &Variables<R>, variable_ordering: &VariableOrdering) -> Mat<R> {
-        // todo!()
-        // }
-    }
+    impl<R> SlamVariables<R> where R: RealField {}
 
     impl<R> Variables<R> for SlamVariables<R>
     where
         R: RealField,
     {
         fn dim(&self) -> usize {
-            todo!()
+            let mut d: usize = 0;
+            seq!(N in 0..2 {
+            d += self
+                    .keyvalues
+                    .N
+                    .values()
+                    .into_iter()
+                    .map(|f| f.dim())
+                    .sum::<usize>();
+                });
+            d
         }
 
-        fn size(&self) -> usize {
-            todo!()
+        fn len(&self) -> usize {
+            let mut l: usize = 0;
+            seq!(N in 0..2 {
+            l += self.keyvalues.N.len();
+                       });
+            l
         }
 
         fn retract(&mut self, delta: &Mat<R>, variable_ordering: &VariableOrdering) {
@@ -165,7 +163,7 @@ mod tests {
         R: RealField,
     {
         fn at(&self, key: Key) -> &VarA<R> {
-            &self.vars.0.get(&key).unwrap()
+            &self.keyvalues.0.get(&key).unwrap()
         }
     }
     impl<R> VariableGetter<R, VarB<R>> for SlamVariables<R>
@@ -173,7 +171,7 @@ mod tests {
         R: RealField,
     {
         fn at(&self, key: Key) -> &VarB<R> {
-            &self.vars.1.get(&key).unwrap()
+            &self.keyvalues.1.get(&key).unwrap()
         }
     }
     type Real = f32;
@@ -188,7 +186,7 @@ mod tests {
         vars_b.insert(Key(1), VarB { val: val_b });
 
         let mut variables = SlamVariables::<f32> {
-            vars: (vars_a, vars_b),
+            keyvalues: (vars_a, vars_b),
         };
         variables
     }
@@ -268,41 +266,6 @@ mod tests {
                 todo!()
             }
         }
-        // impl<R, Vs> Factor<R, Vs> for E3Factor<R>
-        // where
-        // R: RealField,
-        // Vs: Variable<R>,
-        // {
-        // fn error(&self, variables: &Vs) -> Mat<R> {
-        // let v0: &VarA<R> = variables.at(self.keys()[0]);
-        // let v1: &VarB<E> = variables.at(self.keys()[];
-
-        // let a = Mat::<E>::new();
-        // let b = Mat::<E>::new();
-
-        // let c = a * b;
-
-        // let e: Mat<E> = v0.val.clone() * self.orig.clone();
-        // let e = Mat::<R>::zeros(3, 1);
-        // e
-        // }
-
-        //         fn jacobians(&self, variables: &Variables<R>) -> Vec<Mat<R>> {
-        //             todo!()
-        //         }
-
-        //         fn dim(&self) -> usize {
-        //             3
-        //         }
-
-        //         fn keys(&self) -> Vec<Key> {
-        //             vec![Key(0)]
-        //         }
-
-        //         fn loss_function(&self) -> Option<&dyn crate::core::loss_function::LossFunction<R>> {
-        //             todo!()
-        //         }
-        // }
         let mut variables = create_variables();
 
         let orig = mat![[1.0, 2.0], [1.0, 1.0]];
@@ -317,6 +280,9 @@ mod tests {
         };
         cc.err(&f, &variables);
         cc.err(&f2, &variables);
+
+        assert_eq!(variables.dim(), 5);
+        assert_eq!(variables.len(), 2);
     }
     #[test]
     fn variables_at() {

@@ -9,3 +9,4 @@ edition = "2021"
 faer-core = { git = "https://github.com/sarah-ek/faer-rs", rev="663f2e18aa4e6baf50667343f2cc519bc7043b40"}
 num-traits = "0.2.15"
 rustc-hash = "1.1.0"
+seq-macro = "0.3.4"
