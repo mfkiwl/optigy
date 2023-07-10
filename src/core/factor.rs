@@ -32,12 +32,12 @@ where
     fn dim(&self) -> usize;
 
     /// size (number of variables connected)
-    fn size(&self) -> usize {
+    fn len(&self) -> usize {
         self.keys().len()
     }
 
     /// access of keys
-    fn keys(&self) -> Vec<Key>;
+    fn keys(&self) -> &Vec<Key>;
 
     // const access of noisemodel
     fn loss_function(&self) -> Option<&dyn LossFunction<R>>;

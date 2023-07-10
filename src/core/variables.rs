@@ -19,7 +19,7 @@ where
     /// dim (= A.cols)  
     fn dim(&self) -> usize;
 
-    /// size
+    /// len
     fn len(&self) -> usize;
 
     fn retract(&mut self, delta: &Mat<R>, variable_ordering: &VariableOrdering);
@@ -221,7 +221,7 @@ mod tests {
                 todo!()
             }
 
-            fn keys(&self) -> Vec<Key> {
+            fn keys(&self) -> &Vec<Key> {
                 todo!()
             }
 
@@ -258,7 +258,7 @@ mod tests {
                 todo!()
             }
 
-            fn keys(&self) -> Vec<Key> {
+            fn keys(&self) -> &Vec<Key> {
                 todo!()
             }
 
