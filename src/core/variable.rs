@@ -1,4 +1,4 @@
-use faer_core::{Mat, RealField};
+use faer_core::{Mat, MatRef, RealField};
 pub trait Variable<R>
 where
     R: RealField,
@@ -9,7 +9,7 @@ where
         R: RealField;
 
     /// retract
-    fn retract(&mut self, delta: Mat<R>)
+    fn retract(&mut self, delta: &MatRef<R>)
     where
         R: RealField;
 

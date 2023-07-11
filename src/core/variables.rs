@@ -27,32 +27,16 @@ where
     fn local(variables: &Self, variable_ordering: &VariableOrdering) -> Mat<R>;
 }
 
-struct Comp<R>
-where
-    R: RealField,
-{
-    val: Mat<R>,
-}
-
-impl<R> Comp<R>
-where
-    R: RealField,
-{
-    fn err<F>(&self, f: &F, v: &F::Vs)
-    where
-        F: Factor<R>,
-    {
-        let a = v.dim();
-        let e = f.error(v);
-    }
-}
-
 #[cfg(test)]
 mod tests {
 
+    use std::prelude::v1;
+
+    use crate::core::variable_ordering;
+
     use super::*;
-    use faer_core::{mat, Mat};
-    use num_traits::Float;
+    use faer_core::{mat, Mat, MatRef};
+
     use seq_macro::seq;
     #[derive(Debug, Clone)]
     pub struct VarA<R>
@@ -73,11 +57,11 @@ mod tests {
             todo!()
         }
 
-        fn retract(&mut self, delta: Mat<R>)
+        fn retract(&mut self, delta: &MatRef<R>)
         where
             R: RealField,
         {
-            todo!()
+            self.val = self.val.clone() + delta.to_owned();
         }
 
         fn dim(&self) -> usize {
@@ -103,7 +87,7 @@ mod tests {
             todo!()
         }
 
-        fn retract(&mut self, delta: Mat<R>)
+        fn retract(&mut self, delta: &MatRef<R>)
         where
             R: RealField,
         {
@@ -111,7 +95,7 @@ mod tests {
         }
 
         fn dim(&self) -> usize {
-            2
+            3
         }
     }
 
@@ -145,13 +129,30 @@ mod tests {
         fn len(&self) -> usize {
             let mut l: usize = 0;
             seq!(N in 0..2 {
-            l += self.keyvalues.N.len();
-                       });
+                l += self.keyvalues.N.len();
+            });
             l
         }
 
         fn retract(&mut self, delta: &Mat<R>, variable_ordering: &VariableOrdering) {
-            todo!()
+            let mut d: usize = 0;
+            let key = Key(0);
+
+            let mut found: bool = false;
+            seq!(N in 0..2 {
+            if !found {
+                match self.keyvalues.N.get_mut(&key) {
+                    Some(var) => {
+                        found = true;
+                        let vd = var.dim();
+                        let var_delta = delta.as_ref().subrows(d, vd);
+                        var.retract(&var_delta);
+                        d += vd;
+                    }
+                    None => {}
+                }
+            }
+            });
         }
 
         fn local(variables: &Self, variable_ordering: &VariableOrdering) -> Mat<R> {
@@ -174,18 +175,18 @@ mod tests {
             &self.keyvalues.1.get(&key).unwrap()
         }
     }
-    type Real = f32;
+    type Real = f64;
     fn create_variables() -> SlamVariables<Real> {
         let mut vars_a: FxHashMap<Key, VarA<Real>> = FxHashMap::default();
         let mut vars_b: FxHashMap<Key, VarB<Real>> = FxHashMap::default();
 
-        let val_a: Mat<Real> = mat![[0.1_f32, 0_f32], [1.0_f32, 2.0_f32]];
+        let val_a: Mat<Real> = Mat::<Real>::zeros(3, 1);
         vars_a.insert(Key(0), VarA { val: val_a });
 
-        let val_b: Mat<Real> = mat![[0.5_f32, 3_f32], [5.0_f32, 6.0_f32]];
+        let val_b: Mat<Real> = Mat::<Real>::zeros(3, 1);
         vars_b.insert(Key(1), VarB { val: val_b });
 
-        let mut variables = SlamVariables::<f32> {
+        let mut variables = SlamVariables::<Real> {
             keyvalues: (vars_a, vars_b),
         };
         variables
@@ -268,21 +269,22 @@ mod tests {
         }
         let mut variables = create_variables();
 
-        let orig = mat![[1.0, 2.0], [1.0, 1.0]];
+        let orig = Mat::<Real>::zeros(3, 1);
 
         let mut f = E3Factor::<Real> { orig: orig.clone() };
         let mut f2 = E2Factor::<Real> { orig: orig.clone() };
 
         let e = f.error(&variables);
 
-        let cc = Comp::<Real> {
-            val: Mat::<Real>::zeros(1, 1),
-        };
-        cc.err(&f, &variables);
-        cc.err(&f2, &variables);
-
-        assert_eq!(variables.dim(), 5);
+        assert_eq!(variables.dim(), 6);
         assert_eq!(variables.len(), 2);
+        let delta = mat![[1.0, 1.0, 1.0, 0.5, 0.5, 0.5]].transpose().to_owned();
+        let variable_ordering = VariableOrdering {};
+        variables.retract(&delta, &variable_ordering);
+        let v0: &VarA<Real> = variables.at(Key(0));
+        let v1: &VarB<Real> = variables.at(Key(1));
+        assert_eq!(v0.val, mat![[1.0], [1.0], [1.0]]);
+        assert_eq!(v1.val, mat![[1.0], [1.0], [1.0]]);
     }
     #[test]
     fn variables_at() {
