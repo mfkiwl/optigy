@@ -18,13 +18,11 @@ where
 {
     /// dim (= A.cols)  
     fn dim(&self) -> usize;
-
     /// len
     fn len(&self) -> usize;
-
     fn retract(&mut self, delta: &Mat<R>, variable_ordering: &VariableOrdering);
-
-    fn local(variables: &Self, variable_ordering: &VariableOrdering) -> Mat<R>;
+    fn local(&self, variables: &Self, variable_ordering: &VariableOrdering) -> Mat<R>;
+    fn default_variable_ordering(&self) -> VariableOrdering;
 }
 
 #[cfg(test)]
@@ -91,7 +89,7 @@ mod tests {
         where
             R: RealField,
         {
-            todo!()
+            self.val = self.val.clone() + delta.to_owned();
         }
 
         fn dim(&self) -> usize {
@@ -136,27 +134,37 @@ mod tests {
 
         fn retract(&mut self, delta: &Mat<R>, variable_ordering: &VariableOrdering) {
             let mut d: usize = 0;
-            let key = Key(0);
+            for i in 0..variable_ordering.len() {
+                let key = variable_ordering.key(i);
 
-            let mut found: bool = false;
-            seq!(N in 0..2 {
-            if !found {
-                match self.keyvalues.N.get_mut(&key) {
-                    Some(var) => {
-                        found = true;
-                        let vd = var.dim();
-                        let var_delta = delta.as_ref().subrows(d, vd);
-                        var.retract(&var_delta);
-                        d += vd;
+                let mut found: bool = false;
+                seq!(N in 0..2 {
+                if !found {
+                    match self.keyvalues.N.get_mut(&key) {
+                        Some(var) => {
+                            found = true;
+                            let vd = var.dim();
+                            let var_delta = delta.as_ref().subrows(d, vd);
+                            var.retract(&var_delta);
+                            d += vd;
+                        }
+                        None => {}
                     }
-                    None => {}
                 }
+                });
             }
-            });
         }
 
-        fn local(variables: &Self, variable_ordering: &VariableOrdering) -> Mat<R> {
+        fn local(&self, variables: &Self, variable_ordering: &VariableOrdering) -> Mat<R> {
             todo!()
+        }
+
+        fn default_variable_ordering(&self) -> VariableOrdering {
+            let mut ordering_list: Vec<Key> = Vec::new();
+            seq!(N in 0..2 {
+            ordering_list.extend(self.keyvalues.N.keys().map(|k| *k));
+            });
+            VariableOrdering::new(&ordering_list)
         }
     }
     impl<R> VariableGetter<R, VarA<R>> for SlamVariables<R>
@@ -279,12 +287,16 @@ mod tests {
         assert_eq!(variables.dim(), 6);
         assert_eq!(variables.len(), 2);
         let delta = mat![[1.0, 1.0, 1.0, 0.5, 0.5, 0.5]].transpose().to_owned();
-        let variable_ordering = VariableOrdering {};
+        let variable_ordering = variables.default_variable_ordering();
         variables.retract(&delta, &variable_ordering);
         let v0: &VarA<Real> = variables.at(Key(0));
         let v1: &VarB<Real> = variables.at(Key(1));
+        println!("ordering 0 {:?}", variable_ordering.key(0));
+        println!("ordering 1 {:?}", variable_ordering.key(1));
+        println!("ordering len {:?}", variable_ordering.len());
+        println!("ordering keys {:?}", variable_ordering.keys());
         assert_eq!(v0.val, mat![[1.0], [1.0], [1.0]]);
-        assert_eq!(v1.val, mat![[1.0], [1.0], [1.0]]);
+        assert_eq!(v1.val, mat![[0.5], [0.5], [0.5]]);
     }
     #[test]
     fn variables_at() {
