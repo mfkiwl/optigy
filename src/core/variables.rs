@@ -1,9 +1,7 @@
-use crate::core::factor::Factor;
 use crate::core::key::Key;
 use crate::core::variable::Variable;
 use crate::core::variable_ordering::VariableOrdering;
 use faer_core::{Mat, RealField};
-use rustc_hash::FxHashMap;
 pub trait VariableGetter<R, V>
 where
     V: Variable<R>,
@@ -12,6 +10,13 @@ where
     fn at(&self, key: Key) -> &V;
 }
 
+pub trait VariableAdder<R, V>
+where
+    V: Variable<R>,
+    R: RealField,
+{
+    fn add(&mut self, key: Key, var: V);
+}
 pub trait Variables<R>
 where
     R: RealField,
@@ -30,10 +35,11 @@ mod tests {
 
     use std::prelude::v1;
 
-    use crate::core::variable_ordering;
-
     use super::*;
+    use crate::core::factor::Factor;
+    use crate::core::variable_ordering;
     use faer_core::{mat, Mat, MatRef};
+    use hashbrown::HashMap;
 
     use seq_macro::seq;
     #[derive(Debug, Clone)]
@@ -101,7 +107,7 @@ mod tests {
     where
         R: RealField,
     {
-        keyvalues: (FxHashMap<Key, VarA<R>>, FxHashMap<Key, VarB<R>>),
+        keyvalues: (HashMap<Key, VarA<R>>, HashMap<Key, VarB<R>>),
     }
 
     impl<R> SlamVariables<R> where R: RealField {}
@@ -167,6 +173,15 @@ mod tests {
             VariableOrdering::new(&ordering_list)
         }
     }
+    impl<R> VariableAdder<R, VarA<R>> for SlamVariables<R>
+    where
+        R: RealField,
+    {
+        fn add(&mut self, key: Key, var: VarA<R>) {
+            self.keyvalues.0.insert(key, var);
+        }
+    }
+
     impl<R> VariableGetter<R, VarA<R>> for SlamVariables<R>
     where
         R: RealField,
@@ -185,11 +200,11 @@ mod tests {
     }
     type Real = f64;
     fn create_variables() -> SlamVariables<Real> {
-        let mut vars_a: FxHashMap<Key, VarA<Real>> = FxHashMap::default();
-        let mut vars_b: FxHashMap<Key, VarB<Real>> = FxHashMap::default();
+        let mut vars_a: HashMap<Key, VarA<Real>> = HashMap::default();
+        let mut vars_b: HashMap<Key, VarB<Real>> = HashMap::default();
 
         let val_a: Mat<Real> = Mat::<Real>::zeros(3, 1);
-        vars_a.insert(Key(0), VarA { val: val_a });
+        vars_a.insert(Key(0), VarA { val: val_a.clone() });
 
         let val_b: Mat<Real> = Mat::<Real>::zeros(3, 1);
         vars_b.insert(Key(1), VarB { val: val_b });
@@ -197,6 +212,7 @@ mod tests {
         let mut variables = SlamVariables::<Real> {
             keyvalues: (vars_a, vars_b),
         };
+        variables.add(Key(0), VarA { val: val_a.clone() });
         variables
     }
 

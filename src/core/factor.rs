@@ -25,7 +25,8 @@ where
 
     ///  whiten jacobian matrix
     fn weighted_jacobians_error(&self, variables: &Self::Vs) -> (Vec<Mat<R>>, Mat<R>) {
-        todo!()
+        let mut pair = (self.jacobians(variables), self.error(variables));
+        pair
     }
 
     /// error dimension is dim of noisemodel
