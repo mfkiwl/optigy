@@ -60,7 +60,7 @@ where
     R: RealField,
     F: Factor<R>,
 {
-    fn from_factor(factor: F, variables: &F::Vs) -> Self;
+    fn from_factor(factor: F) -> Self;
 }
 impl<R, F> Factor<R> for FactorWrapper<R, F>
 where
@@ -95,7 +95,7 @@ where
     R: RealField,
     F: Factor<R>,
 {
-    fn from_factor(factor: F, variables: &F::Vs) -> Self {
+    fn from_factor(factor: F) -> Self {
         Self {
             internal: factor,
             phantom: PhantomData {},

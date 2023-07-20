@@ -337,12 +337,44 @@ mod tests {
         let mut f0 = E3Factor::<Real> { orig: orig.clone() };
         let mut f1 = E2Factor::<Real> { orig: orig.clone() };
 
+        struct Graph<R>
+        where
+            R: RealField,
+        {
+            f0_vec: Vec<E2Factor<R>>,
+            f1_vec: Vec<E3Factor<R>>,
+            // phantom: PhantomData<FV>,
+        }
+        impl<R> Graph<R>
+        where
+            R: RealField,
+        {
+            fn get(&self, index: usize) -> FactorWrapper<R, Factors<R>> {
+                if index == 0 {
+                    return FactorWrapper::from_factor(Factors::F0(&self.f0_vec[0]));
+                } else {
+                    return FactorWrapper::from_factor(Factors::F1(&self.f1_vec[0]));
+                }
+            }
+        }
+
         let e = f0.error(&variables);
-        let w0 = FactorWrapper::from_factor(Factors::<Real>::F1(&f0), &variables);
-        let w1 = FactorWrapper::from_factor(Factors::<Real>::F0(&f1), &variables);
+        let w0 = FactorWrapper::from_factor(Factors::F1(&f0));
+        let w1 = FactorWrapper::from_factor(Factors::F0(&f1));
         let d0 = w0.dim();
         // let d1 = w0.jacobians(&variables);
         let dx0 = w1.dim();
+
+        let graph = Graph::<Real> {
+            f0_vec: Vec::new(),
+            f1_vec: Vec::new(),
+        };
+        let f_vec = vec![graph.get(0), graph.get(1)];
+
+        for f in f_vec {
+            f.dim();
+            print!("f.dim {}", f.dim());
+        }
 
         assert_eq!(w0.dim(), 3);
         assert_eq!(w1.dim(), 2);
