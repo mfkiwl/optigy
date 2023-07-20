@@ -2,6 +2,7 @@ use crate::core::key::Key;
 use crate::core::variable::Variable;
 use crate::core::variable_ordering::VariableOrdering;
 use faer_core::{Mat, RealField};
+use std::marker::PhantomData;
 pub trait VariableGetter<R, V>
 where
     V: Variable<R>,
@@ -33,13 +34,12 @@ where
 #[cfg(test)]
 mod tests {
 
-    use std::prelude::v1;
-
     use super::*;
-    use crate::core::factor::Factor;
-    use crate::core::variable_ordering;
+    use crate::core::factor::{Factor, FactorWrapper, FromFactor};
+    use color_eyre::eyre::Result;
     use faer_core::{mat, Mat, MatRef};
     use hashbrown::HashMap;
+    use std::prelude::v1;
 
     use seq_macro::seq;
     #[derive(Debug, Clone)]
@@ -217,7 +217,8 @@ mod tests {
     }
 
     #[test]
-    fn factor_impl() {
+    fn factor_impl() -> Result<()> {
+        color_eyre::install()?;
         struct E3Factor<R>
         where
             R: RealField,
@@ -243,7 +244,7 @@ mod tests {
             }
 
             fn dim(&self) -> usize {
-                todo!()
+                3
             }
 
             fn keys(&self) -> &Vec<Key> {
@@ -280,7 +281,7 @@ mod tests {
             }
 
             fn dim(&self) -> usize {
-                todo!()
+                2
             }
 
             fn keys(&self) -> &Vec<Key> {
@@ -291,15 +292,60 @@ mod tests {
                 todo!()
             }
         }
+        enum Factors<'a, R>
+        where
+            R: RealField,
+        {
+            F0(&'a E2Factor<R>),
+            F1(&'a E3Factor<R>),
+        }
+
+        impl<'a, R> Factor<R> for Factors<'a, R>
+        where
+            R: RealField,
+        {
+            type Vs = SlamVariables<R>;
+
+            fn error(&self, variables: &Self::Vs) -> Mat<R> {
+                todo!()
+            }
+
+            fn jacobians(&self, variables: &Self::Vs) -> Vec<Mat<R>> {
+                todo!()
+            }
+
+            fn dim(&self) -> usize {
+                match self {
+                    Factors::F0(f) => f.dim(),
+                    Factors::F1(f) => f.dim(),
+                }
+            }
+
+            fn keys(&self) -> &Vec<Key> {
+                todo!()
+            }
+
+            fn loss_function(&self) -> Option<&dyn crate::core::loss_function::LossFunction<R>> {
+                todo!()
+            }
+        }
+
         let mut variables = create_variables();
 
         let orig = Mat::<Real>::zeros(3, 1);
 
-        let mut f = E3Factor::<Real> { orig: orig.clone() };
-        let mut f2 = E2Factor::<Real> { orig: orig.clone() };
+        let mut f0 = E3Factor::<Real> { orig: orig.clone() };
+        let mut f1 = E2Factor::<Real> { orig: orig.clone() };
 
-        let e = f.error(&variables);
+        let e = f0.error(&variables);
+        let w0 = FactorWrapper::from_factor(Factors::<Real>::F1(&f0), &variables);
+        let w1 = FactorWrapper::from_factor(Factors::<Real>::F0(&f1), &variables);
+        let d0 = w0.dim();
+        // let d1 = w0.jacobians(&variables);
+        let dx0 = w1.dim();
 
+        assert_eq!(w0.dim(), 3);
+        assert_eq!(w1.dim(), 2);
         assert_eq!(variables.dim(), 6);
         assert_eq!(variables.len(), 2);
         let delta = mat![[1.0, 1.0, 1.0, 0.5, 0.5, 0.5]].transpose().to_owned();
@@ -313,6 +359,7 @@ mod tests {
         println!("ordering keys {:?}", variable_ordering.keys());
         assert_eq!(v0.val, mat![[1.0], [1.0], [1.0]]);
         assert_eq!(v1.val, mat![[0.5], [0.5], [0.5]]);
+        Ok(())
     }
     #[test]
     fn variables_at() {

@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use crate::core::key::Key;
 use crate::core::loss_function::LossFunction;
 use crate::core::variable::Variable;
@@ -42,4 +44,61 @@ where
 
     // const access of noisemodel
     fn loss_function(&self) -> Option<&dyn LossFunction<R>>;
+}
+
+pub struct FactorWrapper<R, F>
+where
+    R: RealField,
+    F: Factor<R>,
+{
+    internal: F,
+    phantom: PhantomData<R>,
+}
+
+pub trait FromFactor<R, F>
+where
+    R: RealField,
+    F: Factor<R>,
+{
+    fn from_factor(factor: F, variables: &F::Vs) -> Self;
+}
+impl<R, F> Factor<R> for FactorWrapper<R, F>
+where
+    R: RealField,
+    F: Factor<R>,
+{
+    type Vs = F::Vs;
+
+    fn error(&self, variables: &Self::Vs) -> Mat<R> {
+        todo!()
+    }
+
+    fn jacobians(&self, variables: &Self::Vs) -> Vec<Mat<R>> {
+        todo!()
+    }
+
+    fn dim(&self) -> usize {
+        self.internal.dim()
+    }
+
+    fn keys(&self) -> &Vec<Key> {
+        todo!()
+    }
+
+    fn loss_function(&self) -> Option<&dyn crate::core::loss_function::LossFunction<R>> {
+        todo!()
+    }
+}
+
+impl<R, F> FromFactor<R, F> for FactorWrapper<R, F>
+where
+    R: RealField,
+    F: Factor<R>,
+{
+    fn from_factor(factor: F, variables: &F::Vs) -> Self {
+        Self {
+            internal: factor,
+            phantom: PhantomData {},
+        }
+    }
 }
