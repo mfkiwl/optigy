@@ -1,3 +1,4 @@
+use crate::core::factor_graph::FactorGraph;
 use crate::core::key::Key;
 use crate::core::variable::Variable;
 use crate::core::variable_ordering::VariableOrdering;
@@ -37,6 +38,7 @@ mod tests {
     use super::*;
     use crate::core::factor::{Factor, FactorWrapper, FromFactor};
     use color_eyre::eyre::Result;
+    use core::panic;
     use faer_core::{mat, Mat, MatRef};
     use hashbrown::HashMap;
     use std::prelude::v1;
@@ -292,7 +294,7 @@ mod tests {
                 todo!()
             }
         }
-        enum Factors<'a, R>
+        enum FactorVariant<'a, R>
         where
             R: RealField,
         {
@@ -300,7 +302,7 @@ mod tests {
             F1(&'a E3Factor<R>),
         }
 
-        impl<'a, R> Factor<R> for Factors<'a, R>
+        impl<'a, R> Factor<R> for FactorVariant<'a, R>
         where
             R: RealField,
         {
@@ -316,8 +318,8 @@ mod tests {
 
             fn dim(&self) -> usize {
                 match self {
-                    Factors::F0(f) => f.dim(),
-                    Factors::F1(f) => f.dim(),
+                    FactorVariant::F0(f) => f.dim(),
+                    FactorVariant::F1(f) => f.dim(),
                 }
             }
 
@@ -337,30 +339,72 @@ mod tests {
         let mut f0 = E3Factor::<Real> { orig: orig.clone() };
         let mut f1 = E2Factor::<Real> { orig: orig.clone() };
 
+        struct MatComp<FG, R>
+        where
+            FG: FactorGraph<R>,
+            R: RealField,
+        {
+            phantom: PhantomData<FG>,
+            phantom2: PhantomData<R>,
+        }
+        impl<FG, R> MatComp<FG, R>
+        where
+            R: RealField,
+            FG: FactorGraph<R>,
+        {
+            fn comt(&self, graph: &FG) {
+                let f0 = graph.get(0);
+            }
+        }
         struct Graph<R>
         where
             R: RealField,
         {
             f0_vec: Vec<E2Factor<R>>,
             f1_vec: Vec<E3Factor<R>>,
-            // phantom: PhantomData<FV>,
+            // phantom: PhantomData<'a>,
         }
-        impl<R> Graph<R>
+        impl<R> FactorGraph<R> for Graph<R>
         where
             R: RealField,
         {
-            fn get(&self, index: usize) -> FactorWrapper<R, Factors<R>> {
+            type FV<'a> = FactorVariant<'a, R>;
+            type VS = SlamVariables<R>;
+
+            fn get<'a>(&'a self, index: usize) -> FactorWrapper<R, Self::FV<'a>> {
                 if index == 0 {
-                    return FactorWrapper::from_factor(Factors::F0(&self.f0_vec[0]));
+                    FactorWrapper::from_factor(FactorVariant::F0(&self.f0_vec[0]))
                 } else {
-                    return FactorWrapper::from_factor(Factors::F1(&self.f1_vec[0]));
+                    FactorWrapper::from_factor(FactorVariant::F1(&self.f1_vec[0]))
                 }
+            }
+
+            fn len(&self) -> usize {
+                todo!()
+            }
+
+            fn dim(&self) -> usize {
+                todo!()
+            }
+
+            fn error(&self, variables: &Self::VS) -> Mat<R>
+            where
+                R: RealField,
+            {
+                todo!()
+            }
+
+            fn error_squared_norm(&self, variables: &Self::VS) -> R
+            where
+                R: RealField,
+            {
+                todo!()
             }
         }
 
         let e = f0.error(&variables);
-        let w0 = FactorWrapper::from_factor(Factors::F1(&f0));
-        let w1 = FactorWrapper::from_factor(Factors::F0(&f1));
+        let w0 = FactorWrapper::from_factor(FactorVariant::F1(&f0));
+        let w1 = FactorWrapper::from_factor(FactorVariant::F0(&f1));
         let d0 = w0.dim();
         // let d1 = w0.jacobians(&variables);
         let dx0 = w1.dim();
@@ -375,6 +419,13 @@ mod tests {
             f.dim();
             print!("f.dim {}", f.dim());
         }
+
+        let mc = MatComp {
+            phantom: PhantomData,
+            phantom2: PhantomData,
+        };
+
+        mc.comt(&graph);
 
         assert_eq!(w0.dim(), 3);
         assert_eq!(w1.dim(), 2);
