@@ -7,28 +7,31 @@ use crate::core::variables::Variables;
 use faer_core::{Conjugate, Entity, Mat, RealField};
 use num_traits::Float;
 
-pub trait Factor<R>
+pub trait Factor<R, VS>
 where
     R: RealField,
+    VS: Variables<R>,
 {
-    type Vs: Variables<R>;
+    // type VS: Variables<R>;
+    type LF: LossFunction<R>;
     /// error function
     /// error vector dimension should meet dim()
-    fn error(&self, variables: &Self::Vs) -> Mat<R>;
+    fn error(&self, variables: &VS) -> Mat<R>;
 
     /// whiten error
-    fn weighted_error(&self, variables: &Self::Vs) -> Mat<R> {
+    fn weighted_error(&self, variables: &VS) -> Mat<R> {
         todo!()
     }
 
     /// jacobians function
     /// jacobians vector sequence meets key list, size error.dim x var.dim
-    fn jacobians(&self, variables: &Self::Vs) -> Vec<Mat<R>>;
+    fn jacobians(&self, variables: &VS) -> Vec<Mat<R>>;
 
     ///  whiten jacobian matrix
-    fn weighted_jacobians_error(&self, variables: &Self::Vs) -> (Vec<Mat<R>>, Mat<R>) {
-        let mut pair = (self.jacobians(variables), self.error(variables));
-        pair
+    fn weighted_jacobians_error(&self, variables: &VS) -> (Vec<Mat<R>>, Mat<R>) {
+        // let mut pair = (self.jacobians(variables), self.error(variables));
+        // pair
+        todo!()
     }
 
     /// error dimension is dim of noisemodel
@@ -43,62 +46,67 @@ where
     fn keys(&self) -> &Vec<Key>;
 
     // const access of noisemodel
-    fn loss_function(&self) -> Option<&dyn LossFunction<R>>;
+    // fn loss_function(&self) -> Option<&Self::LF>;
 }
 
-pub struct FactorWrapper<R, F>
-where
-    R: RealField,
-    F: Factor<R>,
-{
-    internal: F,
-    phantom: PhantomData<R>,
-}
+// pub struct FactorWrapper<R, F, VS>
+// where
+//     R: RealField,
+//     F: Factor<R, VS>,
+//     VS: Variables<R>,
+// {
+//     internal: F,
+//     phantom: PhantomData<R>,
+//     phantom2: PhantomData<VS>,
+// }
 
-pub trait FromFactor<R, F>
-where
-    R: RealField,
-    F: Factor<R>,
-{
-    fn from_factor(factor: F) -> Self;
-}
-impl<R, F> Factor<R> for FactorWrapper<R, F>
-where
-    R: RealField,
-    F: Factor<R>,
-{
-    type Vs = F::Vs;
+// pub trait FromFactor<R, F, VS>
+// where
+//     R: RealField,
+//     F: Factor<R, VS>,
+//     VS: Variables<R>,
+// {
+//     fn from_factor(factor: F) -> Self;
+// }
+// impl<R, F, VS> Factor<R, VS> for FactorWrapper<R, F, VS>
+// where
+//     R: RealField,
+//     F: Factor<R, VS>,
+//     VS: Variables<R>,
+// {
+//     type LF = F::LF;
 
-    fn error(&self, variables: &Self::Vs) -> Mat<R> {
-        todo!()
-    }
+//     fn error(&self, variables: &VS) -> Mat<R> {
+//         todo!()
+//     }
 
-    fn jacobians(&self, variables: &Self::Vs) -> Vec<Mat<R>> {
-        todo!()
-    }
+//     fn jacobians(&self, variables: &VS) -> Vec<Mat<R>> {
+//         todo!()
+//     }
 
-    fn dim(&self) -> usize {
-        self.internal.dim()
-    }
+//     fn dim(&self) -> usize {
+//         self.internal.dim()
+//     }
 
-    fn keys(&self) -> &Vec<Key> {
-        todo!()
-    }
+//     fn keys(&self) -> &Vec<Key> {
+//         todo!()
+//     }
 
-    fn loss_function(&self) -> Option<&dyn crate::core::loss_function::LossFunction<R>> {
-        todo!()
-    }
-}
+//     // fn loss_function(&self) -> Option<&Self::LF> {
+//     //     todo!()
+//     // }
+// }
 
-impl<R, F> FromFactor<R, F> for FactorWrapper<R, F>
-where
-    R: RealField,
-    F: Factor<R>,
-{
-    fn from_factor(factor: F) -> Self {
-        Self {
-            internal: factor,
-            phantom: PhantomData {},
-        }
-    }
-}
+// impl<R, F, VS> FromFactor<R, F, VS> for FactorWrapper<R, F, VS>
+// where
+//     R: RealField,
+//     F: Factor<R, VS>,
+//     VS: Variables<R>,
+// {
+//     fn from_factor(factor: F) -> Self {
+//         Self {
+//             internal: factor,
+//             phantom: PhantomData {},
+//         }
+//     }
+// }
