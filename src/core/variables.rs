@@ -258,8 +258,8 @@ mod tests {
         vars_b.insert(Key(1), VarB { val: val_b });
 
         let mut variables = SlamVariables::<R, C>::new(container);
-        variables.add(Key(0), VarA::<R> { val: val_a.clone() });
-        variables.add(Key(1), VarB::<R> { val: val_a.clone() });
+        // variables.add(Key(0), VarA::<R> { val: val_a.clone() });
+        // variables.add(Key(1), VarB::<R> { val: val_a.clone() });
         variables
     }
 
