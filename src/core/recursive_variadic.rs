@@ -221,7 +221,6 @@ mod tests {
                 .and_default::<VarC>()
                 .and_default::<Vec<f32>>()
                 .and_default::<Vec<i32>>()
-                .and_default::<HashMap<i32, f32>>()
                 .and_default::<HashMap<i32, f32>>();
 
         // thing.get_mut::<usize>().unwrap().push(1);

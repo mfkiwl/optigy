@@ -2,8 +2,14 @@ use crate::core::factor_graph::FactorGraph;
 use crate::core::key::Key;
 use crate::core::variable::Variable;
 use crate::core::variable_ordering::VariableOrdering;
+use crate::core::variables_container::{
+    get_variable, get_variable_mut, VariableVariantGuard, VariablesContainer,
+};
 use faer_core::{Mat, RealField};
 use std::marker::PhantomData;
+
+use super::recursive_variadic::VariadicKey;
+
 pub trait VariableGetter<R, V>
 where
     V: Variable<R>,
@@ -30,7 +36,7 @@ where
     fn retract(&mut self, delta: &Mat<R>, variable_ordering: &VariableOrdering);
     fn local(&self, variables: &Self, variable_ordering: &VariableOrdering) -> Mat<R>;
     fn default_variable_ordering(&self) -> VariableOrdering;
-    fn at<V>(&self, key: Key) -> &V
+    fn at<V>(&self, key: Key) -> Option<&V>
     where
         V: Variable<R> + 'static;
     fn add<V>(&mut self, key: Key, var: V)
@@ -38,6 +44,111 @@ where
         V: Variable<R> + 'static;
 }
 
+pub struct GraphVariables<'a, R, C, VV>
+where
+    R: RealField,
+    C: VariablesContainer<'a, R>,
+    VV: VariableVariantGuard<R>,
+{
+    // keyvalues: (HashMap<Key, VarA<R>>, HashMap<Key, VarB<R>>),
+    container: C,
+    phantom: PhantomData<&'a R>,
+    phantom2: PhantomData<&'a VV>,
+}
+
+impl<'a, R, C, VV> GraphVariables<'a, R, C, VV>
+where
+    R: RealField,
+    C: VariablesContainer<'a, R>,
+    VV: VariableVariantGuard<R>,
+{
+    fn new(container: C) -> Self {
+        GraphVariables::<R, C, VV> {
+            container,
+            phantom: PhantomData,
+            phantom2: PhantomData,
+        }
+    }
+}
+
+impl<'a, R, C, VV> Variables<R> for GraphVariables<'a, R, C, VV>
+where
+    R: RealField,
+    C: VariablesContainer<'a, R>,
+    VV: VariableVariantGuard<R> + 'a,
+{
+    fn dim(&self) -> usize {
+        let mut d: usize = 0;
+        self.container.iterate(|x: &'a VV| println!("--"));
+        // seq!(N in 0..2 {
+        // d += self
+        //         .keyvalues
+        //         .N
+        //         .values()
+        //         .into_iter()
+        //         .map(|f| f.dim())
+        //         .sum::<usize>();
+        //     });
+        d
+    }
+
+    fn len(&self) -> usize {
+        let mut l: usize = 0;
+        // seq!(N in 0..2 {
+        //     l += self.keyvalues.N.len();
+        // });
+        l
+    }
+
+    fn retract(&mut self, delta: &Mat<R>, variable_ordering: &VariableOrdering) {
+        let mut d: usize = 0;
+        for i in 0..variable_ordering.len() {
+            let key = variable_ordering.key(i);
+
+            let mut found: bool = false;
+            // seq!(N in 0..2 {
+            // if !found {
+            //     match self.keyvalues.N.get_mut(&key) {
+            //         Some(var) => {
+            //             found = true;
+            //             let vd = var.dim();
+            //             let var_delta = delta.as_ref().subrows(d, vd);
+            //             var.retract(&var_delta);
+            //             d += vd;
+            //         }
+            //         None => {}
+            //     }
+            // }
+            // });
+        }
+    }
+
+    fn local(&self, variables: &Self, variable_ordering: &VariableOrdering) -> Mat<R> {
+        todo!()
+    }
+
+    fn default_variable_ordering(&self) -> VariableOrdering {
+        let mut ordering_list: Vec<Key> = Vec::new();
+        // seq!(N in 0..2 {
+        // ordering_list.extend(self.keyvalues.N.keys().map(|k| *k));
+        // });
+        VariableOrdering::new(&ordering_list)
+    }
+
+    fn at<V>(&self, key: Key) -> Option<&V>
+    where
+        V: Variable<R> + 'static,
+    {
+        get_variable(&self.container, key)
+    }
+
+    fn add<V>(&mut self, key: Key, var: V)
+    where
+        V: Variable<R> + 'static,
+    {
+        self.container.get_mut::<V>().unwrap().insert(key, var);
+    }
+}
 #[cfg(test)]
 mod tests {
 
@@ -45,10 +156,10 @@ mod tests {
     // use crate::core::factor::{Factor, FactorWrapper, FromFactor};
     use crate::core::factor::Factor;
     use crate::core::loss_function::{GaussianLoss, LossFunction};
-    use crate::core::recursive_variadic::{
-        get_map_elem, get_map_elem_mut, get_vec_elem, get_vec_elem_mut, RecursiveVariadic,
+    // use color_eyre::eyre::Result;
+    use crate::core::variables_container::{
+        VariableVariantGuard, VariableWrap, VariableWrapper, VariablesKey,
     };
-    use color_eyre::eyre::Result;
     use core::panic;
     use faer_core::{mat, Mat, MatRef};
     use hashbrown::HashMap;
@@ -115,108 +226,6 @@ mod tests {
         }
     }
 
-    pub struct SlamVariables<R, C>
-    where
-        R: RealField,
-        C: RecursiveVariadic,
-    {
-        // keyvalues: (HashMap<Key, VarA<R>>, HashMap<Key, VarB<R>>),
-        container: C,
-        phantom: PhantomData<R>,
-    }
-
-    impl<'a, R, C> SlamVariables<R, C>
-    where
-        R: RealField,
-        C: RecursiveVariadic,
-    {
-        fn new(container: C) -> Self {
-            SlamVariables::<R, C> {
-                container,
-                phantom: PhantomData,
-            }
-        }
-    }
-
-    impl<R, C> Variables<R> for SlamVariables<R, C>
-    where
-        R: RealField,
-        C: RecursiveVariadic,
-    {
-        fn dim(&self) -> usize {
-            let mut d: usize = 0;
-            // seq!(N in 0..2 {
-            // d += self
-            //         .keyvalues
-            //         .N
-            //         .values()
-            //         .into_iter()
-            //         .map(|f| f.dim())
-            //         .sum::<usize>();
-            //     });
-            d
-        }
-
-        fn len(&self) -> usize {
-            let mut l: usize = 0;
-            // seq!(N in 0..2 {
-            //     l += self.keyvalues.N.len();
-            // });
-            l
-        }
-
-        fn retract(&mut self, delta: &Mat<R>, variable_ordering: &VariableOrdering) {
-            let mut d: usize = 0;
-            for i in 0..variable_ordering.len() {
-                let key = variable_ordering.key(i);
-
-                let mut found: bool = false;
-                // seq!(N in 0..2 {
-                // if !found {
-                //     match self.keyvalues.N.get_mut(&key) {
-                //         Some(var) => {
-                //             found = true;
-                //             let vd = var.dim();
-                //             let var_delta = delta.as_ref().subrows(d, vd);
-                //             var.retract(&var_delta);
-                //             d += vd;
-                //         }
-                //         None => {}
-                //     }
-                // }
-                // });
-            }
-        }
-
-        fn local(&self, variables: &Self, variable_ordering: &VariableOrdering) -> Mat<R> {
-            todo!()
-        }
-
-        fn default_variable_ordering(&self) -> VariableOrdering {
-            let mut ordering_list: Vec<Key> = Vec::new();
-            // seq!(N in 0..2 {
-            // ordering_list.extend(self.keyvalues.N.keys().map(|k| *k));
-            // });
-            VariableOrdering::new(&ordering_list)
-        }
-
-        fn at<V>(&self, key: Key) -> &V
-        where
-            V: Variable<R> + 'static,
-        {
-            get_map_elem(&self.container, key)
-        }
-
-        fn add<V>(&mut self, key: Key, var: V)
-        where
-            V: Variable<R> + 'static,
-        {
-            self.container
-                .get_mut::<HashMap<Key, V>>()
-                .unwrap()
-                .insert(key, var);
-        }
-    }
     // impl<R> VariableAdder<R, VarA<R>> for SlamVariables<R>
     // where
     //     R: RealField,
@@ -243,29 +252,23 @@ mod tests {
     //     }
     // }
     type Real = f64;
-    fn create_variables<R, C>(container: C) -> SlamVariables<R, C>
+    fn create_variables<'a, R, C, VV>(container: C) -> GraphVariables<'a, R, C, VV>
     where
         R: RealField,
-        C: RecursiveVariadic,
+        C: VariablesContainer<'a, R>,
+        VV: VariableVariantGuard<R>,
     {
-        let mut vars_a: HashMap<Key, VarA<R>> = HashMap::default();
-        let mut vars_b: HashMap<Key, VarB<R>> = HashMap::default();
-
         let val_a = Mat::<R>::zeros(3, 1);
-        vars_a.insert(Key(0), VarA { val: val_a.clone() });
-
         let val_b = Mat::<R>::zeros(3, 1);
-        vars_b.insert(Key(1), VarB { val: val_b });
 
-        let mut variables = SlamVariables::<R, C>::new(container);
-        // variables.add(Key(0), VarA::<R> { val: val_a.clone() });
-        // variables.add(Key(1), VarB::<R> { val: val_a.clone() });
+        let mut variables = GraphVariables::<R, C, VV>::new(container);
+        variables.add(Key(0), VarA::<R> { val: val_a.clone() });
+        variables.add(Key(1), VarB::<R> { val: val_b.clone() });
         variables
     }
 
     #[test]
-    fn factor_impl() -> Result<()> {
-        color_eyre::install()?;
+    fn factor_impl() {
         struct E3Factor<R>
         where
             R: RealField,
@@ -280,8 +283,8 @@ mod tests {
         {
             type LF = GaussianLoss;
             fn error(&self, variables: &VS) -> Mat<R> {
-                let v0: &VarA<R> = variables.at(Key(0));
-                let v1: &VarB<R> = variables.at(Key(1));
+                let v0: &VarA<R> = variables.at(Key(0)).unwrap();
+                let v1: &VarB<R> = variables.at(Key(1)).unwrap();
                 let d = v0.val.clone() - v1.val.clone() + self.orig.clone();
                 d
                 // todo!()
@@ -380,10 +383,66 @@ mod tests {
         //     }
         // }
 
+        #[derive(Debug)]
+        pub enum VariableVariant<'a, R>
+        where
+            R: RealField,
+        {
+            V0(&'a VarA<R>),
+            V1(&'a VarB<R>),
+        }
+        impl<'a, R> VariableVariantGuard<R> for VariableVariant<'a, R> where R: RealField {}
+
+        impl<'a, R> Variable<R> for VariableVariant<'a, R>
+        where
+            R: RealField,
+        {
+            fn dim(&self) -> usize {
+                match self {
+                    VariableVariant::V0(v) => v.dim(),
+                    VariableVariant::V1(v) => v.dim(),
+                }
+            }
+
+            fn local(&self, value: &Self) -> faer_core::Mat<R>
+            where
+                R: RealField,
+            {
+                todo!()
+            }
+
+            fn retract(&mut self, delta: &faer_core::MatRef<R>)
+            where
+                R: RealField,
+            {
+                todo!()
+            }
+        }
+        impl<'a, R> VariableWrap<'a, VarA<R>, R> for VariableWrapper
+        where
+            R: RealField,
+        {
+            type U = VariableVariant<'a, R>;
+            fn wrap(v: &'a VarA<R>) -> Self::U {
+                println!("proc {:?}", v);
+                VariableVariant::V0(v)
+            }
+        }
+
+        impl<'a, R> VariableWrap<'a, VarB<R>, R> for VariableWrapper
+        where
+            R: RealField,
+        {
+            type U = VariableVariant<'a, R>;
+            fn wrap(v: &'a VarB<R>) -> Self::U {
+                println!("proc {:?}", v);
+                VariableVariant::V1(v)
+            }
+        }
         let container =
-            ().and_default::<HashMap<Key, VarA<Real>>>()
-                .and_default::<HashMap<Key, VarB<Real>>>();
-        let mut variables = create_variables::<Real, _>(container);
+            ().and_variable_default::<VarA<Real>>()
+                .and_variable_default::<VarB<Real>>();
+        let mut variables = create_variables::<Real, _, VariableVariant<'_, Real>>(container);
 
         let orig = Mat::<Real>::zeros(3, 1);
 
@@ -502,7 +561,7 @@ mod tests {
         println!("ordering keys {:?}", variable_ordering.keys());
         // assert_eq!(v0.val, mat![[1.0], [1.0], [1.0]]);
         // assert_eq!(v1.val, mat![[0.5], [0.5], [0.5]]);
-        Ok(())
+        // Ok(())
     }
     // #[test]
     // fn variables_at() {

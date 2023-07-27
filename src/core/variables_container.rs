@@ -33,7 +33,7 @@ where
     {
         match self.get::<N::Value>() {
             Some(_) => panic!(
-                "type {} already present in MapRecursiveVariadic",
+                "type {} already present in VariablesContainer",
                 type_name::<N::Value>()
             ),
             None => VariablesEntry {
@@ -45,13 +45,12 @@ where
     /// Add the default value for N
     fn and_variable_default<N: VariablesKey<R>>(self) -> VariablesEntry<N, Self, R>
     where
-        N::Value: Default,
         Self: Sized,
         N::Value: VariablesKey<R>,
     {
         self.and_variable(HashMap::<Key, N::Value>::default())
     }
-    fn iterate<F: Fn(&B) -> (), B: Variable<R> + VariableVariantGuard + 'static>(&'a self, func: F);
+    fn iterate<F: Fn(&B) -> (), B: VariableVariantGuard<R>>(&'a self, func: F);
 }
 
 /// The base case for recursive variadics: no fields.
@@ -66,7 +65,7 @@ where
     fn get_mut<N: VariablesKey<R>>(&mut self) -> Option<&mut HashMap<Key, N::Value>> {
         None
     }
-    fn iterate<F: Fn(&B) -> (), B: Variable<R> + VariableVariantGuard + 'static>(&self, _func: F) {}
+    fn iterate<F: Fn(&B) -> (), B: VariableVariantGuard<R>>(&self, _func: F) {}
 }
 
 /// Wraps some field data and a parent, which is either another Entry or Empty
@@ -95,10 +94,7 @@ where
         }
     }
 
-    fn iterate<F: Fn(&B) -> (), B: Variable<R> + VariableVariantGuard + 'static>(
-        &'a self,
-        func: F,
-    ) {
+    fn iterate<F: Fn(&B) -> (), B: VariableVariantGuard<R>>(&'a self, func: F) {
         //     // if TypeId::of::<N::Value>() == TypeId::of::<T::Value>() {
         //     //     println!(Some(unsafe { mem::transmute(&self.data) })
         //     // } else {
@@ -127,7 +123,11 @@ where
 }
 
 /// use for better type checking
-pub trait VariableVariantGuard {}
+pub trait VariableVariantGuard<R>: Variable<R>
+where
+    R: RealField,
+{
+}
 
 impl<T, R> VariablesKey<R> for T
 where
@@ -141,7 +141,7 @@ pub trait VariableWrap<'a, T, R>
 where
     R: RealField,
 {
-    type U: VariableVariantGuard;
+    type U: VariableVariantGuard<R>;
     fn wrap(v: &'a T) -> Self::U;
 }
 
@@ -169,27 +169,6 @@ mod tests {
 
     #[test]
     fn recursive_map_container() {
-        impl<'a, R> VariableWrap<'a, VariableA<R>, R> for VariableWrapper
-        where
-            R: RealField,
-        {
-            type U = VariableVariant<'a, R>;
-            fn wrap(v: &'a VariableA<R>) -> Self::U {
-                println!("proc {:?}", v);
-                VariableVariant::V0(v)
-            }
-        }
-
-        impl<'a, R> VariableWrap<'a, VariableB<R>, R> for VariableWrapper
-        where
-            R: RealField,
-        {
-            type U = VariableVariant<'a, R>;
-            fn wrap(v: &'a VariableB<R>) -> Self::U {
-                println!("proc {:?}", v);
-                VariableVariant::V1(v)
-            }
-        }
         #[derive(Debug, Default)]
         struct VariableA<R>
         where
@@ -262,7 +241,7 @@ mod tests {
             V0(&'a VariableA<R>),
             V1(&'a VariableB<R>),
         }
-        impl<'a, R> VariableVariantGuard for VariableVariant<'a, R> where R: RealField {}
+        impl<'a, R> VariableVariantGuard<R> for VariableVariant<'a, R> where R: RealField {}
 
         impl<'a, R> Variable<R> for VariableVariant<'a, R>
         where
@@ -289,6 +268,28 @@ mod tests {
                 todo!()
             }
         }
+        impl<'a, R> VariableWrap<'a, VariableA<R>, R> for VariableWrapper
+        where
+            R: RealField,
+        {
+            type U = VariableVariant<'a, R>;
+            fn wrap(v: &'a VariableA<R>) -> Self::U {
+                println!("proc {:?}", v);
+                VariableVariant::V0(v)
+            }
+        }
+
+        impl<'a, R> VariableWrap<'a, VariableB<R>, R> for VariableWrapper
+        where
+            R: RealField,
+        {
+            type U = VariableVariant<'a, R>;
+            fn wrap(v: &'a VariableB<R>) -> Self::U {
+                println!("proc {:?}", v);
+                VariableVariant::V1(v)
+            }
+        }
+
         type Real = f64;
         let mut thing =
             ().and_variable_default::<VariableA<Real>>()
