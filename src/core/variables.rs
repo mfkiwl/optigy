@@ -28,7 +28,7 @@ where
     R: RealField,
 {
     /// dim (= A.cols)  
-    fn dim(&'a self) -> usize;
+    fn dim(&self) -> usize;
     /// len
     fn len(&self) -> usize;
     fn retract(&mut self, delta: &Mat<R>, variable_ordering: &VariableOrdering);
@@ -77,7 +77,7 @@ where
     C: VariablesContainer<'a, R>,
     VV: VariableVariantGuard<'a, R>,
 {
-    fn dim(&'a self) -> usize {
+    fn dim(&self) -> usize {
         self.container.dim(0)
         // let mut d: usize = 0;
         // self.container.iterate(move |x: &VV| {
