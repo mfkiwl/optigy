@@ -1,6 +1,6 @@
 use crate::core::key::Key;
 use crate::core::variable::Variable;
-use faer_core::RealField;
+use faer_core::{Mat, RealField};
 use hashbrown::HashMap;
 use std::any::{type_name, TypeId};
 use std::mem;
@@ -57,6 +57,8 @@ where
     fn len(&self, init: usize) -> usize;
     /// join keys of variables
     fn keys(&self, init: Vec<Key>) -> Vec<Key>;
+    /// retact variable by key and delta offset
+    fn retract(&mut self, delta: &Mat<R>, key: Key, offset: usize) -> usize;
 }
 
 /// The base case for recursive variadics: no fields.
@@ -81,6 +83,10 @@ where
     }
     fn keys(&self, init: Vec<Key>) -> Vec<Key> {
         init
+    }
+
+    fn retract(&mut self, _delta: &Mat<R>, _key: Key, offset: usize) -> usize {
+        offset
     }
 }
 
@@ -154,6 +160,20 @@ where
             keys.push(*key);
         }
         self.parent.keys(keys)
+    }
+
+    fn retract(&mut self, delta: &Mat<R>, key: Key, offset: usize) -> usize {
+        let var = self.data.get_mut(&key);
+        match var {
+            Some(var) => {
+                let vd = var.dim();
+                let dx = delta.as_ref().subrows(offset, vd);
+                var.retract(&dx);
+                offset + vd
+            }
+
+            None => self.parent.retract(delta, key, offset),
+        }
     }
 }
 

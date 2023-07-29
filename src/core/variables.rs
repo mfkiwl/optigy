@@ -8,21 +8,6 @@ use crate::core::variables_container::{
 use faer_core::{Mat, RealField};
 use std::marker::PhantomData;
 
-pub trait VariableGetter<R, V>
-where
-    V: Variable<R>,
-    R: RealField,
-{
-    fn at(&self, key: Key) -> &V;
-}
-
-pub trait VariableAdder<R, V>
-where
-    V: Variable<R>,
-    R: RealField,
-{
-    fn add(&mut self, key: Key, var: V);
-}
 pub trait Variables<'a, R>
 where
     R: RealField,
@@ -35,6 +20,9 @@ where
     fn local(&self, variables: &Self, variable_ordering: &VariableOrdering) -> Mat<R>;
     fn default_variable_ordering(&self) -> VariableOrdering;
     fn at<V>(&self, key: Key) -> Option<&V>
+    where
+        V: Variable<R> + 'static;
+    fn at_mut<V>(&mut self, key: Key) -> Option<&mut V>
     where
         V: Variable<R> + 'static;
     fn add<V>(&mut self, key: Key, var: V)
@@ -93,25 +81,7 @@ where
         let mut d: usize = 0;
         for i in 0..variable_ordering.len() {
             let key = variable_ordering.key(i);
-
-            // self.container.iterate( |var: &VV| {
-            //     println!("+++++++++++++++++ {}", x.dim());
-            // });
-            let mut found: bool = false;
-            // seq!(N in 0..2 {
-            // if !found {
-            //     match self.keyvalues.N.get_mut(&key) {
-            //         Some(var) => {
-            //             found = true;
-            //             let vd = var.dim();
-            //             let var_delta = delta.as_ref().subrows(d, vd);
-            //             var.retract(&var_delta);
-            //             d += vd;
-            //         }
-            //         None => {}
-            //     }
-            // }
-            // });
+            d = self.container.retract(delta, key, d);
         }
     }
 
@@ -128,6 +98,13 @@ where
         V: Variable<R> + 'static,
     {
         get_variable(&self.container, key)
+    }
+
+    fn at_mut<V>(&mut self, key: Key) -> Option<&mut V>
+    where
+        V: Variable<R> + 'static,
+    {
+        get_variable_mut(&mut self.container, key)
     }
 
     fn add<V>(&mut self, key: Key, var: V)
@@ -214,47 +191,144 @@ mod tests {
         }
     }
 
-    // impl<R> VariableAdder<R, VarA<R>> for SlamVariables<R>
-    // where
-    //     R: RealField,
-    // {
-    //     fn add(&mut self, key: Key, var: VarA<R>) {
-    //         self.keyvalues.0.insert(key, var);
-    //     }
-    // }
+    impl<R> VarA<R>
+    where
+        R: RealField,
+    {
+        fn new(v: R) -> Self {
+            VarA {
+                val: Mat::<R>::with_dims(3, 1, |_i, _j| v.clone()),
+            }
+        }
+    }
+    impl<R> VarB<R>
+    where
+        R: RealField,
+    {
+        fn new(v: R) -> Self {
+            VarB {
+                val: Mat::<R>::with_dims(3, 1, |_i, _j| v.clone()),
+            }
+        }
+    }
+    #[derive(Debug)]
+    pub enum VariableVariant<'a, R>
+    where
+        R: RealField,
+    {
+        V0(&'a VarA<R>),
+        V1(&'a VarB<R>),
+    }
+    impl<'a, R> VariableVariantGuard<'a, R> for VariableVariant<'a, R> where R: RealField {}
 
-    // impl<R> VariableGetter<R, VarA<R>> for SlamVariables<R>
-    // where
-    //     R: RealField,
-    // {
-    //     fn at(&self, key: Key) -> &VarA<R> {
-    //         &self.keyvalues.0.get(&key).unwrap()
-    //     }
-    // }
-    // impl<R> VariableGetter<R, VarB<R>> for SlamVariables<R>
-    // where
-    //     R: RealField,
-    // {
-    //     fn at(&self, key: Key) -> &VarB<R> {
-    //         &self.keyvalues.1.get(&key).unwrap()
-    //     }
-    // }
+    impl<'a, R> Variable<R> for VariableVariant<'a, R>
+    where
+        R: RealField,
+    {
+        fn dim(&self) -> usize {
+            match self {
+                VariableVariant::V0(v) => v.dim(),
+                VariableVariant::V1(v) => v.dim(),
+            }
+        }
+
+        fn local(&self, value: &Self) -> Mat<R>
+        where
+            R: RealField,
+        {
+            todo!()
+        }
+
+        fn retract(&mut self, delta: &MatRef<R>)
+        where
+            R: RealField,
+        {
+            todo!()
+        }
+    }
+    impl<'a, R> VariableWrap<'a, VarA<R>, R> for VariableWrapper
+    where
+        R: RealField,
+    {
+        type U = VariableVariant<'a, R>;
+        fn wrap(v: &'a VarA<R>) -> Self::U {
+            println!("proc {:?}", v);
+            VariableVariant::V0(v)
+        }
+    }
+
+    impl<'a, R> VariableWrap<'a, VarB<R>, R> for VariableWrapper
+    where
+        R: RealField,
+    {
+        type U = VariableVariant<'a, R>;
+        fn wrap(v: &'a VarB<R>) -> Self::U {
+            println!("proc {:?}", v);
+            VariableVariant::V1(v)
+        }
+    }
     type Real = f64;
-    fn create_variables<'a, R, C, VV>(container: C) -> GraphVariables<'a, R, C, VV>
+    fn create_variables<'a, R, C, VV>(
+        container: C,
+        val_0: R,
+        val_1: R,
+    ) -> GraphVariables<'a, R, C, VV>
     where
         R: RealField,
         C: VariablesContainer<'a, R>,
         VV: VariableVariantGuard<'a, R>,
     {
-        let val_a = Mat::<R>::zeros(3, 1);
-        let val_b = Mat::<R>::zeros(3, 1);
-
         let mut variables = GraphVariables::<R, C, VV>::new(container);
-        variables.add(Key(0), VarA::<R> { val: val_a.clone() });
-        variables.add(Key(1), VarB::<R> { val: val_b.clone() });
+        variables.add(Key(0), VarA::<R>::new(val_0));
+        variables.add(Key(1), VarB::<R>::new(val_1));
         variables
     }
+    #[test]
+    fn add_variable() {
+        type Real = f64;
+        let container =
+            ().and_variable_default::<VarA<Real>>()
+                .and_variable_default::<VarB<Real>>();
+        let mut variables = GraphVariables::<Real, _, VariableVariant<'_, Real>>::new(container);
+        variables.add(Key(0), VarA::<Real>::new(0.0));
+        variables.add(Key(1), VarB::<Real>::new(0.0));
+    }
 
+    #[test]
+    fn get_variable() {
+        type Real = f64;
+        let container =
+            ().and_variable_default::<VarA<Real>>()
+                .and_variable_default::<VarB<Real>>();
+        let mut variables = GraphVariables::<Real, _, VariableVariant<'_, Real>>::new(container);
+        variables.add(Key(0), VarA::<Real>::new(1.0));
+        variables.add(Key(1), VarB::<Real>::new(2.0));
+        let _var_0: &VarA<_> = variables.at(Key(0)).unwrap();
+        let _var_1: &VarB<_> = variables.at(Key(1)).unwrap();
+    }
+    #[test]
+
+    fn get_mut_variable() {
+        type Real = f64;
+        let container =
+            ().and_variable_default::<VarA<Real>>()
+                .and_variable_default::<VarB<Real>>();
+        let mut variables = GraphVariables::<Real, _, VariableVariant<'_, Real>>::new(container);
+        variables.add(Key(0), VarA::<Real>::new(0.0));
+        variables.add(Key(1), VarB::<Real>::new(0.0));
+        {
+            let var_0: &mut VarA<_> = variables.at_mut(Key(0)).unwrap();
+            var_0.val.as_mut().cwise().for_each(|mut x| x.write(1.0));
+        }
+        {
+            let var_1: &mut VarB<_> = variables.at_mut(Key(1)).unwrap();
+            var_1.val.as_mut().cwise().for_each(|mut x| x.write(2.0));
+        }
+        let var_0: &VarA<_> = variables.at(Key(0)).unwrap();
+        let var_1: &VarB<_> = variables.at(Key(1)).unwrap();
+        assert_eq!(var_0.val, Mat::<Real>::with_dims(3, 1, |_i, _j| 1.0));
+        assert_eq!(var_1.val, Mat::<Real>::with_dims(3, 1, |_i, _j| 2.0));
+    }
     #[test]
     fn factor_impl() {
         struct E3Factor<R>
@@ -371,66 +445,11 @@ mod tests {
         //     }
         // }
 
-        #[derive(Debug)]
-        pub enum VariableVariant<'a, R>
-        where
-            R: RealField,
-        {
-            V0(&'a VarA<R>),
-            V1(&'a VarB<R>),
-        }
-        impl<'a, R> VariableVariantGuard<'a, R> for VariableVariant<'a, R> where R: RealField {}
-
-        impl<'a, R> Variable<R> for VariableVariant<'a, R>
-        where
-            R: RealField,
-        {
-            fn dim(&self) -> usize {
-                match self {
-                    VariableVariant::V0(v) => v.dim(),
-                    VariableVariant::V1(v) => v.dim(),
-                }
-            }
-
-            fn local(&self, value: &Self) -> faer_core::Mat<R>
-            where
-                R: RealField,
-            {
-                todo!()
-            }
-
-            fn retract(&mut self, delta: &faer_core::MatRef<R>)
-            where
-                R: RealField,
-            {
-                todo!()
-            }
-        }
-        impl<'a, R> VariableWrap<'a, VarA<R>, R> for VariableWrapper
-        where
-            R: RealField,
-        {
-            type U = VariableVariant<'a, R>;
-            fn wrap(v: &'a VarA<R>) -> Self::U {
-                println!("proc {:?}", v);
-                VariableVariant::V0(v)
-            }
-        }
-
-        impl<'a, R> VariableWrap<'a, VarB<R>, R> for VariableWrapper
-        where
-            R: RealField,
-        {
-            type U = VariableVariant<'a, R>;
-            fn wrap(v: &'a VarB<R>) -> Self::U {
-                println!("proc {:?}", v);
-                VariableVariant::V1(v)
-            }
-        }
         let container =
             ().and_variable_default::<VarA<Real>>()
                 .and_variable_default::<VarB<Real>>();
-        let mut variables = create_variables::<Real, _, VariableVariant<'_, Real>>(container);
+        let mut variables =
+            create_variables::<Real, _, VariableVariant<'_, Real>>(container, 0.0, 0.0);
 
         let orig = Mat::<Real>::zeros(3, 1);
 
@@ -538,8 +557,21 @@ mod tests {
         // assert_eq!(w1.dim(), 2);
         assert_eq!(variables.dim(), 6);
         assert_eq!(variables.len(), 2);
-        let delta = mat![[1.0, 1.0, 1.0, 0.5, 0.5, 0.5]].transpose().to_owned();
-        let variable_ordering = variables.default_variable_ordering();
+        let mut delta = Mat::<Real>::zeros(variables.dim(), 1);
+        let dim_0 = variables.at::<VarA<_>>(Key(0)).unwrap().dim();
+        let dim_1 = variables.at::<VarB<_>>(Key(1)).unwrap().dim();
+        delta
+            .as_mut()
+            .subrows(0, dim_0)
+            .cwise()
+            .for_each(|mut x| x.write(0.5));
+        delta
+            .as_mut()
+            .subrows(dim_0, dim_1)
+            .cwise()
+            .for_each(|mut x| x.write(1.0));
+        println!("delta {:?}", delta);
+        let variable_ordering = variables.default_variable_ordering(); // reversed
         variables.retract(&delta, &variable_ordering);
         let v0: &VarA<Real> = variables.at(Key(0)).unwrap();
         let v1: &VarB<Real> = variables.at(Key(1)).unwrap();
@@ -547,8 +579,10 @@ mod tests {
         println!("ordering 1 {:?}", variable_ordering.key(1));
         println!("ordering len {:?}", variable_ordering.len());
         println!("ordering keys {:?}", variable_ordering.keys());
-        assert_eq!(v0.val, mat![[1.0], [1.0], [1.0]]);
-        assert_eq!(v1.val, mat![[0.5], [0.5], [0.5]]);
+        print!("v0.val {:?}", v0.val);
+        print!("v1.val {:?}", v1.val);
+        assert_eq!(v1.val, delta.as_ref().subrows(0, dim_0).to_owned());
+        assert_eq!(v0.val, delta.as_ref().subrows(dim_0, dim_1).to_owned());
         // Ok(())
     }
     // #[test]
