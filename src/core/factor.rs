@@ -7,10 +7,10 @@ use crate::core::variables::Variables;
 use faer_core::{Conjugate, Entity, Mat, RealField};
 use num_traits::Float;
 
-pub trait Factor<R, VS>
+pub trait Factor<'a, R, VS>
 where
     R: RealField,
-    VS: Variables<R>,
+    VS: Variables<'a, R>,
 {
     // type VS: Variables<R>;
     type LF: LossFunction<R>;

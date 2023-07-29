@@ -2,11 +2,11 @@
 use crate::core::factor::Factor;
 use crate::core::variables::Variables;
 use faer_core::{Mat, RealField};
-pub trait FactorGraph<R>
+pub trait FactorGraph<'a, R>
 where
     R: RealField,
 {
-    type VS: Variables<R>;
+    type VS: Variables<'a, R>;
     // type FV<'a>: Factor<R>
     // where
     // Self: 'a;

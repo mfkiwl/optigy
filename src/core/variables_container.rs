@@ -50,7 +50,13 @@ where
     {
         self.and_variable(HashMap::<Key, N::Value>::default())
     }
-    fn iterate<F: Fn(&B) -> (), B: VariableVariantGuard<R>>(&'a self, func: F);
+    fn iterate<F: Fn(&B) -> (), B: VariableVariantGuard<'a, R> + 'a>(&'a self, func: F);
+    /// sum of variables dim
+    fn dim(&self, init: usize) -> usize;
+    /// sum of variables maps len
+    fn len(&self, init: usize) -> usize;
+    /// join keys of variables
+    fn keys(&self, init: Vec<Key>) -> Vec<Key>;
 }
 
 /// The base case for recursive variadics: no fields.
@@ -65,7 +71,17 @@ where
     fn get_mut<N: VariablesKey<R>>(&mut self) -> Option<&mut HashMap<Key, N::Value>> {
         None
     }
-    fn iterate<F: Fn(&B) -> (), B: VariableVariantGuard<R>>(&self, _func: F) {}
+    fn iterate<F: Fn(&B) -> (), B: VariableVariantGuard<'a, R>>(&self, _func: F) {}
+
+    fn dim(&self, init: usize) -> usize {
+        init
+    }
+    fn len(&self, init: usize) -> usize {
+        init
+    }
+    fn keys(&self, init: Vec<Key>) -> Vec<Key> {
+        init
+    }
 }
 
 /// Wraps some field data and a parent, which is either another Entry or Empty
@@ -94,7 +110,7 @@ where
         }
     }
 
-    fn iterate<F: Fn(&B) -> (), B: VariableVariantGuard<R>>(&'a self, func: F) {
+    fn iterate<F: Fn(&B) -> (), B: VariableVariantGuard<'a, R> + 'a>(&'a self, func: F) {
         //     // if TypeId::of::<N::Value>() == TypeId::of::<T::Value>() {
         //     //     println!(Some(unsafe { mem::transmute(&self.data) })
         //     // } else {
@@ -120,10 +136,29 @@ where
 
         //     // }
     }
+
+    fn dim(&self, init: usize) -> usize {
+        let mut d = init;
+        for (_key, val) in self.data.iter() {
+            d += val.dim();
+        }
+        self.parent.dim(d)
+    }
+    fn len(&self, init: usize) -> usize {
+        let l = init + self.data.len();
+        self.parent.len(l)
+    }
+    fn keys(&self, init: Vec<Key>) -> Vec<Key> {
+        let mut keys = init;
+        for (key, _val) in self.data.iter() {
+            keys.push(*key);
+        }
+        self.parent.keys(keys)
+    }
 }
 
 /// use for better type checking
-pub trait VariableVariantGuard<R>: Variable<R>
+pub trait VariableVariantGuard<'a, R>: Variable<R>
 where
     R: RealField,
 {
@@ -141,7 +176,7 @@ pub trait VariableWrap<'a, T, R>
 where
     R: RealField,
 {
-    type U: VariableVariantGuard<R>;
+    type U: VariableVariantGuard<'a, R>;
     fn wrap(v: &'a T) -> Self::U;
 }
 
@@ -191,14 +226,14 @@ mod tests {
         where
             R: RealField,
         {
-            fn local(&self, value: &Self) -> faer_core::Mat<R>
+            fn local(&self, _value: &Self) -> faer_core::Mat<R>
             where
                 R: RealField,
             {
                 todo!()
             }
 
-            fn retract(&mut self, delta: &faer_core::MatRef<R>)
+            fn retract(&mut self, _delta: &faer_core::MatRef<R>)
             where
                 R: RealField,
             {
@@ -214,14 +249,14 @@ mod tests {
         where
             R: RealField,
         {
-            fn local(&self, value: &Self) -> faer_core::Mat<R>
+            fn local(&self, _value: &Self) -> faer_core::Mat<R>
             where
                 R: RealField,
             {
                 todo!()
             }
 
-            fn retract(&mut self, delta: &faer_core::MatRef<R>)
+            fn retract(&mut self, _delta: &faer_core::MatRef<R>)
             where
                 R: RealField,
             {
@@ -241,7 +276,7 @@ mod tests {
             V0(&'a VariableA<R>),
             V1(&'a VariableB<R>),
         }
-        impl<'a, R> VariableVariantGuard<R> for VariableVariant<'a, R> where R: RealField {}
+        impl<'a, R> VariableVariantGuard<'a, R> for VariableVariant<'a, R> where R: RealField {}
 
         impl<'a, R> Variable<R> for VariableVariant<'a, R>
         where
@@ -353,6 +388,8 @@ mod tests {
             let var_b0: &VariableB<Real> = get_variable(&thing, Key(7)).unwrap();
             assert_eq!(var_b0.v4, 10);
         }
+        assert_eq!(thing.dim(0), 9);
+        assert_eq!(thing.len(0), 3);
 
         thing.iterate::<_, VariableVariant<'_, Real>>(|x| {
             println!("x: {:?}", x);

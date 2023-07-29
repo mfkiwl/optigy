@@ -8,8 +8,6 @@ use crate::core::variables_container::{
 use faer_core::{Mat, RealField};
 use std::marker::PhantomData;
 
-use super::recursive_variadic::VariadicKey;
-
 pub trait VariableGetter<R, V>
 where
     V: Variable<R>,
@@ -25,12 +23,12 @@ where
 {
     fn add(&mut self, key: Key, var: V);
 }
-pub trait Variables<R>
+pub trait Variables<'a, R>
 where
     R: RealField,
 {
     /// dim (= A.cols)  
-    fn dim(&self) -> usize;
+    fn dim(&'a self) -> usize;
     /// len
     fn len(&self) -> usize;
     fn retract(&mut self, delta: &Mat<R>, variable_ordering: &VariableOrdering);
@@ -48,56 +46,47 @@ pub struct GraphVariables<'a, R, C, VV>
 where
     R: RealField,
     C: VariablesContainer<'a, R>,
-    VV: VariableVariantGuard<R>,
+    VV: VariableVariantGuard<'a, R>,
 {
     // keyvalues: (HashMap<Key, VarA<R>>, HashMap<Key, VarB<R>>),
     container: C,
     phantom: PhantomData<&'a R>,
     phantom2: PhantomData<&'a VV>,
+    v: i32,
 }
 
 impl<'a, R, C, VV> GraphVariables<'a, R, C, VV>
 where
     R: RealField,
     C: VariablesContainer<'a, R>,
-    VV: VariableVariantGuard<R>,
+    VV: VariableVariantGuard<'a, R>,
 {
     fn new(container: C) -> Self {
         GraphVariables::<R, C, VV> {
             container,
             phantom: PhantomData,
             phantom2: PhantomData,
+            v: 0,
         }
     }
 }
 
-impl<'a, R, C, VV> Variables<R> for GraphVariables<'a, R, C, VV>
+impl<'a, R, C, VV> Variables<'a, R> for GraphVariables<'a, R, C, VV>
 where
     R: RealField,
     C: VariablesContainer<'a, R>,
-    VV: VariableVariantGuard<R> + 'a,
+    VV: VariableVariantGuard<'a, R>,
 {
-    fn dim(&self) -> usize {
-        let mut d: usize = 0;
-        self.container.iterate(|x: &'a VV| println!("--"));
-        // seq!(N in 0..2 {
-        // d += self
-        //         .keyvalues
-        //         .N
-        //         .values()
-        //         .into_iter()
-        //         .map(|f| f.dim())
-        //         .sum::<usize>();
-        //     });
-        d
+    fn dim(&'a self) -> usize {
+        self.container.dim(0)
+        // let mut d: usize = 0;
+        // self.container.iterate(move |x: &VV| {
+        //     println!("+++++++++++++++++ {}", x.dim());
+        // });
     }
 
     fn len(&self) -> usize {
-        let mut l: usize = 0;
-        // seq!(N in 0..2 {
-        //     l += self.keyvalues.N.len();
-        // });
-        l
+        self.container.len(0)
     }
 
     fn retract(&mut self, delta: &Mat<R>, variable_ordering: &VariableOrdering) {
@@ -105,6 +94,9 @@ where
         for i in 0..variable_ordering.len() {
             let key = variable_ordering.key(i);
 
+            // self.container.iterate( |var: &VV| {
+            //     println!("+++++++++++++++++ {}", x.dim());
+            // });
             let mut found: bool = false;
             // seq!(N in 0..2 {
             // if !found {
@@ -128,11 +120,7 @@ where
     }
 
     fn default_variable_ordering(&self) -> VariableOrdering {
-        let mut ordering_list: Vec<Key> = Vec::new();
-        // seq!(N in 0..2 {
-        // ordering_list.extend(self.keyvalues.N.keys().map(|k| *k));
-        // });
-        VariableOrdering::new(&ordering_list)
+        VariableOrdering::new(&self.container.keys(Vec::new()))
     }
 
     fn at<V>(&self, key: Key) -> Option<&V>
@@ -256,7 +244,7 @@ mod tests {
     where
         R: RealField,
         C: VariablesContainer<'a, R>,
-        VV: VariableVariantGuard<R>,
+        VV: VariableVariantGuard<'a, R>,
     {
         let val_a = Mat::<R>::zeros(3, 1);
         let val_b = Mat::<R>::zeros(3, 1);
@@ -276,10 +264,10 @@ mod tests {
             orig: Mat<R>,
         }
 
-        impl<R, VS> Factor<R, VS> for E3Factor<R>
+        impl<'a, R, VS> Factor<'a, R, VS> for E3Factor<R>
         where
             R: RealField,
-            VS: Variables<R>,
+            VS: Variables<'a, R>,
         {
             type LF = GaussianLoss;
             fn error(&self, variables: &VS) -> Mat<R> {
@@ -391,7 +379,7 @@ mod tests {
             V0(&'a VarA<R>),
             V1(&'a VarB<R>),
         }
-        impl<'a, R> VariableVariantGuard<R> for VariableVariant<'a, R> where R: RealField {}
+        impl<'a, R> VariableVariantGuard<'a, R> for VariableVariant<'a, R> where R: RealField {}
 
         impl<'a, R> Variable<R> for VariableVariant<'a, R>
         where
@@ -553,14 +541,14 @@ mod tests {
         let delta = mat![[1.0, 1.0, 1.0, 0.5, 0.5, 0.5]].transpose().to_owned();
         let variable_ordering = variables.default_variable_ordering();
         variables.retract(&delta, &variable_ordering);
-        // let v0: &VarA<Real> = variables.at(Key(0));
-        // let v1: &VarB<Real> = variables.at(Key(1));
+        let v0: &VarA<Real> = variables.at(Key(0)).unwrap();
+        let v1: &VarB<Real> = variables.at(Key(1)).unwrap();
         println!("ordering 0 {:?}", variable_ordering.key(0));
         println!("ordering 1 {:?}", variable_ordering.key(1));
         println!("ordering len {:?}", variable_ordering.len());
         println!("ordering keys {:?}", variable_ordering.keys());
-        // assert_eq!(v0.val, mat![[1.0], [1.0], [1.0]]);
-        // assert_eq!(v1.val, mat![[0.5], [0.5], [0.5]]);
+        assert_eq!(v0.val, mat![[1.0], [1.0], [1.0]]);
+        assert_eq!(v1.val, mat![[0.5], [0.5], [0.5]]);
         // Ok(())
     }
     // #[test]
