@@ -51,7 +51,6 @@ where
     {
         self.and_variable(HashMap::<Key, N::Value>::default())
     }
-    fn iterate<F: Fn(&B) -> (), B: VariableVariantGuard<'a, R> + 'a>(&'a self, func: F);
     /// sum of variables dim
     fn dim(&self, init: usize) -> usize;
     /// sum of variables maps len
@@ -77,8 +76,6 @@ where
     fn get_mut<N: VariablesKey<R>>(&mut self) -> Option<&mut HashMap<Key, N::Value>> {
         None
     }
-    fn iterate<F: Fn(&B) -> (), B: VariableVariantGuard<'a, R>>(&self, _func: F) {}
-
     fn dim(&self, init: usize) -> usize {
         init
     }
@@ -110,8 +107,6 @@ pub struct VariablesEntry<T: VariablesKey<R>, P, R: RealField> {
 
 impl<'a, T: VariablesKey<R>, P: VariablesContainer<'a, R>, R: RealField> VariablesContainer<'a, R>
     for VariablesEntry<T, P, R>
-where
-    VariableWrapper: VariableWrap<'a, T::Value, R>,
 {
     fn get<N: VariablesKey<R>>(&self) -> Option<&HashMap<Key, N::Value>> {
         if TypeId::of::<N::Value>() == TypeId::of::<T::Value>() {
@@ -127,34 +122,6 @@ where
             self.parent.get_mut::<N>()
         }
     }
-
-    fn iterate<F: Fn(&B) -> (), B: VariableVariantGuard<'a, R> + 'a>(&'a self, func: F) {
-        //     // if TypeId::of::<N::Value>() == TypeId::of::<T::Value>() {
-        //     //     println!(Some(unsafe { mem::transmute(&self.data) })
-        //     // } else {
-        println!("iter {}", type_name::<T>());
-        println!("iter {}", type_name::<T::Value>());
-        println!("iter {}", type_name::<B>());
-        println!(
-            "iter {}",
-            type_name::<<VariableWrapper as VariableWrap<T::Value, R>>::U>()
-        );
-
-        //  if TypeId::of::<B>() == TypeId::of::<<VariableProc as Proc<T::Value>>::U>(){
-
-        for (_key, val) in self.data.iter() {
-            func(unsafe { mem::transmute(&VariableWrapper::wrap(val)) });
-        }
-        //  }
-        //  else{
-        //      panic!();
-        //  }
-
-        self.parent.iterate(func)
-
-        //     // }
-    }
-
     fn dim(&self, init: usize) -> usize {
         let mut d = init;
         for (_key, val) in self.data.iter() {
@@ -209,13 +176,6 @@ where
     }
 }
 
-/// use for better type checking
-pub trait VariableVariantGuard<'a, R>: Variable<R>
-where
-    R: RealField,
-{
-}
-
 impl<T, R> VariablesKey<R> for T
 where
     T: 'static + Variable<R>,
@@ -223,16 +183,6 @@ where
 {
     type Value = T;
 }
-
-pub trait VariableWrap<'a, T, R>
-where
-    R: RealField,
-{
-    type U: VariableVariantGuard<'a, R>;
-    fn wrap(v: &'a T) -> Self::U;
-}
-#[derive(Clone)]
-pub struct VariableWrapper {}
 
 pub fn get_variable<'a, R, C, V>(container: &C, key: Key) -> Option<&V>
 where
@@ -328,7 +278,6 @@ mod tests {
             V0(&'a VariableA<R>),
             V1(&'a VariableB<R>),
         }
-        impl<'a, R> VariableVariantGuard<'a, R> for VariableVariant<'a, R> where R: RealField {}
 
         impl<'a, R> Variable<R> for VariableVariant<'a, R>
         where
@@ -353,27 +302,6 @@ mod tests {
                 R: RealField,
             {
                 todo!()
-            }
-        }
-        impl<'a, R> VariableWrap<'a, VariableA<R>, R> for VariableWrapper
-        where
-            R: RealField,
-        {
-            type U = VariableVariant<'a, R>;
-            fn wrap(v: &'a VariableA<R>) -> Self::U {
-                println!("proc {:?}", v);
-                VariableVariant::V0(v)
-            }
-        }
-
-        impl<'a, R> VariableWrap<'a, VariableB<R>, R> for VariableWrapper
-        where
-            R: RealField,
-        {
-            type U = VariableVariant<'a, R>;
-            fn wrap(v: &'a VariableB<R>) -> Self::U {
-                println!("proc {:?}", v);
-                VariableVariant::V1(v)
             }
         }
 
@@ -442,11 +370,5 @@ mod tests {
         }
         assert_eq!(thing.dim(0), 9);
         assert_eq!(thing.len(0), 3);
-
-        thing.iterate::<_, VariableVariant<'_, Real>>(|x| {
-            println!("x: {:?}", x);
-
-            println!("x.dim(): {:?}", x.dim());
-        });
     }
 }
