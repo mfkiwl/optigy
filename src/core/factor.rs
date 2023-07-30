@@ -308,9 +308,7 @@ mod tests {
     #[test]
     fn error() {
         type Real = f64;
-        let container =
-            ().and_variable_default::<VarA<Real>>()
-                .and_variable_default::<VarB<Real>>();
+        let container = ().and_variable::<VarA<Real>>().and_variable::<VarB<Real>>();
         let mut variables = Variables::new(container);
         variables.add(Key(0), VarA::<Real>::new(4.0));
         variables.add(Key(1), VarB::<Real>::new(2.0));

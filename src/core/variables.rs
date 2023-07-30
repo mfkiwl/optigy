@@ -170,9 +170,7 @@ mod tests {
     #[test]
     fn add_variable() {
         type Real = f64;
-        let container =
-            ().and_variable_default::<VarA<Real>>()
-                .and_variable_default::<VarB<Real>>();
+        let container = ().and_variable::<VarA<Real>>().and_variable::<VarB<Real>>();
         let mut variables = Variables::new(container);
         variables.add(Key(0), VarA::<Real>::new(0.0));
         variables.add(Key(1), VarB::<Real>::new(0.0));
@@ -181,9 +179,7 @@ mod tests {
     #[test]
     fn get_variable() {
         type Real = f64;
-        let container =
-            ().and_variable_default::<VarA<Real>>()
-                .and_variable_default::<VarB<Real>>();
+        let container = ().and_variable::<VarA<Real>>().and_variable::<VarB<Real>>();
         let mut variables = Variables::new(container);
         variables.add(Key(0), VarA::<Real>::new(1.0));
         variables.add(Key(1), VarB::<Real>::new(2.0));
@@ -194,9 +190,7 @@ mod tests {
 
     fn get_mut_variable() {
         type Real = f64;
-        let container =
-            ().and_variable_default::<VarA<Real>>()
-                .and_variable_default::<VarB<Real>>();
+        let container = ().and_variable::<VarA<Real>>().and_variable::<VarB<Real>>();
         let mut variables = Variables::new(container);
         variables.add(Key(0), VarA::<Real>::new(0.0));
         variables.add(Key(1), VarB::<Real>::new(0.0));
@@ -217,9 +211,7 @@ mod tests {
     #[test]
     fn local() {
         type Real = f64;
-        let container =
-            ().and_variable_default::<VarA<Real>>()
-                .and_variable_default::<VarB<Real>>();
+        let container = ().and_variable::<VarA<Real>>().and_variable::<VarB<Real>>();
         let mut variables = Variables::new(container);
         variables.add(Key(0), VarA::<Real>::new(0.0));
         variables.add(Key(1), VarB::<Real>::new(0.0));
@@ -254,9 +246,7 @@ mod tests {
     #[test]
     fn retract() {
         type Real = f64;
-        let container =
-            ().and_variable_default::<VarA<Real>>()
-                .and_variable_default::<VarB<Real>>();
+        let container = ().and_variable::<VarA<Real>>().and_variable::<VarB<Real>>();
         let mut variables = Variables::new(container);
         variables.add(Key(0), VarA::<Real>::new(0.0));
         variables.add(Key(1), VarB::<Real>::new(0.0));
@@ -285,9 +275,7 @@ mod tests {
     #[test]
     fn dim() {
         type Real = f64;
-        let container =
-            ().and_variable_default::<VarA<Real>>()
-                .and_variable_default::<VarB<Real>>();
+        let container = ().and_variable::<VarA<Real>>().and_variable::<VarB<Real>>();
         let mut variables = Variables::new(container);
         variables.add(Key(0), VarA::<Real>::new(0.0));
         variables.add(Key(1), VarB::<Real>::new(0.0));
@@ -297,9 +285,7 @@ mod tests {
     #[test]
     fn len() {
         type Real = f64;
-        let container =
-            ().and_variable_default::<VarA<Real>>()
-                .and_variable_default::<VarB<Real>>();
+        let container = ().and_variable::<VarA<Real>>().and_variable::<VarB<Real>>();
         let mut variables = Variables::new(container);
         variables.add(Key(0), VarA::<Real>::new(0.0));
         variables.add(Key(1), VarB::<Real>::new(0.0));

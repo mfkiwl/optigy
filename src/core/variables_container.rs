@@ -22,15 +22,11 @@ where
     fn get<N: VariablesKey<R>>(&self) -> Option<&HashMap<Key, N::Value>>;
     /// Try to get the value for N mutably.
     fn get_mut<N: VariablesKey<R>>(&mut self) -> Option<&mut HashMap<Key, N::Value>>;
-    /// Add a key-value pair to this.
-    fn and_variable<N: VariablesKey<R>>(
-        self,
-        val: HashMap<Key, N::Value>,
-    ) -> VariablesEntry<N, Self, R>
+    /// Add the default value for N
+    fn and_variable<N: VariablesKey<R>>(self) -> VariablesEntry<N, Self, R>
     where
         Self: Sized,
         N::Value: VariablesKey<R>,
-        R: RealField,
     {
         match self.get::<N::Value>() {
             Some(_) => panic!(
@@ -38,18 +34,10 @@ where
                 type_name::<N::Value>()
             ),
             None => VariablesEntry {
-                data: val,
+                data: HashMap::<Key, N::Value>::default(),
                 parent: self,
             },
         }
-    }
-    /// Add the default value for N
-    fn and_variable_default<N: VariablesKey<R>>(self) -> VariablesEntry<N, Self, R>
-    where
-        Self: Sized,
-        N::Value: VariablesKey<R>,
-    {
-        self.and_variable(HashMap::<Key, N::Value>::default())
     }
     /// sum of variables dim
     fn dim(&self, init: usize) -> usize;
@@ -291,9 +279,7 @@ mod tests {
         }
 
         type Real = f64;
-        let mut thing =
-            ().and_variable_default::<VariableA<Real>>()
-                .and_variable_default::<VariableB<Real>>();
+        let mut thing = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
         {
             let a = thing.get::<VariableA<Real>>();
             assert!(a.is_some());

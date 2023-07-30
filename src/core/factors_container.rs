@@ -27,15 +27,11 @@ where
     fn get<N: FactorsKey<R, C, L>>(&self) -> Option<&Vec<N::Value>>;
     /// Try to get the value for N mutably.
     fn get_mut<N: FactorsKey<R, C, L>>(&mut self) -> Option<&mut Vec<N::Value>>;
-    /// Add a key-value pair to this.
-    fn and_factor<N: FactorsKey<R, C, L>>(
-        self,
-        val: Vec<N::Value>,
-    ) -> FactorsEntry<N, Self, R, C, L>
+    /// Add the default value for N
+    fn and_factor<N: FactorsKey<R, C, L>>(self) -> FactorsEntry<N, Self, R, C, L>
     where
         Self: Sized,
         N::Value: FactorsKey<R, C, L>,
-        R: RealField,
     {
         match self.get::<N::Value>() {
             Some(_) => panic!(
@@ -43,18 +39,10 @@ where
                 type_name::<N::Value>()
             ),
             None => FactorsEntry {
-                data: val,
+                data: Vec::<N::Value>::default(),
                 parent: self,
             },
         }
-    }
-    /// Add the default value for N
-    fn and_factor_default<N: FactorsKey<R, C, L>>(self) -> FactorsEntry<N, Self, R, C, L>
-    where
-        Self: Sized,
-        N::Value: FactorsKey<R, C, L>,
-    {
-        self.and_factor(Vec::<N::Value>::default())
     }
     /// sum of variables dim
     fn dim(&self, init: usize) -> usize;
@@ -238,142 +226,168 @@ where
 // {
 //     container.get_mut::<V>().unwrap().get_mut(&key)
 // }
-// #[cfg(test)]
-// mod tests {
-//     use faer_core::MatRef;
+#[cfg(test)]
+mod tests {
+    use std::{char::ParseCharError, marker::PhantomData};
 
-//     use crate::core::variables_container::*;
+    use faer_core::{Mat, MatRef, RealField};
 
-//     #[test]
-//     fn recursive_map_container() {
-//         #[derive(Debug, Default)]
-//         struct VariableA<R>
-//         where
-//             R: RealField,
-//         {
-//             v0: R,
-//             v1: i32,
-//         }
+    use crate::core::{
+        factor::Factor,
+        factors_container::FactorsContainer,
+        key::Key,
+        loss_function::{GaussianLoss, LossFunction},
+        variable::Variable,
+        variables::Variables,
+        variables_container::VariablesContainer,
+    };
 
-//         #[derive(Debug, Default)]
-//         struct VariableB<R>
-//         where
-//             R: RealField,
-//         {
-//             v3: R,
-//             v4: i64,
-//         }
+    #[derive(Debug, Clone)]
+    struct VarA<R>
+    where
+        R: RealField,
+    {
+        val: Mat<R>,
+    }
 
-//         impl<R> Variable<R> for VariableA<R>
-//         where
-//             R: RealField,
-//         {
-//             fn local(&self, _value: &Self) -> Mat<R>
-//             where
-//                 R: RealField,
-//             {
-//                 todo!()
-//             }
+    impl<R> Variable<R> for VarA<R>
+    where
+        R: RealField,
+    {
+        fn local(&self, value: &Self) -> Mat<R>
+        where
+            R: RealField,
+        {
+            (self.val.as_ref() - value.val.as_ref()).clone()
+        }
 
-//             fn retract(&mut self, _delta: &MatRef<R>)
-//             where
-//                 R: RealField,
-//             {
-//                 todo!()
-//             }
+        fn retract(&mut self, delta: &MatRef<R>)
+        where
+            R: RealField,
+        {
+            self.val = self.val.clone() + delta.to_owned();
+        }
 
-//             fn dim(&self) -> usize {
-//                 3
-//             }
-//         }
+        fn dim(&self) -> usize {
+            3
+        }
+    }
+    #[derive(Debug, Clone)]
+    struct VarB<R>
+    where
+        R: RealField,
+    {
+        val: Mat<R>,
+    }
 
-//         impl<R> Variable<R> for VariableB<R>
-//         where
-//             R: RealField,
-//         {
-//             fn local(&self, _value: &Self) -> Mat<R>
-//             where
-//                 R: RealField,
-//             {
-//                 todo!()
-//             }
+    impl<R> Variable<R> for VarB<R>
+    where
+        R: RealField,
+    {
+        fn local(&self, value: &Self) -> Mat<R>
+        where
+            R: RealField,
+        {
+            (self.val.as_ref() - value.val.as_ref()).clone()
+        }
 
-//             fn retract(&mut self, _delta: &MatRef<R>)
-//             where
-//                 R: RealField,
-//             {
-//                 todo!()
-//             }
+        fn retract(&mut self, delta: &MatRef<R>)
+        where
+            R: RealField,
+        {
+            self.val = self.val.clone() + delta.to_owned();
+        }
 
-//             fn dim(&self) -> usize {
-//                 3
-//             }
-//         }
+        fn dim(&self) -> usize {
+            3
+        }
+    }
 
-//         type Real = f64;
-//         let mut thing =
-//             ().and_variable_default::<VariableA<Real>>()
-//                 .and_variable_default::<VariableB<Real>>();
-//         {
-//             let a = thing.get::<VariableA<Real>>();
-//             assert!(a.is_some());
+    impl<R> VarA<R>
+    where
+        R: RealField,
+    {
+        fn new(v: R) -> Self {
+            VarA {
+                val: Mat::<R>::with_dims(3, 1, |_i, _j| v.clone()),
+            }
+        }
+    }
+    impl<R> VarB<R>
+    where
+        R: RealField,
+    {
+        fn new(v: R) -> Self {
+            VarB {
+                val: Mat::<R>::with_dims(3, 1, |_i, _j| v.clone()),
+            }
+        }
+    }
+    struct FactorA<R, C, L>
+    where
+        R: RealField,
+        L: LossFunction<R>,
+        C: VariablesContainer<R>,
+    {
+        orig: Mat<R>,
+        loss: Option<L>,
+        __marker: PhantomData<C>,
+    }
+    impl<R, C, L> FactorA<R, C, L>
+    where
+        R: RealField,
+        L: LossFunction<R>,
+        C: VariablesContainer<R>,
+    {
+        fn new(v: R, loss: Option<L>) -> Self {
+            FactorA {
+                orig: Mat::<R>::with_dims(3, 1, |_i, _j| v.clone()),
+                loss,
+                __marker: PhantomData,
+            }
+        }
+    }
 
-//             let a = thing.get_mut::<VariableA<Real>>();
-//             a.unwrap().insert(
-//                 Key(3),
-//                 VariableA::<Real> {
-//                     v0: 4_f32 as Real,
-//                     v1: 4,
-//                 },
-//             );
-//             let a = thing.get_mut::<VariableA<Real>>();
-//             a.unwrap().insert(
-//                 Key(4),
-//                 VariableA::<Real> {
-//                     v0: 2_f32 as Real,
-//                     v1: 7,
-//                 },
-//             );
-//             let a = thing.get::<VariableA<Real>>();
-//             assert_eq!(a.unwrap().get(&Key(3)).unwrap().v0, 4_f32 as Real);
-//             assert_eq!(a.unwrap().get(&Key(3)).unwrap().v1, 4);
+    impl<R, C, L> Factor<R, C, L> for FactorA<R, C, L>
+    where
+        R: RealField,
+        C: VariablesContainer<R>,
+        L: LossFunction<R>,
+    {
+        fn error(&self, variables: &Variables<R, C>) -> Mat<R> {
+            let v0: &VarA<R> = variables.at(Key(0)).unwrap();
+            let v1: &VarB<R> = variables.at(Key(1)).unwrap();
+            let d = v0.val.clone() - v1.val.clone() + self.orig.clone();
+            d
+        }
 
-//             assert_eq!(a.unwrap().get(&Key(4)).unwrap().v0, 2_f32 as Real);
-//             assert_eq!(a.unwrap().get(&Key(4)).unwrap().v1, 7);
+        fn jacobians(&self, variables: &Variables<R, C>) -> Vec<Mat<R>> {
+            todo!()
+        }
 
-//             let a = thing.get_mut::<VariableB<Real>>();
-//             a.unwrap().insert(
-//                 Key(7),
-//                 VariableB::<Real> {
-//                     v3: 7_f32 as Real,
-//                     v4: 8_i64,
-//                 },
-//             );
+        fn dim(&self) -> usize {
+            3
+        }
 
-//             let a = thing.get::<VariableB<Real>>();
-//             assert_eq!(a.unwrap().get(&Key(7)).unwrap().v3, 7_f32 as Real);
-//             assert_eq!(a.unwrap().get(&Key(7)).unwrap().v4, 8);
+        fn keys(&self) -> &Vec<Key> {
+            todo!()
+        }
 
-//             assert_eq!(
-//                 get_variable::<_, _, VariableB<Real>>(&thing, Key(7))
-//                     .unwrap()
-//                     .v3,
-//                 7_f32 as Real
-//             );
-//         }
-//         {
-//             let var_b0: &VariableB<Real> = get_variable(&thing, Key(7)).unwrap();
-//             assert_eq!(var_b0.v4, 8);
-//         }
-//         {
-//             let var_b0: &mut VariableB<Real> = get_variable_mut(&mut thing, Key(7)).unwrap();
-//             var_b0.v4 = 10;
-//         }
-//         {
-//             let var_b0: &VariableB<Real> = get_variable(&thing, Key(7)).unwrap();
-//             assert_eq!(var_b0.v4, 10);
-//         }
-//         assert_eq!(thing.dim(0), 9);
-//         assert_eq!(thing.len(0), 3);
-//     }
-// }
+        fn loss_function(&self) -> Option<&L> {
+            self.loss.as_ref()
+        }
+    }
+    #[test]
+    fn add() {
+        type Real = f64;
+        let fcontaier = ().and_factor::<FactorA<Real, _, GaussianLoss>>();
+    }
+    #[test]
+    fn recursive_map_container() {
+        type Real = f64;
+        let vcontainer = ().and_variable::<VarA<Real>>().and_variable::<VarB<Real>>();
+        let mut variables = Variables::new(vcontainer);
+        variables.add(Key(0), VarA::<Real>::new(0.0));
+        variables.add(Key(1), VarB::<Real>::new(0.0));
+    }
+}
