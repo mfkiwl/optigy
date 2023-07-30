@@ -5,18 +5,20 @@ use crate::core::loss_function::LossFunction;
 use crate::core::variables::Variables;
 use faer_core::{Mat, RealField};
 
-pub trait Factor<'a, R, V, L>
+use super::variables_container::VariablesContainer;
+
+pub trait Factor<'a, R, C, L>
 where
     R: RealField,
-    V: Variables<R>,
+    C: VariablesContainer<R>,
     L: LossFunction<R>,
 {
     /// error function
     /// error vector dimension should meet dim()
-    fn error(&self, variables: &V) -> Mat<R>;
+    fn error(&self, variables: &Variables<R, C>) -> Mat<R>;
 
     /// whiten error
-    fn weighted_error(&self, variables: &V) -> Mat<R> {
+    fn weighted_error(&self, variables: &Variables<R, C>) -> Mat<R> {
         // match self.loss_function() {
         //     Some(loss) => loss.weight_in_place()
         //     None => todo!(),
@@ -26,10 +28,10 @@ where
 
     /// jacobians function
     /// jacobians vector sequence meets key list, size error.dim x var.dim
-    fn jacobians(&self, variables: &V) -> Vec<Mat<R>>;
+    fn jacobians(&self, variables: &Variables<R, C>) -> Vec<Mat<R>>;
 
     ///  whiten jacobian matrix
-    fn weighted_jacobians_error(&self, variables: &V) -> (Vec<Mat<R>>, Mat<R>) {
+    fn weighted_jacobians_error(&self, variables: &Variables<R, C>) -> (Vec<Mat<R>>, Mat<R>) {
         let mut pair = (self.jacobians(variables), self.error(variables));
         pair
     }
@@ -117,7 +119,7 @@ mod tests {
         key::Key,
         loss_function::{GaussianLoss, LossFunction},
         variable::Variable,
-        variables::{GraphVariables, Variables},
+        variables::Variables,
         variables_container::VariablesContainer,
     };
     use faer_core::{Mat, MatRef, RealField};
@@ -225,13 +227,13 @@ mod tests {
         }
     }
 
-    impl<'a, R, V, L> Factor<'a, R, V, L> for FactorA<R, L>
+    impl<'a, R, C, L> Factor<'a, R, C, L> for FactorA<R, L>
     where
         R: RealField,
-        V: Variables<R>,
+        C: VariablesContainer<R>,
         L: LossFunction<R>,
     {
-        fn error(&self, variables: &V) -> Mat<R> {
+        fn error(&self, variables: &Variables<R, C>) -> Mat<R> {
             let v0: &VarA<R> = variables.at(Key(0)).unwrap();
             let v1: &VarB<R> = variables.at(Key(1)).unwrap();
             let d = v0.val.clone() - v1.val.clone() + self.orig.clone();
@@ -239,7 +241,7 @@ mod tests {
             // todo!()
         }
 
-        fn jacobians(&self, variables: &V) -> Vec<Mat<R>> {
+        fn jacobians(&self, variables: &Variables<R, C>) -> Vec<Mat<R>> {
             todo!()
         }
 
@@ -309,7 +311,7 @@ mod tests {
         let container =
             ().and_variable_default::<VarA<Real>>()
                 .and_variable_default::<VarB<Real>>();
-        let mut variables = GraphVariables::new(container);
+        let mut variables = Variables::new(container);
         variables.add(Key(0), VarA::<Real>::new(4.0));
         variables.add(Key(1), VarB::<Real>::new(2.0));
         let loss = GaussianLoss {};

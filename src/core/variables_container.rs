@@ -59,9 +59,15 @@ where
     fn keys(&self, init: Vec<Key>) -> Vec<Key>;
     /// retact variable by key and delta offset
     fn retract(&mut self, delta: &Mat<R>, key: Key, offset: usize) -> usize;
-    fn local<V>(&self, variables: &V, delta: &mut Mat<R>, key: Key, offset: usize) -> usize
+    fn local<C>(
+        &self,
+        variables: &Variables<R, C>,
+        delta: &mut Mat<R>,
+        key: Key,
+        offset: usize,
+    ) -> usize
     where
-        V: Variables<R>;
+        C: VariablesContainer<R>;
 }
 
 /// The base case for recursive variadics: no fields.
@@ -90,9 +96,15 @@ where
         offset
     }
 
-    fn local<V>(&self, _variables: &V, _delta: &mut Mat<R>, _key: Key, offset: usize) -> usize
+    fn local<C>(
+        &self,
+        _variables: &Variables<R, C>,
+        _delta: &mut Mat<R>,
+        _key: Key,
+        offset: usize,
+    ) -> usize
     where
-        V: Variables<R>,
+        C: VariablesContainer<R>,
     {
         offset
     }
@@ -155,9 +167,15 @@ impl<T: VariablesKey<R>, P: VariablesContainer<R>, R: RealField> VariablesContai
         }
     }
 
-    fn local<V>(&self, variables: &V, delta: &mut Mat<R>, key: Key, offset: usize) -> usize
+    fn local<C>(
+        &self,
+        variables: &Variables<R, C>,
+        delta: &mut Mat<R>,
+        key: Key,
+        offset: usize,
+    ) -> usize
     where
-        V: Variables<R>,
+        C: VariablesContainer<R>,
     {
         let var_this = self.data.get(&key);
         match var_this {

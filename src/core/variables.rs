@@ -5,30 +5,30 @@ use crate::core::variables_container::{get_variable, get_variable_mut, Variables
 use faer_core::{Mat, RealField};
 use std::marker::PhantomData;
 
-pub trait Variables<R>
-where
-    R: RealField,
-{
-    /// dim (= A.cols)  
-    fn dim(&self) -> usize;
-    /// len
-    fn len(&self) -> usize;
-    fn retract(&mut self, delta: &Mat<R>, variable_ordering: &VariableOrdering);
-    fn local(&self, variables: &Self, variable_ordering: &VariableOrdering) -> Mat<R>;
-    fn default_variable_ordering(&self) -> VariableOrdering;
-    fn at<V>(&self, key: Key) -> Option<&V>
-    where
-        V: Variable<R> + 'static;
-    fn at_mut<V>(&mut self, key: Key) -> Option<&mut V>
-    where
-        V: Variable<R> + 'static;
-    fn add<V>(&mut self, key: Key, var: V)
-    where
-        V: Variable<R> + 'static;
-}
+// pub trait Variables<R>
+// where
+//     R: RealField,
+// {
+//     /// dim (= A.cols)
+//     fn dim(&self) -> usize;
+//     /// len
+//     fn len(&self) -> usize;
+//     fn retract(&mut self, delta: &Mat<R>, variable_ordering: &VariableOrdering);
+//     fn local(&self, variables: &Self, variable_ordering: &VariableOrdering) -> Mat<R>;
+//     fn default_variable_ordering(&self) -> VariableOrdering;
+//     fn at<V>(&self, key: Key) -> Option<&V>
+//     where
+//         V: Variable<R> + 'static;
+//     fn at_mut<V>(&mut self, key: Key) -> Option<&mut V>
+//     where
+//         V: Variable<R> + 'static;
+//     fn add<V>(&mut self, key: Key, var: V)
+//     where
+//         V: Variable<R> + 'static;
+// }
 
 #[derive(Clone)]
-pub struct GraphVariables<R, C>
+pub struct Variables<R, C>
 where
     R: RealField,
     C: VariablesContainer<R>,
@@ -37,33 +37,33 @@ where
     phantom: PhantomData<R>,
 }
 
-impl<R, C> GraphVariables<R, C>
+impl<R, C> Variables<R, C>
 where
     R: RealField,
     C: VariablesContainer<R>,
 {
     pub fn new(container: C) -> Self {
-        GraphVariables::<R, C> {
+        Variables::<R, C> {
             container,
             phantom: PhantomData,
         }
     }
 }
 
-impl<R, C> Variables<R> for GraphVariables<R, C>
+impl<R, C> Variables<R, C>
 where
     R: RealField,
     C: VariablesContainer<R>,
 {
-    fn dim(&self) -> usize {
+    pub fn dim(&self) -> usize {
         self.container.dim(0)
     }
 
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.container.len(0)
     }
 
-    fn retract(&mut self, delta: &Mat<R>, variable_ordering: &VariableOrdering) {
+    pub fn retract(&mut self, delta: &Mat<R>, variable_ordering: &VariableOrdering) {
         assert_eq!(delta.nrows(), self.dim());
         assert_eq!(delta.ncols(), 1);
         let mut d: usize = 0;
@@ -73,7 +73,7 @@ where
         }
     }
 
-    fn local(&self, variables: &Self, variable_ordering: &VariableOrdering) -> Mat<R> {
+    pub fn local(&self, variables: &Self, variable_ordering: &VariableOrdering) -> Mat<R> {
         let mut delta = Mat::<R>::zeros(self.dim(), 1);
         let mut d: usize = 0;
         for i in 0..variable_ordering.len() {
@@ -84,25 +84,25 @@ where
         delta
     }
 
-    fn default_variable_ordering(&self) -> VariableOrdering {
+    pub fn default_variable_ordering(&self) -> VariableOrdering {
         VariableOrdering::new(&self.container.keys(Vec::new()))
     }
 
-    fn at<V>(&self, key: Key) -> Option<&V>
+    pub fn at<V>(&self, key: Key) -> Option<&V>
     where
         V: Variable<R> + 'static,
     {
         get_variable(&self.container, key)
     }
 
-    fn at_mut<V>(&mut self, key: Key) -> Option<&mut V>
+    pub fn at_mut<V>(&mut self, key: Key) -> Option<&mut V>
     where
         V: Variable<R> + 'static,
     {
         get_variable_mut(&mut self.container, key)
     }
 
-    fn add<V>(&mut self, key: Key, var: V)
+    pub fn add<V>(&mut self, key: Key, var: V)
     where
         V: Variable<R> + 'static,
     {
@@ -202,7 +202,7 @@ mod tests {
         let container =
             ().and_variable_default::<VarA<Real>>()
                 .and_variable_default::<VarB<Real>>();
-        let mut variables = GraphVariables::new(container);
+        let mut variables = Variables::new(container);
         variables.add(Key(0), VarA::<Real>::new(0.0));
         variables.add(Key(1), VarB::<Real>::new(0.0));
     }
@@ -213,7 +213,7 @@ mod tests {
         let container =
             ().and_variable_default::<VarA<Real>>()
                 .and_variable_default::<VarB<Real>>();
-        let mut variables = GraphVariables::new(container);
+        let mut variables = Variables::new(container);
         variables.add(Key(0), VarA::<Real>::new(1.0));
         variables.add(Key(1), VarB::<Real>::new(2.0));
         let _var_0: &VarA<_> = variables.at(Key(0)).unwrap();
@@ -226,7 +226,7 @@ mod tests {
         let container =
             ().and_variable_default::<VarA<Real>>()
                 .and_variable_default::<VarB<Real>>();
-        let mut variables = GraphVariables::new(container);
+        let mut variables = Variables::new(container);
         variables.add(Key(0), VarA::<Real>::new(0.0));
         variables.add(Key(1), VarB::<Real>::new(0.0));
         {
@@ -249,7 +249,7 @@ mod tests {
         let container =
             ().and_variable_default::<VarA<Real>>()
                 .and_variable_default::<VarB<Real>>();
-        let mut variables = GraphVariables::new(container);
+        let mut variables = Variables::new(container);
         variables.add(Key(0), VarA::<Real>::new(0.0));
         variables.add(Key(1), VarB::<Real>::new(0.0));
         let orig_variables = variables.clone();
@@ -286,7 +286,7 @@ mod tests {
         let container =
             ().and_variable_default::<VarA<Real>>()
                 .and_variable_default::<VarB<Real>>();
-        let mut variables = GraphVariables::new(container);
+        let mut variables = Variables::new(container);
         variables.add(Key(0), VarA::<Real>::new(0.0));
         variables.add(Key(1), VarB::<Real>::new(0.0));
         let mut delta = Mat::<Real>::zeros(variables.dim(), 1);
@@ -317,7 +317,7 @@ mod tests {
         let container =
             ().and_variable_default::<VarA<Real>>()
                 .and_variable_default::<VarB<Real>>();
-        let mut variables = GraphVariables::new(container);
+        let mut variables = Variables::new(container);
         variables.add(Key(0), VarA::<Real>::new(0.0));
         variables.add(Key(1), VarB::<Real>::new(0.0));
         assert_eq!(variables.dim(), 6);
@@ -329,7 +329,7 @@ mod tests {
         let container =
             ().and_variable_default::<VarA<Real>>()
                 .and_variable_default::<VarB<Real>>();
-        let mut variables = GraphVariables::new(container);
+        let mut variables = Variables::new(container);
         variables.add(Key(0), VarA::<Real>::new(0.0));
         variables.add(Key(1), VarB::<Real>::new(0.0));
         assert_eq!(variables.len(), 2);
