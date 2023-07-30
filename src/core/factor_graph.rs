@@ -6,7 +6,7 @@ pub trait FactorGraph<'a, R>
 where
     R: RealField,
 {
-    type VS: Variables<'a, R>;
+    type VS: Variables<R>;
     // type FV<'a>: Factor<R>
     // where
     // Self: 'a;

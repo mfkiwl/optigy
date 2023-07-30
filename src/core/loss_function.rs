@@ -12,6 +12,7 @@ where
     /// in place operation to avoid excessive memory operation
     fn weight_in_place_jacobians_error(&self, je: &mut (Vec<Mat<R>>, Mat<R>));
 }
+#[derive(Clone)]
 pub struct GaussianLoss {}
 
 impl<R> LossFunction<R> for GaussianLoss

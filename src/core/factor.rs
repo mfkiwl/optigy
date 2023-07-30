@@ -2,35 +2,36 @@ use std::marker::PhantomData;
 
 use crate::core::key::Key;
 use crate::core::loss_function::LossFunction;
-use crate::core::variable::Variable;
 use crate::core::variables::Variables;
-use faer_core::{Conjugate, Entity, Mat, RealField};
+use faer_core::{Mat, RealField};
 
-pub trait Factor<'a, R, VS>
+pub trait Factor<'a, R, V, L>
 where
     R: RealField,
-    VS: Variables<R>,
+    V: Variables<R>,
+    L: LossFunction<R>,
 {
-    // type VS: Variables<R>;
-    type LF: LossFunction<R>;
     /// error function
     /// error vector dimension should meet dim()
-    fn error(&self, variables: &VS) -> Mat<R>;
+    fn error(&self, variables: &V) -> Mat<R>;
 
     /// whiten error
-    fn weighted_error(&self, variables: &VS) -> Mat<R> {
+    fn weighted_error(&self, variables: &V) -> Mat<R> {
+        // match self.loss_function() {
+        //     Some(loss) => loss.weight_in_place()
+        //     None => todo!(),
+        // }
         todo!()
     }
 
     /// jacobians function
     /// jacobians vector sequence meets key list, size error.dim x var.dim
-    fn jacobians(&self, variables: &VS) -> Vec<Mat<R>>;
+    fn jacobians(&self, variables: &V) -> Vec<Mat<R>>;
 
     ///  whiten jacobian matrix
-    fn weighted_jacobians_error(&self, variables: &VS) -> (Vec<Mat<R>>, Mat<R>) {
-        // let mut pair = (self.jacobians(variables), self.error(variables));
-        // pair
-        todo!()
+    fn weighted_jacobians_error(&self, variables: &V) -> (Vec<Mat<R>>, Mat<R>) {
+        let mut pair = (self.jacobians(variables), self.error(variables));
+        pair
     }
 
     /// error dimension is dim of noisemodel
@@ -45,7 +46,7 @@ where
     fn keys(&self) -> &Vec<Key>;
 
     // const access of noisemodel
-    // fn loss_function(&self) -> Option<&Self::LF>;
+    fn loss_function(&self) -> Option<&L>;
 }
 
 // pub struct FactorWrapper<R, F, VS>
@@ -114,7 +115,7 @@ mod tests {
     use super::Factor;
     use crate::core::{
         key::Key,
-        loss_function::GaussianLoss,
+        loss_function::{GaussianLoss, LossFunction},
         variable::Variable,
         variables::{GraphVariables, Variables},
         variables_container::VariablesContainer,
@@ -203,30 +204,34 @@ mod tests {
             }
         }
     }
-    struct FactorA<R>
+    struct FactorA<R, L>
     where
         R: RealField,
+        L: LossFunction<R>,
     {
         orig: Mat<R>,
+        loss: Option<L>,
     }
-    impl<R> FactorA<R>
+    impl<R, L> FactorA<R, L>
     where
         R: RealField,
+        L: LossFunction<R>,
     {
-        fn new(v: R) -> Self {
+        fn new(v: R, loss: Option<L>) -> Self {
             FactorA {
                 orig: Mat::<R>::with_dims(3, 1, |_i, _j| v.clone()),
+                loss,
             }
         }
     }
 
-    impl<'a, R, VS> Factor<'a, R, VS> for FactorA<R>
+    impl<'a, R, V, L> Factor<'a, R, V, L> for FactorA<R, L>
     where
         R: RealField,
-        VS: Variables<R>,
+        V: Variables<R>,
+        L: LossFunction<R>,
     {
-        type LF = GaussianLoss;
-        fn error(&self, variables: &VS) -> Mat<R> {
+        fn error(&self, variables: &V) -> Mat<R> {
             let v0: &VarA<R> = variables.at(Key(0)).unwrap();
             let v1: &VarB<R> = variables.at(Key(1)).unwrap();
             let d = v0.val.clone() - v1.val.clone() + self.orig.clone();
@@ -234,7 +239,7 @@ mod tests {
             // todo!()
         }
 
-        fn jacobians(&self, variables: &VS) -> Vec<Mat<R>> {
+        fn jacobians(&self, variables: &V) -> Vec<Mat<R>> {
             todo!()
         }
 
@@ -246,9 +251,9 @@ mod tests {
             todo!()
         }
 
-        // fn loss_function(&self) -> Option<&Self::LF> {
-        //     todo!()
-        // }
+        fn loss_function(&self) -> Option<&L> {
+            self.loss.as_ref()
+        }
     }
 
     struct FactorB<R>
@@ -307,8 +312,9 @@ mod tests {
         let mut variables = GraphVariables::new(container);
         variables.add(Key(0), VarA::<Real>::new(4.0));
         variables.add(Key(1), VarB::<Real>::new(2.0));
-        let f0 = FactorA::<Real>::new(1.0);
-        let f1 = FactorB::<Real>::new(2.0);
+        let loss = GaussianLoss {};
+        let f0 = FactorA::new(1.0, Some(loss.clone()));
+        // let f1 = FactorB::<Real>::new(2.0);
         let e0 = f0.error(&variables);
         // let e1 = f1.error(&variables);
         assert_eq!(e0, Mat::<Real>::with_dims(3, 1, |_i, _j| 3.0));
