@@ -7,18 +7,22 @@ use faer_core::{Mat, RealField};
 
 use super::variables_container::VariablesContainer;
 
-pub trait Factor<R, C, L>
+pub trait Factor<R, L>
 where
     R: RealField,
-    C: VariablesContainer<R>,
     L: LossFunction<R>,
 {
     /// error function
     /// error vector dimension should meet dim()
-    fn error(&self, variables: &Variables<R, C>) -> Mat<R>;
+    fn error<C>(&self, variables: &Variables<R, C>) -> Mat<R>
+    where
+        C: VariablesContainer<R>;
 
     /// whiten error
-    fn weighted_error(&self, variables: &Variables<R, C>) -> Mat<R> {
+    fn weighted_error<C>(&self, variables: &Variables<R, C>) -> Mat<R>
+    where
+        C: VariablesContainer<R>,
+    {
         // match self.loss_function() {
         //     Some(loss) => loss.weight_in_place()
         //     None => todo!(),
@@ -28,10 +32,15 @@ where
 
     /// jacobians function
     /// jacobians vector sequence meets key list, size error.dim x var.dim
-    fn jacobians(&self, variables: &Variables<R, C>) -> Vec<Mat<R>>;
+    fn jacobians<C>(&self, variables: &Variables<R, C>) -> Vec<Mat<R>>
+    where
+        C: VariablesContainer<R>;
 
     ///  whiten jacobian matrix
-    fn weighted_jacobians_error(&self, variables: &Variables<R, C>) -> (Vec<Mat<R>>, Mat<R>) {
+    fn weighted_jacobians_error<C>(&self, variables: &Variables<R, C>) -> (Vec<Mat<R>>, Mat<R>)
+    where
+        C: VariablesContainer<R>,
+    {
         let mut pair = (self.jacobians(variables), self.error(variables));
         pair
     }
@@ -227,13 +236,15 @@ mod tests {
         }
     }
 
-    impl<'a, R, C, L> Factor<R, C, L> for FactorA<R, L>
+    impl<R, L> Factor<R, L> for FactorA<R, L>
     where
         R: RealField,
-        C: VariablesContainer<R>,
         L: LossFunction<R>,
     {
-        fn error(&self, variables: &Variables<R, C>) -> Mat<R> {
+        fn error<C>(&self, variables: &Variables<R, C>) -> Mat<R>
+        where
+            C: VariablesContainer<R>,
+        {
             let v0: &VarA<R> = variables.at(Key(0)).unwrap();
             let v1: &VarB<R> = variables.at(Key(1)).unwrap();
             let d = v0.val.clone() - v1.val.clone() + self.orig.clone();
@@ -241,7 +252,10 @@ mod tests {
             // todo!()
         }
 
-        fn jacobians(&self, variables: &Variables<R, C>) -> Vec<Mat<R>> {
+        fn jacobians<C>(&self, variables: &Variables<R, C>) -> Vec<Mat<R>>
+        where
+            C: VariablesContainer<R>,
+        {
             todo!()
         }
 

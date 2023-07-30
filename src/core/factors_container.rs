@@ -7,31 +7,29 @@ use std::mem;
 use super::loss_function::LossFunction;
 use super::variables_container::VariablesContainer;
 
-pub trait FactorsKey<R, C, L>
+pub trait FactorsKey<R, L>
 where
     R: RealField,
-    C: VariablesContainer<R>,
     L: LossFunction<R>,
 {
-    type Value: 'static + Factor<R, C, L>;
+    type Value: 'static + Factor<R, L>;
 }
 
 /// The building block trait for recursive variadics.
-pub trait FactorsContainer<R, C, L>
+pub trait FactorsContainer<R, L>
 where
     R: RealField,
-    C: VariablesContainer<R>,
     L: LossFunction<R>,
 {
     /// Try to get the value for N.
-    fn get<N: FactorsKey<R, C, L>>(&self) -> Option<&Vec<N::Value>>;
+    fn get<N: FactorsKey<R, L>>(&self) -> Option<&Vec<N::Value>>;
     /// Try to get the value for N mutably.
-    fn get_mut<N: FactorsKey<R, C, L>>(&mut self) -> Option<&mut Vec<N::Value>>;
+    fn get_mut<N: FactorsKey<R, L>>(&mut self) -> Option<&mut Vec<N::Value>>;
     /// Add the default value for N
-    fn and_factor<N: FactorsKey<R, C, L>>(self) -> FactorsEntry<N, Self, R, C, L>
+    fn and_factor<N: FactorsKey<R, L>>(self) -> FactorsEntry<N, Self, R, L>
     where
         Self: Sized,
-        N::Value: FactorsKey<R, C, L>,
+        N::Value: FactorsKey<R, L>,
     {
         match self.get::<N::Value>() {
             Some(_) => panic!(
@@ -65,16 +63,15 @@ where
 
 /// The base case for recursive variadics: no fields.
 pub type FactorsEmpty = ();
-impl<R, C, L> FactorsContainer<R, C, L> for FactorsEmpty
+impl<R, L> FactorsContainer<R, L> for FactorsEmpty
 where
     R: RealField,
-    C: VariablesContainer<R>,
     L: LossFunction<R>,
 {
-    fn get<N: FactorsKey<R, C, L>>(&self) -> Option<&Vec<N::Value>> {
+    fn get<N: FactorsKey<R, L>>(&self) -> Option<&Vec<N::Value>> {
         None
     }
-    fn get_mut<N: FactorsKey<R, C, L>>(&mut self) -> Option<&mut Vec<N::Value>> {
+    fn get_mut<N: FactorsKey<R, L>>(&mut self) -> Option<&mut Vec<N::Value>> {
         None
     }
     fn dim(&self, init: usize) -> usize {
@@ -107,33 +104,31 @@ where
 
 /// Wraps some field data and a parent, which is either another Entry or Empty
 #[derive(Clone)]
-pub struct FactorsEntry<T, P, R, C, L>
+pub struct FactorsEntry<T, P, R, L>
 where
     R: RealField,
-    C: VariablesContainer<R>,
     L: LossFunction<R>,
-    T: FactorsKey<R, C, L>,
+    T: FactorsKey<R, L>,
 {
     data: Vec<T::Value>,
     parent: P,
 }
 
-impl<T, P, R, C, L> FactorsContainer<R, C, L> for FactorsEntry<T, P, R, C, L>
+impl<T, P, R, L> FactorsContainer<R, L> for FactorsEntry<T, P, R, L>
 where
     R: RealField,
-    C: VariablesContainer<R>,
     L: LossFunction<R>,
-    T: FactorsKey<R, C, L>,
-    P: FactorsContainer<R, C, L>,
+    T: FactorsKey<R, L>,
+    P: FactorsContainer<R, L>,
 {
-    fn get<N: FactorsKey<R, C, L>>(&self) -> Option<&Vec<N::Value>> {
+    fn get<N: FactorsKey<R, L>>(&self) -> Option<&Vec<N::Value>> {
         if TypeId::of::<N::Value>() == TypeId::of::<T::Value>() {
             Some(unsafe { mem::transmute(&self.data) })
         } else {
             self.parent.get::<N>()
         }
     }
-    fn get_mut<N: FactorsKey<R, C, L>>(&mut self) -> Option<&mut Vec<N::Value>> {
+    fn get_mut<N: FactorsKey<R, L>>(&mut self) -> Option<&mut Vec<N::Value>> {
         if TypeId::of::<N::Value>() == TypeId::of::<T::Value>() {
             Some(unsafe { mem::transmute(&mut self.data) })
         } else {
@@ -200,11 +195,10 @@ where
     // }
 }
 
-impl<T, R, C, L> FactorsKey<R, C, L> for T
+impl<T, R, L> FactorsKey<R, L> for T
 where
-    T: 'static + Factor<R, C, L>,
+    T: 'static + Factor<R, L>,
     R: RealField,
-    C: VariablesContainer<R>,
     L: LossFunction<R>,
 {
     type Value = T;
@@ -323,45 +317,46 @@ mod tests {
             }
         }
     }
-    struct FactorA<R, C, L>
+    struct FactorA<R, L>
     where
         R: RealField,
         L: LossFunction<R>,
-        C: VariablesContainer<R>,
     {
         orig: Mat<R>,
         loss: Option<L>,
-        __marker: PhantomData<C>,
     }
-    impl<R, C, L> FactorA<R, C, L>
+    impl<R, L> FactorA<R, L>
     where
         R: RealField,
         L: LossFunction<R>,
-        C: VariablesContainer<R>,
     {
         fn new(v: R, loss: Option<L>) -> Self {
             FactorA {
                 orig: Mat::<R>::with_dims(3, 1, |_i, _j| v.clone()),
                 loss,
-                __marker: PhantomData,
             }
         }
     }
 
-    impl<R, C, L> Factor<R, C, L> for FactorA<R, C, L>
+    impl<R, L> Factor<R, L> for FactorA<R, L>
     where
         R: RealField,
-        C: VariablesContainer<R>,
         L: LossFunction<R>,
     {
-        fn error(&self, variables: &Variables<R, C>) -> Mat<R> {
+        fn error<C>(&self, variables: &Variables<R, C>) -> Mat<R>
+        where
+            C: VariablesContainer<R>,
+        {
             let v0: &VarA<R> = variables.at(Key(0)).unwrap();
             let v1: &VarB<R> = variables.at(Key(1)).unwrap();
             let d = v0.val.clone() - v1.val.clone() + self.orig.clone();
             d
         }
 
-        fn jacobians(&self, variables: &Variables<R, C>) -> Vec<Mat<R>> {
+        fn jacobians<C>(&self, variables: &Variables<R, C>) -> Vec<Mat<R>>
+        where
+            C: VariablesContainer<R>,
+        {
             todo!()
         }
 
@@ -380,7 +375,7 @@ mod tests {
     #[test]
     fn add() {
         type Real = f64;
-        let fcontaier = ().and_factor::<FactorA<Real, _, GaussianLoss>>();
+        let fcontaier = ().and_factor::<FactorA<Real, GaussianLoss>>();
     }
     #[test]
     fn recursive_map_container() {
