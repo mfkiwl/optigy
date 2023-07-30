@@ -204,31 +204,33 @@ where
     type Value = T;
 }
 
-// pub fn get_variable<R, C, V>(container: &C, key: Key) -> Option<&V>
-// where
-//     R: RealField,
-//     C: FactorsContainer<R>,
-//     V: Variable<R> + 'static,
-// {
-//     container.get::<V>().unwrap().get(&key)
-// }
-// pub fn get_variable_mut<R, C, V>(container: &mut C, key: Key) -> Option<&mut V>
-// where
-//     R: RealField,
-//     C: FactorsContainer<R>,
-//     V: Variable<R> + 'static,
-// {
-//     container.get_mut::<V>().unwrap().get_mut(&key)
-// }
+pub fn get_factor<R, C, F, L>(container: &C, index: usize) -> Option<&F>
+where
+    R: RealField,
+    L: LossFunction<R>,
+    C: FactorsContainer<R, L>,
+    F: Factor<R, L> + 'static,
+{
+    container.get::<F>().unwrap().get(index)
+}
+pub fn get_factor_mut<R, C, F, L>(container: &mut C, index: usize) -> Option<&mut F>
+where
+    R: RealField,
+    L: LossFunction<R>,
+    C: FactorsContainer<R, L>,
+    F: Factor<R, L> + 'static,
+{
+    container.get_mut::<F>().unwrap().get_mut(index)
+}
 #[cfg(test)]
 mod tests {
-    use std::{char::ParseCharError, marker::PhantomData};
+    use std::marker::PhantomData;
 
     use faer_core::{Mat, MatRef, RealField};
 
     use crate::core::{
         factor::Factor,
-        factors_container::FactorsContainer,
+        factors_container::{get_factor, FactorsContainer},
         key::Key,
         loss_function::{GaussianLoss, LossFunction},
         variable::Variable,
@@ -372,10 +374,103 @@ mod tests {
             self.loss.as_ref()
         }
     }
+    struct FactorB<R, L>
+    where
+        R: RealField,
+        L: LossFunction<R>,
+    {
+        orig: Mat<R>,
+        loss: Option<L>,
+    }
+    impl<R, L> FactorB<R, L>
+    where
+        R: RealField,
+        L: LossFunction<R>,
+    {
+        fn new(v: R, loss: Option<L>) -> Self {
+            FactorB {
+                orig: Mat::<R>::with_dims(3, 1, |_i, _j| v.clone()),
+                loss,
+            }
+        }
+    }
+
+    impl<R, L> Factor<R, L> for FactorB<R, L>
+    where
+        R: RealField,
+        L: LossFunction<R>,
+    {
+        fn error<C>(&self, variables: &Variables<R, C>) -> Mat<R>
+        where
+            C: VariablesContainer<R>,
+        {
+            let v0: &VarA<R> = variables.at(Key(0)).unwrap();
+            let v1: &VarB<R> = variables.at(Key(1)).unwrap();
+            let d = v0.val.clone() - v1.val.clone() + self.orig.clone();
+            d
+        }
+
+        fn jacobians<C>(&self, variables: &Variables<R, C>) -> Vec<Mat<R>>
+        where
+            C: VariablesContainer<R>,
+        {
+            todo!()
+        }
+
+        fn dim(&self) -> usize {
+            3
+        }
+
+        fn keys(&self) -> &Vec<Key> {
+            todo!()
+        }
+
+        fn loss_function(&self) -> Option<&L> {
+            self.loss.as_ref()
+        }
+    }
     #[test]
-    fn add() {
+    fn make() {
         type Real = f64;
-        let fcontaier = ().and_factor::<FactorA<Real, GaussianLoss>>();
+        let contaier =
+            ().and_factor::<FactorA<Real, GaussianLoss>>()
+                .and_factor::<FactorB<Real, GaussianLoss>>();
+        let _fc0 = contaier.get::<FactorA<Real, GaussianLoss>>().unwrap();
+        let _fc1 = contaier.get::<FactorB<Real, GaussianLoss>>().unwrap();
+    }
+    #[test]
+    fn get() {
+        type Real = f64;
+        let mut contaier =
+            ().and_factor::<FactorA<Real, GaussianLoss>>()
+                .and_factor::<FactorB<Real, GaussianLoss>>();
+        {
+            let fc0 = contaier.get_mut::<FactorA<Real, GaussianLoss>>().unwrap();
+            fc0.push(FactorA::new(2.0, None));
+            fc0.push(FactorA::new(1.0, None));
+        }
+        {
+            let fc1 = contaier.get_mut::<FactorB<Real, GaussianLoss>>().unwrap();
+            fc1.push(FactorB::new(2.0, None));
+        }
+        let fc0 = contaier.get::<FactorA<Real, GaussianLoss>>().unwrap();
+        assert_eq!(
+            fc0.get(0).unwrap().orig,
+            Mat::<Real>::with_dims(3, 1, |_i, _j| 2.0)
+        );
+        assert_eq!(
+            fc0.get(1).unwrap().orig,
+            Mat::<Real>::with_dims(3, 1, |_i, _j| 1.0)
+        );
+        let fc1 = contaier.get::<FactorB<Real, GaussianLoss>>().unwrap();
+        assert_eq!(
+            fc1.get(0).unwrap().orig,
+            Mat::<Real>::with_dims(3, 1, |_i, _j| 2.0)
+        );
+        let f0: &FactorA<_, _> = get_factor(&contaier, 0).unwrap();
+        let f1: &FactorA<_, _> = get_factor(&contaier, 1).unwrap();
+        assert_eq!(f0.orig, Mat::<Real>::with_dims(3, 1, |_i, _j| 2.0));
+        assert_eq!(f1.orig, Mat::<Real>::with_dims(3, 1, |_i, _j| 1.0));
     }
     #[test]
     fn recursive_map_container() {
