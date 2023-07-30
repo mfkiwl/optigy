@@ -5,12 +5,11 @@ use crate::core::loss_function::LossFunction;
 use crate::core::variable::Variable;
 use crate::core::variables::Variables;
 use faer_core::{Conjugate, Entity, Mat, RealField};
-use num_traits::Float;
 
 pub trait Factor<'a, R, VS>
 where
     R: RealField,
-    VS: Variables<'a, R>,
+    VS: Variables<R>,
 {
     // type VS: Variables<R>;
     type LF: LossFunction<R>;
@@ -224,7 +223,7 @@ mod tests {
     impl<'a, R, VS> Factor<'a, R, VS> for FactorA<R>
     where
         R: RealField,
-        VS: Variables<'a, R>,
+        VS: Variables<R>,
     {
         type LF = GaussianLoss;
         fn error(&self, variables: &VS) -> Mat<R> {

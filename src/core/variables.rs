@@ -5,7 +5,7 @@ use crate::core::variables_container::{get_variable, get_variable_mut, Variables
 use faer_core::{Mat, RealField};
 use std::marker::PhantomData;
 
-pub trait Variables<'a, R>
+pub trait Variables<R>
 where
     R: RealField,
 {
@@ -28,19 +28,19 @@ where
 }
 
 #[derive(Clone)]
-pub struct GraphVariables<'a, R, C>
+pub struct GraphVariables<R, C>
 where
     R: RealField,
-    C: VariablesContainer<'a, R>,
+    C: VariablesContainer<R>,
 {
     container: C,
-    phantom: PhantomData<&'a R>,
+    phantom: PhantomData<R>,
 }
 
-impl<'a, R, C> GraphVariables<'a, R, C>
+impl<R, C> GraphVariables<R, C>
 where
     R: RealField,
-    C: VariablesContainer<'a, R>,
+    C: VariablesContainer<R>,
 {
     pub fn new(container: C) -> Self {
         GraphVariables::<R, C> {
@@ -50,10 +50,10 @@ where
     }
 }
 
-impl<'a, R, C> Variables<'a, R> for GraphVariables<'a, R, C>
+impl<R, C> Variables<R> for GraphVariables<R, C>
 where
     R: RealField,
-    C: VariablesContainer<'a, R>,
+    C: VariablesContainer<R>,
 {
     fn dim(&self) -> usize {
         self.container.dim(0)

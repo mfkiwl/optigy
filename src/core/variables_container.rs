@@ -14,7 +14,7 @@ where
 }
 
 /// The building block trait for recursive variadics.
-pub trait VariablesContainer<'a, R>
+pub trait VariablesContainer<R>
 where
     R: RealField,
 {
@@ -61,12 +61,12 @@ where
     fn retract(&mut self, delta: &Mat<R>, key: Key, offset: usize) -> usize;
     fn local<V>(&self, variables: &V, delta: &mut Mat<R>, key: Key, offset: usize) -> usize
     where
-        V: Variables<'a, R>;
+        V: Variables<R>;
 }
 
 /// The base case for recursive variadics: no fields.
 pub type VariablesEmpty = ();
-impl<'a, R> VariablesContainer<'a, R> for VariablesEmpty
+impl<R> VariablesContainer<R> for VariablesEmpty
 where
     R: RealField,
 {
@@ -92,7 +92,7 @@ where
 
     fn local<V>(&self, _variables: &V, _delta: &mut Mat<R>, _key: Key, offset: usize) -> usize
     where
-        V: Variables<'a, R>,
+        V: Variables<R>,
     {
         offset
     }
@@ -105,7 +105,7 @@ pub struct VariablesEntry<T: VariablesKey<R>, P, R: RealField> {
     parent: P,
 }
 
-impl<'a, T: VariablesKey<R>, P: VariablesContainer<'a, R>, R: RealField> VariablesContainer<'a, R>
+impl<T: VariablesKey<R>, P: VariablesContainer<R>, R: RealField> VariablesContainer<R>
     for VariablesEntry<T, P, R>
 {
     fn get<N: VariablesKey<R>>(&self) -> Option<&HashMap<Key, N::Value>> {
@@ -157,7 +157,7 @@ impl<'a, T: VariablesKey<R>, P: VariablesContainer<'a, R>, R: RealField> Variabl
 
     fn local<V>(&self, variables: &V, delta: &mut Mat<R>, key: Key, offset: usize) -> usize
     where
-        V: Variables<'a, R>,
+        V: Variables<R>,
     {
         let var_this = self.data.get(&key);
         match var_this {
@@ -184,18 +184,18 @@ where
     type Value = T;
 }
 
-pub fn get_variable<'a, R, C, V>(container: &C, key: Key) -> Option<&V>
+pub fn get_variable<R, C, V>(container: &C, key: Key) -> Option<&V>
 where
     R: RealField,
-    C: VariablesContainer<'a, R>,
+    C: VariablesContainer<R>,
     V: Variable<R> + 'static,
 {
     container.get::<V>().unwrap().get(&key)
 }
-pub fn get_variable_mut<'a, R, C, V>(container: &mut C, key: Key) -> Option<&mut V>
+pub fn get_variable_mut<R, C, V>(container: &mut C, key: Key) -> Option<&mut V>
 where
     R: RealField,
-    C: VariablesContainer<'a, R>,
+    C: VariablesContainer<R>,
     V: Variable<R> + 'static,
 {
     container.get_mut::<V>().unwrap().get_mut(&key)
@@ -267,41 +267,6 @@ mod tests {
 
             fn dim(&self) -> usize {
                 3
-            }
-        }
-
-        #[derive(Debug)]
-        enum VariableVariant<'a, R>
-        where
-            R: RealField,
-        {
-            V0(&'a VariableA<R>),
-            V1(&'a VariableB<R>),
-        }
-
-        impl<'a, R> Variable<R> for VariableVariant<'a, R>
-        where
-            R: RealField,
-        {
-            fn dim(&self) -> usize {
-                match self {
-                    VariableVariant::V0(v) => v.dim(),
-                    VariableVariant::V1(v) => v.dim(),
-                }
-            }
-
-            fn local(&self, value: &Self) -> faer_core::Mat<R>
-            where
-                R: RealField,
-            {
-                todo!()
-            }
-
-            fn retract(&mut self, delta: &faer_core::MatRef<R>)
-            where
-                R: RealField,
-            {
-                todo!()
             }
         }
 
