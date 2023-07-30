@@ -220,6 +220,8 @@ where
 }
 #[cfg(test)]
 mod tests {
+    use faer_core::MatRef;
+
     use crate::core::variables_container::*;
 
     #[test]
@@ -246,14 +248,14 @@ mod tests {
         where
             R: RealField,
         {
-            fn local(&self, _value: &Self) -> faer_core::Mat<R>
+            fn local(&self, _value: &Self) -> Mat<R>
             where
                 R: RealField,
             {
                 todo!()
             }
 
-            fn retract(&mut self, _delta: &faer_core::MatRef<R>)
+            fn retract(&mut self, _delta: &MatRef<R>)
             where
                 R: RealField,
             {
@@ -269,14 +271,14 @@ mod tests {
         where
             R: RealField,
         {
-            fn local(&self, _value: &Self) -> faer_core::Mat<R>
+            fn local(&self, _value: &Self) -> Mat<R>
             where
                 R: RealField,
             {
                 todo!()
             }
 
-            fn retract(&mut self, _delta: &faer_core::MatRef<R>)
+            fn retract(&mut self, _delta: &MatRef<R>)
             where
                 R: RealField,
             {

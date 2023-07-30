@@ -1,4 +1,6 @@
 mod core;
+mod nonlinear;
+
 mod prelude;
 #[cfg(test)]
 mod tests {

@@ -5,28 +5,6 @@ use crate::core::variables_container::{get_variable, get_variable_mut, Variables
 use faer_core::{Mat, RealField};
 use std::marker::PhantomData;
 
-// pub trait Variables<R>
-// where
-//     R: RealField,
-// {
-//     /// dim (= A.cols)
-//     fn dim(&self) -> usize;
-//     /// len
-//     fn len(&self) -> usize;
-//     fn retract(&mut self, delta: &Mat<R>, variable_ordering: &VariableOrdering);
-//     fn local(&self, variables: &Self, variable_ordering: &VariableOrdering) -> Mat<R>;
-//     fn default_variable_ordering(&self) -> VariableOrdering;
-//     fn at<V>(&self, key: Key) -> Option<&V>
-//     where
-//         V: Variable<R> + 'static;
-//     fn at_mut<V>(&mut self, key: Key) -> Option<&mut V>
-//     where
-//         V: Variable<R> + 'static;
-//     fn add<V>(&mut self, key: Key, var: V)
-//     where
-//         V: Variable<R> + 'static;
-// }
-
 #[derive(Clone)]
 pub struct Variables<R, C>
 where
@@ -48,13 +26,6 @@ where
             phantom: PhantomData,
         }
     }
-}
-
-impl<R, C> Variables<R, C>
-where
-    R: RealField,
-    C: VariablesContainer<R>,
-{
     pub fn dim(&self) -> usize {
         self.container.dim(0)
     }

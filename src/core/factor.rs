@@ -7,7 +7,7 @@ use faer_core::{Mat, RealField};
 
 use super::variables_container::VariablesContainer;
 
-pub trait Factor<'a, R, C, L>
+pub trait Factor<R, C, L>
 where
     R: RealField,
     C: VariablesContainer<R>,
@@ -227,7 +227,7 @@ mod tests {
         }
     }
 
-    impl<'a, R, C, L> Factor<'a, R, C, L> for FactorA<R, L>
+    impl<'a, R, C, L> Factor<R, C, L> for FactorA<R, L>
     where
         R: RealField,
         C: VariablesContainer<R>,
