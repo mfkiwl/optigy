@@ -4,7 +4,7 @@ mod prelude;
 mod tests {
     use super::prelude::{Factor, Key, LossFunction, Variable, Variables};
     use super::*;
-    use faer_core::{mat, Entity, Mat};
+    use faer_core::Mat;
 
     #[test]
     fn matmul() {

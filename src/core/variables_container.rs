@@ -1,5 +1,6 @@
 use crate::core::key::Key;
 use crate::core::variable::Variable;
+use crate::core::variables::Variables;
 use faer_core::{Mat, RealField};
 use hashbrown::HashMap;
 use std::any::{type_name, TypeId};
@@ -59,6 +60,9 @@ where
     fn keys(&self, init: Vec<Key>) -> Vec<Key>;
     /// retact variable by key and delta offset
     fn retract(&mut self, delta: &Mat<R>, key: Key, offset: usize) -> usize;
+    fn local<V>(&self, variables: &V, delta: &mut Mat<R>, key: Key, offset: usize) -> usize
+    where
+        V: Variables<'a, R>;
 }
 
 /// The base case for recursive variadics: no fields.
@@ -88,9 +92,17 @@ where
     fn retract(&mut self, _delta: &Mat<R>, _key: Key, offset: usize) -> usize {
         offset
     }
+
+    fn local<V>(&self, _variables: &V, _delta: &mut Mat<R>, _key: Key, offset: usize) -> usize
+    where
+        V: Variables<'a, R>,
+    {
+        offset
+    }
 }
 
 /// Wraps some field data and a parent, which is either another Entry or Empty
+#[derive(Clone)]
 pub struct VariablesEntry<T: VariablesKey<R>, P, R: RealField> {
     data: HashMap<Key, T::Value>,
     parent: P,
@@ -175,6 +187,26 @@ where
             None => self.parent.retract(delta, key, offset),
         }
     }
+
+    fn local<V>(&self, variables: &V, delta: &mut Mat<R>, key: Key, offset: usize) -> usize
+    where
+        V: Variables<'a, R>,
+    {
+        let var_this = self.data.get(&key);
+        match var_this {
+            Some(var_this) => {
+                let var = variables.at::<T::Value>(key).unwrap();
+                let vd = var.dim();
+                delta
+                    .as_mut()
+                    .subrows(offset, vd)
+                    .clone_from(var_this.local(var).as_ref());
+                offset + vd
+            }
+
+            None => self.parent.local(variables, delta, key, offset),
+        }
+    }
 }
 
 /// use for better type checking
@@ -199,7 +231,7 @@ where
     type U: VariableVariantGuard<'a, R>;
     fn wrap(v: &'a T) -> Self::U;
 }
-
+#[derive(Clone)]
 pub struct VariableWrapper {}
 
 pub fn get_variable<'a, R, C, V>(container: &C, key: Key) -> Option<&V>

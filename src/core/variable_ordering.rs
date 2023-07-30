@@ -26,14 +26,14 @@ impl Default for VariableOrdering {
     }
 }
 impl VariableOrdering {
-    pub fn new(keylist: &Vec<Key>) -> Self {
+    pub fn new(keylist: &[Key]) -> Self {
         let mut keymap: HashMap<Key, usize> = HashMap::new();
         for (i, k) in keylist.iter().enumerate() {
             keymap.insert(*k, i);
         }
         VariableOrdering {
             keymap,
-            keylist: keylist.clone(),
+            keylist: keylist.to_owned(),
         }
     }
 }
