@@ -432,28 +432,28 @@ mod tests {
     #[test]
     fn make() {
         type Real = f64;
-        let contaier =
+        let container =
             ().and_factor::<FactorA<Real, GaussianLoss>>()
                 .and_factor::<FactorB<Real, GaussianLoss>>();
-        let _fc0 = contaier.get::<FactorA<Real, GaussianLoss>>().unwrap();
-        let _fc1 = contaier.get::<FactorB<Real, GaussianLoss>>().unwrap();
+        let _fc0 = container.get::<FactorA<Real, GaussianLoss>>().unwrap();
+        let _fc1 = container.get::<FactorB<Real, GaussianLoss>>().unwrap();
     }
     #[test]
     fn get() {
         type Real = f64;
-        let mut contaier =
+        let mut container =
             ().and_factor::<FactorA<Real, GaussianLoss>>()
                 .and_factor::<FactorB<Real, GaussianLoss>>();
         {
-            let fc0 = contaier.get_mut::<FactorA<Real, GaussianLoss>>().unwrap();
+            let fc0 = container.get_mut::<FactorA<Real, GaussianLoss>>().unwrap();
             fc0.push(FactorA::new(2.0, None));
             fc0.push(FactorA::new(1.0, None));
         }
         {
-            let fc1 = contaier.get_mut::<FactorB<Real, GaussianLoss>>().unwrap();
+            let fc1 = container.get_mut::<FactorB<Real, GaussianLoss>>().unwrap();
             fc1.push(FactorB::new(2.0, None));
         }
-        let fc0 = contaier.get::<FactorA<Real, GaussianLoss>>().unwrap();
+        let fc0 = container.get::<FactorA<Real, GaussianLoss>>().unwrap();
         assert_eq!(
             fc0.get(0).unwrap().orig,
             Mat::<Real>::with_dims(3, 1, |_i, _j| 2.0)
@@ -462,42 +462,42 @@ mod tests {
             fc0.get(1).unwrap().orig,
             Mat::<Real>::with_dims(3, 1, |_i, _j| 1.0)
         );
-        let fc1 = contaier.get::<FactorB<Real, GaussianLoss>>().unwrap();
+        let fc1 = container.get::<FactorB<Real, GaussianLoss>>().unwrap();
         assert_eq!(
             fc1.get(0).unwrap().orig,
             Mat::<Real>::with_dims(3, 1, |_i, _j| 2.0)
         );
-        let f0: &FactorA<_, _> = get_factor(&contaier, 0).unwrap();
-        let f1: &FactorA<_, _> = get_factor(&contaier, 1).unwrap();
+        let f0: &FactorA<_, _> = get_factor(&container, 0).unwrap();
+        let f1: &FactorA<_, _> = get_factor(&container, 1).unwrap();
         assert_eq!(f0.orig, Mat::<Real>::with_dims(3, 1, |_i, _j| 2.0));
         assert_eq!(f1.orig, Mat::<Real>::with_dims(3, 1, |_i, _j| 1.0));
     }
     #[test]
     fn get_mut() {
         type Real = f64;
-        let mut contaier =
+        let mut container =
             ().and_factor::<FactorA<Real, GaussianLoss>>()
                 .and_factor::<FactorB<Real, GaussianLoss>>();
         {
-            let fc0 = contaier.get_mut::<FactorA<Real, GaussianLoss>>().unwrap();
+            let fc0 = container.get_mut::<FactorA<Real, GaussianLoss>>().unwrap();
             fc0.push(FactorA::new(2.0, None));
             fc0.push(FactorA::new(1.0, None));
         }
         {
-            let fc1 = contaier.get_mut::<FactorB<Real, GaussianLoss>>().unwrap();
+            let fc1 = container.get_mut::<FactorB<Real, GaussianLoss>>().unwrap();
             fc1.push(FactorB::new(2.0, None));
         }
         {
-            let f: &mut FactorA<_, _> = get_factor_mut(&mut contaier, 0).unwrap();
+            let f: &mut FactorA<_, _> = get_factor_mut(&mut container, 0).unwrap();
             f.orig = Mat::<Real>::with_dims(3, 1, |_i, _j| 3.0);
-            let f: &mut FactorA<_, _> = get_factor_mut(&mut contaier, 1).unwrap();
+            let f: &mut FactorA<_, _> = get_factor_mut(&mut container, 1).unwrap();
             f.orig = Mat::<Real>::with_dims(3, 1, |_i, _j| 4.0);
         }
         {
-            let f: &mut FactorB<_, _> = get_factor_mut(&mut contaier, 0).unwrap();
+            let f: &mut FactorB<_, _> = get_factor_mut(&mut container, 0).unwrap();
             f.orig = Mat::<Real>::with_dims(3, 1, |_i, _j| 5.0);
         }
-        let fc0 = contaier.get::<FactorA<Real, GaussianLoss>>().unwrap();
+        let fc0 = container.get::<FactorA<Real, GaussianLoss>>().unwrap();
         assert_eq!(
             fc0.get(0).unwrap().orig,
             Mat::<Real>::with_dims(3, 1, |_i, _j| 3.0)
@@ -506,15 +506,49 @@ mod tests {
             fc0.get(1).unwrap().orig,
             Mat::<Real>::with_dims(3, 1, |_i, _j| 4.0)
         );
-        let fc1 = contaier.get::<FactorB<Real, GaussianLoss>>().unwrap();
+        let fc1 = container.get::<FactorB<Real, GaussianLoss>>().unwrap();
         assert_eq!(
             fc1.get(0).unwrap().orig,
             Mat::<Real>::with_dims(3, 1, |_i, _j| 5.0)
         );
-        let f0: &FactorA<_, _> = get_factor(&contaier, 0).unwrap();
-        let f1: &FactorA<_, _> = get_factor(&contaier, 1).unwrap();
+        let f0: &FactorA<_, _> = get_factor(&container, 0).unwrap();
+        let f1: &FactorA<_, _> = get_factor(&container, 1).unwrap();
         assert_eq!(f0.orig, Mat::<Real>::with_dims(3, 1, |_i, _j| 3.0));
         assert_eq!(f1.orig, Mat::<Real>::with_dims(3, 1, |_i, _j| 4.0));
+    }
+    #[test]
+    fn len(){
+        type Real = f64;
+        let mut container =
+            ().and_factor::<FactorA<Real, GaussianLoss>>()
+                .and_factor::<FactorB<Real, GaussianLoss>>();
+        {
+            let fc0 = container.get_mut::<FactorA<Real, GaussianLoss>>().unwrap();
+            fc0.push(FactorA::new(2.0, None));
+            fc0.push(FactorA::new(1.0, None));
+        }
+        {
+            let fc1 = container.get_mut::<FactorB<Real, GaussianLoss>>().unwrap();
+            fc1.push(FactorB::new(2.0, None));
+        }
+        assert_eq!(container.len(0), 3);
+    }
+    #[test]
+    fn dim(){
+        type Real = f64;
+        let mut container =
+            ().and_factor::<FactorA<Real, GaussianLoss>>()
+                .and_factor::<FactorB<Real, GaussianLoss>>();
+        {
+            let fc0 = container.get_mut::<FactorA<Real, GaussianLoss>>().unwrap();
+            fc0.push(FactorA::new(2.0, None));
+            fc0.push(FactorA::new(1.0, None));
+        }
+        {
+            let fc1 = container.get_mut::<FactorB<Real, GaussianLoss>>().unwrap();
+            fc1.push(FactorB::new(2.0, None));
+        }
+        assert_eq!(container.dim(0), 9);
     }
     #[test]
     fn recursive_map_container() {
