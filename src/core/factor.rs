@@ -5,6 +5,21 @@ use faer_core::{Mat, MatRef, RealField};
 
 use super::variables_container::VariablesContainer;
 
+pub struct JacobianError<R>
+where
+    R: RealField,
+{
+    pub jacobians: Vec<Mat<R>>,
+    pub error: Mat<R>,
+}
+impl<R> JacobianError<R>
+where
+    R: RealField,
+{
+    fn new(jacobians: Vec<Mat<R>>, error: Mat<R>) -> Self {
+        JacobianError { jacobians, error }
+    }
+}
 pub trait Factor<R>
 where
     R: RealField,
@@ -35,11 +50,11 @@ where
         C: VariablesContainer<R>;
 
     ///  whiten jacobian matrix
-    fn weighted_jacobians_error<C>(&self, variables: &Variables<R, C>) -> (Vec<Mat<R>>, Mat<R>)
+    fn weighted_jacobians_error<C>(&self, variables: &Variables<R, C>) -> JacobianError<R>
     where
         C: VariablesContainer<R>,
     {
-        (self.jacobians(variables), self.error(variables))
+        JacobianError::new(self.jacobians(variables), self.error(variables))
     }
 
     /// error dimension is dim of noisemodel

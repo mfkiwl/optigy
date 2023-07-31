@@ -43,12 +43,9 @@ where
     fn dim(&self, init: usize) -> usize;
     /// sum of variables maps len
     fn len(&self, init: usize) -> usize;
-    // join keys of variables
-    // fn keys(&self, init: Vec<Key>) -> Vec<Key>;
     // retact variable by key and delta offset
-    // fn retract(&mut self, delta: &Mat<R>, key: Key, offset: usize) -> usize;
-    // fn local<C>(
-    //     &self,
+    // fn linearization_data<C>(
+    //     &self, b
     //     variables: &Factors<R, C>,
     //     delta: &mut Mat<R>,
     //     key: Key,
