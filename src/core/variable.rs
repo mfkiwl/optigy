@@ -20,14 +20,14 @@ pub(crate) mod tests {
     use super::*;
 
     #[derive(Debug, Clone)]
-    pub struct VarA<R>
+    pub struct VariableA<R>
     where
         R: RealField,
     {
         pub val: Mat<R>,
     }
 
-    impl<R> Variable<R> for VarA<R>
+    impl<R> Variable<R> for VariableA<R>
     where
         R: RealField,
     {
@@ -50,14 +50,14 @@ pub(crate) mod tests {
         }
     }
     #[derive(Debug, Clone)]
-    pub struct VarB<R>
+    pub struct VariableB<R>
     where
         R: RealField,
     {
         pub val: Mat<R>,
     }
 
-    impl<R> Variable<R> for VarB<R>
+    impl<R> Variable<R> for VariableB<R>
     where
         R: RealField,
     {
@@ -80,22 +80,22 @@ pub(crate) mod tests {
         }
     }
 
-    impl<R> VarA<R>
+    impl<R> VariableA<R>
     where
         R: RealField,
     {
         pub fn new(v: R) -> Self {
-            VarA {
+            VariableA {
                 val: Mat::<R>::with_dims(3, 1, |_i, _j| v.clone()),
             }
         }
     }
-    impl<R> VarB<R>
+    impl<R> VariableB<R>
     where
         R: RealField,
     {
         pub fn new(v: R) -> Self {
-            VarB {
+            VariableB {
                 val: Mat::<R>::with_dims(3, 1, |_i, _j| v.clone()),
             }
         }

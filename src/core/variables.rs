@@ -82,7 +82,7 @@ where
 }
 #[cfg(test)]
 mod tests {
-    use crate::core::variable::tests::{VarA, VarB};
+    use crate::core::variable::tests::{VariableA, VariableB};
 
     use super::*;
     use faer_core::{Mat, MatRef};
@@ -90,40 +90,40 @@ mod tests {
     #[test]
     fn add_variable() {
         type Real = f64;
-        let container = ().and_variable::<VarA<Real>>().and_variable::<VarB<Real>>();
+        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
         let mut variables = Variables::new(container);
-        variables.add(Key(0), VarA::<Real>::new(0.0));
-        variables.add(Key(1), VarB::<Real>::new(0.0));
+        variables.add(Key(0), VariableA::<Real>::new(0.0));
+        variables.add(Key(1), VariableB::<Real>::new(0.0));
     }
 
     #[test]
     fn get_variable() {
         type Real = f64;
-        let container = ().and_variable::<VarA<Real>>().and_variable::<VarB<Real>>();
+        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
         let mut variables = Variables::new(container);
-        variables.add(Key(0), VarA::<Real>::new(1.0));
-        variables.add(Key(1), VarB::<Real>::new(2.0));
-        let _var_0: &VarA<_> = variables.at(Key(0)).unwrap();
-        let _var_1: &VarB<_> = variables.at(Key(1)).unwrap();
+        variables.add(Key(0), VariableA::<Real>::new(1.0));
+        variables.add(Key(1), VariableB::<Real>::new(2.0));
+        let _var_0: &VariableA<_> = variables.at(Key(0)).unwrap();
+        let _var_1: &VariableB<_> = variables.at(Key(1)).unwrap();
     }
     #[test]
 
     fn get_mut_variable() {
         type Real = f64;
-        let container = ().and_variable::<VarA<Real>>().and_variable::<VarB<Real>>();
+        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
         let mut variables = Variables::new(container);
-        variables.add(Key(0), VarA::<Real>::new(0.0));
-        variables.add(Key(1), VarB::<Real>::new(0.0));
+        variables.add(Key(0), VariableA::<Real>::new(0.0));
+        variables.add(Key(1), VariableB::<Real>::new(0.0));
         {
-            let var_0: &mut VarA<_> = variables.at_mut(Key(0)).unwrap();
+            let var_0: &mut VariableA<_> = variables.at_mut(Key(0)).unwrap();
             var_0.val.as_mut().cwise().for_each(|mut x| x.write(1.0));
         }
         {
-            let var_1: &mut VarB<_> = variables.at_mut(Key(1)).unwrap();
+            let var_1: &mut VariableB<_> = variables.at_mut(Key(1)).unwrap();
             var_1.val.as_mut().cwise().for_each(|mut x| x.write(2.0));
         }
-        let var_0: &VarA<_> = variables.at(Key(0)).unwrap();
-        let var_1: &VarB<_> = variables.at(Key(1)).unwrap();
+        let var_0: &VariableA<_> = variables.at(Key(0)).unwrap();
+        let var_1: &VariableB<_> = variables.at(Key(1)).unwrap();
         assert_eq!(var_0.val, Mat::<Real>::with_dims(3, 1, |_i, _j| 1.0));
         assert_eq!(var_1.val, Mat::<Real>::with_dims(3, 1, |_i, _j| 2.0));
     }
@@ -131,28 +131,28 @@ mod tests {
     #[test]
     fn local() {
         type Real = f64;
-        let container = ().and_variable::<VarA<Real>>().and_variable::<VarB<Real>>();
+        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
         let mut variables = Variables::new(container);
-        variables.add(Key(0), VarA::<Real>::new(0.0));
-        variables.add(Key(1), VarB::<Real>::new(0.0));
+        variables.add(Key(0), VariableA::<Real>::new(0.0));
+        variables.add(Key(1), VariableB::<Real>::new(0.0));
         let orig_variables = variables.clone();
         {
-            let var_0: &mut VarA<_> = variables.at_mut(Key(0)).unwrap();
+            let var_0: &mut VariableA<_> = variables.at_mut(Key(0)).unwrap();
             var_0.val.as_mut().cwise().for_each(|mut x| x.write(1.0));
         }
         {
-            let var_1: &mut VarB<_> = variables.at_mut(Key(1)).unwrap();
+            let var_1: &mut VariableB<_> = variables.at_mut(Key(1)).unwrap();
             var_1.val.as_mut().cwise().for_each(|mut x| x.write(2.0));
         }
-        let var_0: &VarA<_> = variables.at(Key(0)).unwrap();
-        let var_1: &VarB<_> = variables.at(Key(1)).unwrap();
+        let var_0: &VariableA<_> = variables.at(Key(0)).unwrap();
+        let var_1: &VariableB<_> = variables.at(Key(1)).unwrap();
         assert_eq!(var_0.val, Mat::<Real>::with_dims(3, 1, |_i, _j| 1.0));
         assert_eq!(var_1.val, Mat::<Real>::with_dims(3, 1, |_i, _j| 2.0));
 
         let delta = variables.local(&orig_variables, &variables.default_variable_ordering());
 
-        let dim_0 = variables.at::<VarA<_>>(Key(0)).unwrap().dim();
-        let dim_1 = variables.at::<VarB<_>>(Key(1)).unwrap().dim();
+        let dim_0 = variables.at::<VariableA<_>>(Key(0)).unwrap().dim();
+        let dim_1 = variables.at::<VariableB<_>>(Key(1)).unwrap().dim();
         assert_eq!(
             Mat::<Real>::with_dims(dim_1, 1, |_i, _j| 2.0),
             delta.as_ref().subrows(0, dim_0).to_owned()
@@ -166,13 +166,13 @@ mod tests {
     #[test]
     fn retract() {
         type Real = f64;
-        let container = ().and_variable::<VarA<Real>>().and_variable::<VarB<Real>>();
+        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
         let mut variables = Variables::new(container);
-        variables.add(Key(0), VarA::<Real>::new(0.0));
-        variables.add(Key(1), VarB::<Real>::new(0.0));
+        variables.add(Key(0), VariableA::<Real>::new(0.0));
+        variables.add(Key(1), VariableB::<Real>::new(0.0));
         let mut delta = Mat::<Real>::zeros(variables.dim(), 1);
-        let dim_0 = variables.at::<VarA<_>>(Key(0)).unwrap().dim();
-        let dim_1 = variables.at::<VarB<_>>(Key(1)).unwrap().dim();
+        let dim_0 = variables.at::<VariableA<_>>(Key(0)).unwrap().dim();
+        let dim_1 = variables.at::<VariableB<_>>(Key(1)).unwrap().dim();
         delta
             .as_mut()
             .subrows(0, dim_0)
@@ -186,8 +186,8 @@ mod tests {
         println!("delta {:?}", delta);
         let variable_ordering = variables.default_variable_ordering(); // reversed
         variables.retract(&delta, &variable_ordering);
-        let v0: &VarA<Real> = variables.at(Key(0)).unwrap();
-        let v1: &VarB<Real> = variables.at(Key(1)).unwrap();
+        let v0: &VariableA<Real> = variables.at(Key(0)).unwrap();
+        let v1: &VariableB<Real> = variables.at(Key(1)).unwrap();
         assert_eq!(v1.val, delta.as_ref().subrows(0, dim_0).to_owned());
         assert_eq!(v0.val, delta.as_ref().subrows(dim_0, dim_1).to_owned());
     }
@@ -195,20 +195,20 @@ mod tests {
     #[test]
     fn dim() {
         type Real = f64;
-        let container = ().and_variable::<VarA<Real>>().and_variable::<VarB<Real>>();
+        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
         let mut variables = Variables::new(container);
-        variables.add(Key(0), VarA::<Real>::new(0.0));
-        variables.add(Key(1), VarB::<Real>::new(0.0));
+        variables.add(Key(0), VariableA::<Real>::new(0.0));
+        variables.add(Key(1), VariableB::<Real>::new(0.0));
         assert_eq!(variables.dim(), 6);
     }
 
     #[test]
     fn len() {
         type Real = f64;
-        let container = ().and_variable::<VarA<Real>>().and_variable::<VarB<Real>>();
+        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
         let mut variables = Variables::new(container);
-        variables.add(Key(0), VarA::<Real>::new(0.0));
-        variables.add(Key(1), VarB::<Real>::new(0.0));
+        variables.add(Key(0), VariableA::<Real>::new(0.0));
+        variables.add(Key(1), VariableB::<Real>::new(0.0));
         assert_eq!(variables.len(), 2);
     }
 }
