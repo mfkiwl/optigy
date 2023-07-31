@@ -334,6 +334,7 @@ mod tests {
     where
         R: RealField,
     {
+        type L = GaussianLoss;
         fn error<C>(&self, variables: &Variables<R, C>) -> Mat<R>
         where
             C: VariablesContainer<R>,
@@ -374,7 +375,7 @@ mod tests {
     where
         R: RealField,
     {
-        fn new(v: R, loss: Option<L>) -> Self {
+        fn new(v: R, loss: Option<GaussianLoss>) -> Self {
             FactorB {
                 orig: Mat::<R>::with_dims(3, 1, |_i, _j| v.clone()),
                 loss,
@@ -385,8 +386,8 @@ mod tests {
     impl<R> Factor<R> for FactorB<R>
     where
         R: RealField,
-        L: LossFunction<R>,
     {
+        type L = GaussianLoss;
         fn error<C>(&self, variables: &Variables<R, C>) -> Mat<R>
         where
             C: VariablesContainer<R>,
@@ -450,8 +451,8 @@ mod tests {
             fc1.get(0).unwrap().orig,
             Mat::<Real>::with_dims(3, 1, |_i, _j| 2.0)
         );
-        let f0: &FactorA<_, _> = get_factor(&container, 0).unwrap();
-        let f1: &FactorA<_, _> = get_factor(&container, 1).unwrap();
+        let f0: &FactorA<_> = get_factor(&container, 0).unwrap();
+        let f1: &FactorA<_> = get_factor(&container, 1).unwrap();
         assert_eq!(f0.orig, Mat::<Real>::with_dims(3, 1, |_i, _j| 2.0));
         assert_eq!(f1.orig, Mat::<Real>::with_dims(3, 1, |_i, _j| 1.0));
     }
@@ -469,13 +470,13 @@ mod tests {
             fc1.push(FactorB::new(2.0, None));
         }
         {
-            let f: &mut FactorA<_, _> = get_factor_mut(&mut container, 0).unwrap();
+            let f: &mut FactorA<_> = get_factor_mut(&mut container, 0).unwrap();
             f.orig = Mat::<Real>::with_dims(3, 1, |_i, _j| 3.0);
-            let f: &mut FactorA<_, _> = get_factor_mut(&mut container, 1).unwrap();
+            let f: &mut FactorA<_> = get_factor_mut(&mut container, 1).unwrap();
             f.orig = Mat::<Real>::with_dims(3, 1, |_i, _j| 4.0);
         }
         {
-            let f: &mut FactorB<_, _> = get_factor_mut(&mut container, 0).unwrap();
+            let f: &mut FactorB<_> = get_factor_mut(&mut container, 0).unwrap();
             f.orig = Mat::<Real>::with_dims(3, 1, |_i, _j| 5.0);
         }
         let fc0 = container.get::<FactorA<Real>>().unwrap();
@@ -492,8 +493,8 @@ mod tests {
             fc1.get(0).unwrap().orig,
             Mat::<Real>::with_dims(3, 1, |_i, _j| 5.0)
         );
-        let f0: &FactorA<_, _> = get_factor(&container, 0).unwrap();
-        let f1: &FactorA<_, _> = get_factor(&container, 1).unwrap();
+        let f0: &FactorA<_> = get_factor(&container, 0).unwrap();
+        let f1: &FactorA<_> = get_factor(&container, 1).unwrap();
         assert_eq!(f0.orig, Mat::<Real>::with_dims(3, 1, |_i, _j| 3.0));
         assert_eq!(f1.orig, Mat::<Real>::with_dims(3, 1, |_i, _j| 4.0));
     }

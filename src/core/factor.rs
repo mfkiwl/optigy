@@ -177,6 +177,7 @@ mod tests {
     where
         R: RealField,
     {
+        type L = GaussianLoss;
         fn error<C>(&self, variables: &Variables<R, C>) -> Mat<R>
         where
             C: VariablesContainer<R>,
