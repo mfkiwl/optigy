@@ -7,11 +7,11 @@ use faer_core::{Mat, RealField};
 
 use super::variables_container::VariablesContainer;
 
-pub trait Factor<R, L>
+pub trait Factor<R>
 where
     R: RealField,
-    L: LossFunction<R>,
 {
+    type L: LossFunction<R>;
     /// error function
     /// error vector dimension should meet dim()
     fn error<C>(&self, variables: &Variables<R, C>) -> Mat<R>
@@ -57,70 +57,9 @@ where
     fn keys(&self) -> &Vec<Key>;
 
     // const access of noisemodel
-    fn loss_function(&self) -> Option<&L>;
+    fn loss_function(&self) -> Option<&Self::L>;
 }
 
-// pub struct FactorWrapper<R, F, VS>
-// where
-//     R: RealField,
-//     F: Factor<R, VS>,
-//     VS: Variables<R>,
-// {
-//     internal: F,
-//     phantom: PhantomData<R>,
-//     phantom2: PhantomData<VS>,
-// }
-
-// pub trait FromFactor<R, F, VS>
-// where
-//     R: RealField,
-//     F: Factor<R, VS>,
-//     VS: Variables<R>,
-// {
-//     fn from_factor(factor: F) -> Self;
-// }
-// impl<R, F, VS> Factor<R, VS> for FactorWrapper<R, F, VS>
-// where
-//     R: RealField,
-//     F: Factor<R, VS>,
-//     VS: Variables<R>,
-// {
-//     type LF = F::LF;
-
-//     fn error(&self, variables: &VS) -> Mat<R> {
-//         todo!()
-//     }
-
-//     fn jacobians(&self, variables: &VS) -> Vec<Mat<R>> {
-//         todo!()
-//     }
-
-//     fn dim(&self) -> usize {
-//         self.internal.dim()
-//     }
-
-//     fn keys(&self) -> &Vec<Key> {
-//         todo!()
-//     }
-
-//     // fn loss_function(&self) -> Option<&Self::LF> {
-//     //     todo!()
-//     // }
-// }
-
-// impl<R, F, VS> FromFactor<R, F, VS> for FactorWrapper<R, F, VS>
-// where
-//     R: RealField,
-//     F: Factor<R, VS>,
-//     VS: Variables<R>,
-// {
-//     fn from_factor(factor: F) -> Self {
-//         Self {
-//             internal: factor,
-//             phantom: PhantomData {},
-//         }
-//     }
-// }
 #[cfg(test)]
 mod tests {
     use super::Factor;
@@ -215,20 +154,18 @@ mod tests {
             }
         }
     }
-    struct FactorA<R, L>
+    struct FactorA<R>
     where
         R: RealField,
-        L: LossFunction<R>,
     {
         orig: Mat<R>,
-        loss: Option<L>,
+        loss: Option<GaussianLoss>,
     }
-    impl<R, L> FactorA<R, L>
+    impl<R> FactorA<R>
     where
         R: RealField,
-        L: LossFunction<R>,
     {
-        fn new(v: R, loss: Option<L>) -> Self {
+        fn new(v: R, loss: Option<GaussianLoss>) -> Self {
             FactorA {
                 orig: Mat::<R>::with_dims(3, 1, |_i, _j| v.clone()),
                 loss,
@@ -236,10 +173,9 @@ mod tests {
         }
     }
 
-    impl<R, L> Factor<R, L> for FactorA<R, L>
+    impl<R> Factor<R> for FactorA<R>
     where
         R: RealField,
-        L: LossFunction<R>,
     {
         fn error<C>(&self, variables: &Variables<R, C>) -> Mat<R>
         where
@@ -267,7 +203,7 @@ mod tests {
             todo!()
         }
 
-        fn loss_function(&self) -> Option<&L> {
+        fn loss_function(&self) -> Option<&Self::L> {
             self.loss.as_ref()
         }
     }
@@ -334,151 +270,5 @@ mod tests {
         assert_eq!(e0, Mat::<Real>::with_dims(3, 1, |_i, _j| 3.0));
     }
     #[test]
-    fn factor_impl() {
-        // enum FactorVariant<'a, R>
-        // where
-        //     R: RealField,
-        // {
-        //     F0(&'a E2Factor<R>),
-        //     // F1(&'a E3Factor<R>),
-        // }
-
-        // impl<'a, R> Factor<R> for FactorVariant<'a, R>
-        // where
-        //     R: RealField,
-        // {
-        //     type VS = SlamVariables<R>;
-        //     type LF = GaussianLoss;
-
-        //     fn error(&self, variables: &Self::VS) -> Mat<R> {
-        //         todo!()
-        //     }
-
-        //     fn jacobians(&self, variables: &Self::VS) -> Vec<Mat<R>> {
-        //         todo!()
-        //     }
-
-        //     fn dim(&self) -> usize {
-        //         match self {
-        //             FactorVariant::F0(f) => f.dim(),
-        //             // FactorVariant::F1(f) => f.dim(),
-        //         }
-        //     }
-
-        //     fn keys(&self) -> &Vec<Key> {
-        //         todo!()
-        //     }
-
-        //     fn loss_function(&self) -> Option<&Self::LF> {
-        //         todo!()
-        //     }
-        // }
-
-        // let container =
-        //     ().and_variable_default::<VarA<Real>>()
-        //         .and_variable_default::<VarB<Real>>();
-        // let mut variables =
-        //     create_variables::<Real, _, VariableVariant<'_, Real>>(container, 0.0, 0.0);
-
-        // let orig = Mat::<Real>::zeros(3, 1);
-
-        // struct MatComp<R, FG, VS>
-        // where
-        //     FG: FactorGraph<R>,
-        //     R: RealField,
-        //     VS: Variables<R>,
-        // {
-        //     phantom: PhantomData<FG>,
-        //     phantom2: PhantomData<R>,
-        //     phantom3: PhantomData<VS>,
-        // }
-        // impl<R, FG, VS> MatComp<R, FG, VS>
-        // where
-        //     R: RealField,
-        //     FG: FactorGraph<R>,
-        //     VS: Variables<R>,
-        // {
-        //     fn comt(&self, graph: &FG, variables: &VS) {
-        //         let f0 = graph.get(0);
-        //         // let e = f0.error(&variables);
-        //         let f = E3Factor {
-        //             orig: Mat::<R>::zeros(1, 1),
-        //         };
-        //         // let e = f.error(variables);
-        //     }
-        // }
-        // struct Graph<R>
-        // where
-        //     R: RealField,
-        // {
-        //     f0_vec: Vec<E2Factor<R>>,
-        //     f1_vec: Vec<E3Factor<R>>,
-        //     // phantom: PhantomData<'a>,
-        // }
-        // impl<R> FactorGraph<R> for Graph<R>
-        // where
-        //     R: RealField,
-        // {
-        //     type FV<'a> = FactorVariant<'a, R>;
-        //     type VS = SlamVariables<R>;
-
-        //     fn get<'a>(&'a self, index: usize) -> FactorWrapper<R, Self::FV<'a>> {
-        //         if index == 0 {
-        //             FactorWrapper::from_factor(FactorVariant::F0(&self.f0_vec[0]))
-        //         } else {
-        //             FactorWrapper::from_factor(FactorVariant::F1(&self.f1_vec[0]))
-        //         }
-        //     }
-
-        //     fn len(&self) -> usize {
-        //         todo!()
-        //     }
-
-        //     fn dim(&self) -> usize {
-        //         todo!()
-        //     }
-
-        //     fn error(&self, variables: &Self::VS) -> Mat<R>
-        //     where
-        //         R: RealField,
-        //     {
-        //         todo!()
-        //     }
-
-        //     fn error_squared_norm(&self, variables: &Self::VS) -> R
-        //     where
-        //         R: RealField,
-        //     {
-        //         todo!()
-        //     }
-        // }
-
-        // let w0 = FactorWrapper::from_factor(FactorVariant::F1(&f0));
-        // let w1 = FactorWrapper::from_factor(FactorVariant::F0(&f1));
-        // let d0 = w0.dim();
-        // // let d1 = w0.jacobians(&variables);
-        // let dx0 = w1.dim();
-
-        // let graph = Graph::<Real> {
-        //     f0_vec: Vec::new(),
-        //     f1_vec: Vec::new(),
-        // };
-        // let f_vec = vec![graph.get(0), graph.get(1)];
-
-        // for f in f_vec {
-        //     f.dim();
-        //     print!("f.dim {}", f.dim());
-        // }
-
-        // let mc = MatComp {
-        //     phantom: PhantomData,
-        //     phantom2: PhantomData,
-        //     phantom3: PhantomData,
-        // };
-
-        // mc.comt(&graph, &variables);
-
-        // assert_eq!(w0.dim(), 3);
-        // assert_eq!(w1.dim(), 2);
-    }
+    fn factor_impl() {}
 }

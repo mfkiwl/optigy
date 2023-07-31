@@ -7,29 +7,27 @@ use std::mem;
 use super::loss_function::LossFunction;
 use super::variables_container::VariablesContainer;
 
-pub trait FactorsKey<R, L>
+pub trait FactorsKey<R>
 where
     R: RealField,
-    L: LossFunction<R>,
 {
-    type Value: 'static + Factor<R, L>;
+    type Value: 'static + Factor<R>;
 }
 
 /// The building block trait for recursive variadics.
-pub trait FactorsContainer<R, L>
+pub trait FactorsContainer<R>
 where
     R: RealField,
-    L: LossFunction<R>,
 {
     /// Try to get the value for N.
-    fn get<N: FactorsKey<R, L>>(&self) -> Option<&Vec<N::Value>>;
+    fn get<N: FactorsKey<R>>(&self) -> Option<&Vec<N::Value>>;
     /// Try to get the value for N mutably.
-    fn get_mut<N: FactorsKey<R, L>>(&mut self) -> Option<&mut Vec<N::Value>>;
+    fn get_mut<N: FactorsKey<R>>(&mut self) -> Option<&mut Vec<N::Value>>;
     /// Add the default value for N
-    fn and_factor<N: FactorsKey<R, L>>(self) -> FactorsEntry<N, Self, R, L>
+    fn and_factor<N: FactorsKey<R>>(self) -> FactorsEntry<N, Self, R>
     where
         Self: Sized,
-        N::Value: FactorsKey<R, L>,
+        N::Value: FactorsKey<R>,
     {
         match self.get::<N::Value>() {
             Some(_) => panic!(
@@ -63,15 +61,14 @@ where
 
 /// The base case for recursive variadics: no fields.
 pub type FactorsEmpty = ();
-impl<R, L> FactorsContainer<R, L> for FactorsEmpty
+impl<R> FactorsContainer<R> for FactorsEmpty
 where
     R: RealField,
-    L: LossFunction<R>,
 {
-    fn get<N: FactorsKey<R, L>>(&self) -> Option<&Vec<N::Value>> {
+    fn get<N: FactorsKey<R>>(&self) -> Option<&Vec<N::Value>> {
         None
     }
-    fn get_mut<N: FactorsKey<R, L>>(&mut self) -> Option<&mut Vec<N::Value>> {
+    fn get_mut<N: FactorsKey<R>>(&mut self) -> Option<&mut Vec<N::Value>> {
         None
     }
     fn dim(&self, init: usize) -> usize {
@@ -104,31 +101,29 @@ where
 
 /// Wraps some field data and a parent, which is either another Entry or Empty
 #[derive(Clone)]
-pub struct FactorsEntry<T, P, R, L>
+pub struct FactorsEntry<T, P, R>
 where
     R: RealField,
-    L: LossFunction<R>,
-    T: FactorsKey<R, L>,
+    T: FactorsKey<R>,
 {
     data: Vec<T::Value>,
     parent: P,
 }
 
-impl<T, P, R, L> FactorsContainer<R, L> for FactorsEntry<T, P, R, L>
+impl<T, P, R> FactorsContainer<R> for FactorsEntry<T, P, R>
 where
     R: RealField,
-    L: LossFunction<R>,
-    T: FactorsKey<R, L>,
-    P: FactorsContainer<R, L>,
+    T: FactorsKey<R>,
+    P: FactorsContainer<R>,
 {
-    fn get<N: FactorsKey<R, L>>(&self) -> Option<&Vec<N::Value>> {
+    fn get<N: FactorsKey<R>>(&self) -> Option<&Vec<N::Value>> {
         if TypeId::of::<N::Value>() == TypeId::of::<T::Value>() {
             Some(unsafe { mem::transmute(&self.data) })
         } else {
             self.parent.get::<N>()
         }
     }
-    fn get_mut<N: FactorsKey<R, L>>(&mut self) -> Option<&mut Vec<N::Value>> {
+    fn get_mut<N: FactorsKey<R>>(&mut self) -> Option<&mut Vec<N::Value>> {
         if TypeId::of::<N::Value>() == TypeId::of::<T::Value>() {
             Some(unsafe { mem::transmute(&mut self.data) })
         } else {
@@ -195,30 +190,27 @@ where
     // }
 }
 
-impl<T, R, L> FactorsKey<R, L> for T
+impl<T, R> FactorsKey<R> for T
 where
-    T: 'static + Factor<R, L>,
+    T: 'static + Factor<R>,
     R: RealField,
-    L: LossFunction<R>,
 {
     type Value = T;
 }
 
-pub fn get_factor<R, C, F, L>(container: &C, index: usize) -> Option<&F>
+pub fn get_factor<R, C, F>(container: &C, index: usize) -> Option<&F>
 where
     R: RealField,
-    L: LossFunction<R>,
-    C: FactorsContainer<R, L>,
-    F: Factor<R, L> + 'static,
+    C: FactorsContainer<R>,
+    F: Factor<R> + 'static,
 {
     container.get::<F>().unwrap().get(index)
 }
-pub fn get_factor_mut<R, C, F, L>(container: &mut C, index: usize) -> Option<&mut F>
+pub fn get_factor_mut<R, C, F>(container: &mut C, index: usize) -> Option<&mut F>
 where
     R: RealField,
-    L: LossFunction<R>,
-    C: FactorsContainer<R, L>,
-    F: Factor<R, L> + 'static,
+    C: FactorsContainer<R>,
+    F: Factor<R> + 'static,
 {
     container.get_mut::<F>().unwrap().get_mut(index)
 }
@@ -319,20 +311,18 @@ mod tests {
             }
         }
     }
-    struct FactorA<R, L>
+    struct FactorA<R>
     where
         R: RealField,
-        L: LossFunction<R>,
     {
         orig: Mat<R>,
-        loss: Option<L>,
+        loss: Option<GaussianLoss>,
     }
-    impl<R, L> FactorA<R, L>
+    impl<R> FactorA<R>
     where
         R: RealField,
-        L: LossFunction<R>,
     {
-        fn new(v: R, loss: Option<L>) -> Self {
+        fn new(v: R, loss: Option<GaussianLoss>) -> Self {
             FactorA {
                 orig: Mat::<R>::with_dims(3, 1, |_i, _j| v.clone()),
                 loss,
@@ -340,10 +330,9 @@ mod tests {
         }
     }
 
-    impl<R, L> Factor<R, L> for FactorA<R, L>
+    impl<R> Factor<R> for FactorA<R>
     where
         R: RealField,
-        L: LossFunction<R>,
     {
         fn error<C>(&self, variables: &Variables<R, C>) -> Mat<R>
         where
@@ -370,22 +359,20 @@ mod tests {
             todo!()
         }
 
-        fn loss_function(&self) -> Option<&L> {
+        fn loss_function(&self) -> Option<&Self::L> {
             self.loss.as_ref()
         }
     }
-    struct FactorB<R, L>
+    struct FactorB<R>
     where
         R: RealField,
-        L: LossFunction<R>,
     {
         orig: Mat<R>,
-        loss: Option<L>,
+        loss: Option<GaussianLoss>,
     }
-    impl<R, L> FactorB<R, L>
+    impl<R> FactorB<R>
     where
         R: RealField,
-        L: LossFunction<R>,
     {
         fn new(v: R, loss: Option<L>) -> Self {
             FactorB {
@@ -395,7 +382,7 @@ mod tests {
         }
     }
 
-    impl<R, L> Factor<R, L> for FactorB<R, L>
+    impl<R> Factor<R> for FactorB<R>
     where
         R: RealField,
         L: LossFunction<R>,
@@ -425,35 +412,31 @@ mod tests {
             todo!()
         }
 
-        fn loss_function(&self) -> Option<&L> {
+        fn loss_function(&self) -> Option<&Self::L> {
             self.loss.as_ref()
         }
     }
     #[test]
     fn make() {
         type Real = f64;
-        let container =
-            ().and_factor::<FactorA<Real, GaussianLoss>>()
-                .and_factor::<FactorB<Real, GaussianLoss>>();
-        let _fc0 = container.get::<FactorA<Real, GaussianLoss>>().unwrap();
-        let _fc1 = container.get::<FactorB<Real, GaussianLoss>>().unwrap();
+        let container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
+        let _fc0 = container.get::<FactorA<Real>>().unwrap();
+        let _fc1 = container.get::<FactorB<Real>>().unwrap();
     }
     #[test]
     fn get() {
         type Real = f64;
-        let mut container =
-            ().and_factor::<FactorA<Real, GaussianLoss>>()
-                .and_factor::<FactorB<Real, GaussianLoss>>();
+        let mut container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
         {
-            let fc0 = container.get_mut::<FactorA<Real, GaussianLoss>>().unwrap();
+            let fc0 = container.get_mut::<FactorA<Real>>().unwrap();
             fc0.push(FactorA::new(2.0, None));
             fc0.push(FactorA::new(1.0, None));
         }
         {
-            let fc1 = container.get_mut::<FactorB<Real, GaussianLoss>>().unwrap();
+            let fc1 = container.get_mut::<FactorB<Real>>().unwrap();
             fc1.push(FactorB::new(2.0, None));
         }
-        let fc0 = container.get::<FactorA<Real, GaussianLoss>>().unwrap();
+        let fc0 = container.get::<FactorA<Real>>().unwrap();
         assert_eq!(
             fc0.get(0).unwrap().orig,
             Mat::<Real>::with_dims(3, 1, |_i, _j| 2.0)
@@ -462,7 +445,7 @@ mod tests {
             fc0.get(1).unwrap().orig,
             Mat::<Real>::with_dims(3, 1, |_i, _j| 1.0)
         );
-        let fc1 = container.get::<FactorB<Real, GaussianLoss>>().unwrap();
+        let fc1 = container.get::<FactorB<Real>>().unwrap();
         assert_eq!(
             fc1.get(0).unwrap().orig,
             Mat::<Real>::with_dims(3, 1, |_i, _j| 2.0)
@@ -475,16 +458,14 @@ mod tests {
     #[test]
     fn get_mut() {
         type Real = f64;
-        let mut container =
-            ().and_factor::<FactorA<Real, GaussianLoss>>()
-                .and_factor::<FactorB<Real, GaussianLoss>>();
+        let mut container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
         {
-            let fc0 = container.get_mut::<FactorA<Real, GaussianLoss>>().unwrap();
+            let fc0 = container.get_mut::<FactorA<Real>>().unwrap();
             fc0.push(FactorA::new(2.0, None));
             fc0.push(FactorA::new(1.0, None));
         }
         {
-            let fc1 = container.get_mut::<FactorB<Real, GaussianLoss>>().unwrap();
+            let fc1 = container.get_mut::<FactorB<Real>>().unwrap();
             fc1.push(FactorB::new(2.0, None));
         }
         {
@@ -497,7 +478,7 @@ mod tests {
             let f: &mut FactorB<_, _> = get_factor_mut(&mut container, 0).unwrap();
             f.orig = Mat::<Real>::with_dims(3, 1, |_i, _j| 5.0);
         }
-        let fc0 = container.get::<FactorA<Real, GaussianLoss>>().unwrap();
+        let fc0 = container.get::<FactorA<Real>>().unwrap();
         assert_eq!(
             fc0.get(0).unwrap().orig,
             Mat::<Real>::with_dims(3, 1, |_i, _j| 3.0)
@@ -506,7 +487,7 @@ mod tests {
             fc0.get(1).unwrap().orig,
             Mat::<Real>::with_dims(3, 1, |_i, _j| 4.0)
         );
-        let fc1 = container.get::<FactorB<Real, GaussianLoss>>().unwrap();
+        let fc1 = container.get::<FactorB<Real>>().unwrap();
         assert_eq!(
             fc1.get(0).unwrap().orig,
             Mat::<Real>::with_dims(3, 1, |_i, _j| 5.0)
@@ -517,35 +498,31 @@ mod tests {
         assert_eq!(f1.orig, Mat::<Real>::with_dims(3, 1, |_i, _j| 4.0));
     }
     #[test]
-    fn len(){
+    fn len() {
         type Real = f64;
-        let mut container =
-            ().and_factor::<FactorA<Real, GaussianLoss>>()
-                .and_factor::<FactorB<Real, GaussianLoss>>();
+        let mut container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
         {
-            let fc0 = container.get_mut::<FactorA<Real, GaussianLoss>>().unwrap();
+            let fc0 = container.get_mut::<FactorA<Real>>().unwrap();
             fc0.push(FactorA::new(2.0, None));
             fc0.push(FactorA::new(1.0, None));
         }
         {
-            let fc1 = container.get_mut::<FactorB<Real, GaussianLoss>>().unwrap();
+            let fc1 = container.get_mut::<FactorB<Real>>().unwrap();
             fc1.push(FactorB::new(2.0, None));
         }
         assert_eq!(container.len(0), 3);
     }
     #[test]
-    fn dim(){
+    fn dim() {
         type Real = f64;
-        let mut container =
-            ().and_factor::<FactorA<Real, GaussianLoss>>()
-                .and_factor::<FactorB<Real, GaussianLoss>>();
+        let mut container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
         {
-            let fc0 = container.get_mut::<FactorA<Real, GaussianLoss>>().unwrap();
+            let fc0 = container.get_mut::<FactorA<Real>>().unwrap();
             fc0.push(FactorA::new(2.0, None));
             fc0.push(FactorA::new(1.0, None));
         }
         {
-            let fc1 = container.get_mut::<FactorB<Real, GaussianLoss>>().unwrap();
+            let fc1 = container.get_mut::<FactorB<Real>>().unwrap();
             fc1.push(FactorB::new(2.0, None));
         }
         assert_eq!(container.dim(0), 9);

@@ -5,19 +5,25 @@ use crate::core::factor::Factor;
 use crate::core::variables::Variables;
 use faer_core::{Mat, RealField};
 
-use super::variables_container::VariablesContainer;
-pub struct FactorGraph<R, VC>
+use super::{
+    factors_container::FactorsContainer, loss_function::LossFunction,
+    variables_container::VariablesContainer,
+};
+pub struct FactorGraph<R, VC, FC>
 where
     R: RealField,
     VC: VariablesContainer<R>,
+    FC: FactorsContainer<R>,
 {
     __marker0: PhantomData<R>,
     __marker1: PhantomData<VC>,
+    __marker2: PhantomData<FC>,
 }
-impl<R, VC> FactorGraph<R, VC>
+impl<R, VC, FC> FactorGraph<R, VC, FC>
 where
     R: RealField,
     VC: VariablesContainer<R>,
+    FC: FactorsContainer<R>,
 {
     pub fn len(&self) -> usize {
         todo!()
