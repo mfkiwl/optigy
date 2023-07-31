@@ -1,10 +1,10 @@
 use crate::core::factor::Factor;
 // use crate::core::variables::Factors;
-use faer_core::{Mat, RealField};
+use faer_core::{RealField};
 use std::any::{type_name, TypeId};
 use std::mem;
 
-use super::loss_function::LossFunction;
+
 use super::variables_container::VariablesContainer;
 
 pub trait FactorsKey<R>

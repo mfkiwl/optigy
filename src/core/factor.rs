@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use crate::core::key::Key;
 use crate::core::loss_function::LossFunction;
 use crate::core::variables::Variables;
@@ -19,7 +17,7 @@ where
         C: VariablesContainer<R>;
 
     /// whiten error
-    fn weighted_error<C>(&self, variables: &Variables<R, C>) -> Mat<R>
+    fn weighted_error<C>(&self, _variables: &Variables<R, C>) -> Mat<R>
     where
         C: VariablesContainer<R>,
     {
@@ -41,8 +39,7 @@ where
     where
         C: VariablesContainer<R>,
     {
-        let mut pair = (self.jacobians(variables), self.error(variables));
-        pair
+        (self.jacobians(variables), self.error(variables))
     }
 
     /// error dimension is dim of noisemodel
