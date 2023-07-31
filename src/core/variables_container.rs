@@ -210,134 +210,51 @@ where
 mod tests {
     use faer_core::MatRef;
 
-    use crate::core::variables_container::*;
+    use crate::core::{
+        variable::tests::{VarA, VarB},
+        variables_container::*,
+    };
 
     #[test]
     fn recursive_map_container() {
-        #[derive(Debug, Default)]
-        struct VariableA<R>
-        where
-            R: RealField,
-        {
-            v0: R,
-            v1: i32,
-        }
-
-        #[derive(Debug, Default)]
-        struct VariableB<R>
-        where
-            R: RealField,
-        {
-            v3: R,
-            v4: i64,
-        }
-
-        impl<R> Variable<R> for VariableA<R>
-        where
-            R: RealField,
-        {
-            fn local(&self, _value: &Self) -> Mat<R>
-            where
-                R: RealField,
-            {
-                todo!()
-            }
-
-            fn retract(&mut self, _delta: &MatRef<R>)
-            where
-                R: RealField,
-            {
-                todo!()
-            }
-
-            fn dim(&self) -> usize {
-                3
-            }
-        }
-
-        impl<R> Variable<R> for VariableB<R>
-        where
-            R: RealField,
-        {
-            fn local(&self, _value: &Self) -> Mat<R>
-            where
-                R: RealField,
-            {
-                todo!()
-            }
-
-            fn retract(&mut self, _delta: &MatRef<R>)
-            where
-                R: RealField,
-            {
-                todo!()
-            }
-
-            fn dim(&self) -> usize {
-                3
-            }
-        }
-
         type Real = f64;
-        let mut thing = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
+        let mut thing = ().and_variable::<VarA<Real>>().and_variable::<VarB<Real>>();
         {
-            let a = thing.get::<VariableA<Real>>();
+            let a = thing.get::<VarA<Real>>();
             assert!(a.is_some());
 
-            let a = thing.get_mut::<VariableA<Real>>();
-            a.unwrap().insert(
-                Key(3),
-                VariableA::<Real> {
-                    v0: 4_f32 as Real,
-                    v1: 4,
-                },
+            let a = thing.get_mut::<VarA<Real>>();
+            a.unwrap().insert(Key(3), VarA::new(4.0));
+            let a = thing.get_mut::<VarA<Real>>();
+            a.unwrap().insert(Key(4), VarA::new(4.0));
+            let a = thing.get::<VarA<Real>>();
+            assert_eq!(
+                a.unwrap().get(&Key(3)).unwrap().val,
+                Mat::<Real>::with_dims(3, 1, |_i, _j| 4.0)
             );
-            let a = thing.get_mut::<VariableA<Real>>();
-            a.unwrap().insert(
-                Key(4),
-                VariableA::<Real> {
-                    v0: 2_f32 as Real,
-                    v1: 7,
-                },
-            );
-            let a = thing.get::<VariableA<Real>>();
-            assert_eq!(a.unwrap().get(&Key(3)).unwrap().v0, 4_f32 as Real);
-            assert_eq!(a.unwrap().get(&Key(3)).unwrap().v1, 4);
-
-            assert_eq!(a.unwrap().get(&Key(4)).unwrap().v0, 2_f32 as Real);
-            assert_eq!(a.unwrap().get(&Key(4)).unwrap().v1, 7);
-
-            let a = thing.get_mut::<VariableB<Real>>();
-            a.unwrap().insert(
-                Key(7),
-                VariableB::<Real> {
-                    v3: 7_f32 as Real,
-                    v4: 8_i64,
-                },
-            );
-
-            let a = thing.get::<VariableB<Real>>();
-            assert_eq!(a.unwrap().get(&Key(7)).unwrap().v3, 7_f32 as Real);
-            assert_eq!(a.unwrap().get(&Key(7)).unwrap().v4, 8);
 
             assert_eq!(
-                get_variable::<_, _, VariableB<Real>>(&thing, Key(7))
+                a.unwrap().get(&Key(4)).unwrap().val,
+                Mat::<Real>::with_dims(3, 1, |_i, _j| 4.0)
+            );
+
+            let a = thing.get_mut::<VarB<Real>>();
+            a.unwrap().insert(Key(7), VarB::new(7.0));
+
+            assert_eq!(
+                get_variable::<_, _, VarB<Real>>(&thing, Key(7))
                     .unwrap()
-                    .v3,
-                7_f32 as Real
+                    .val,
+                Mat::with_dims(3, 1, |_i, _j| 7.0)
             );
         }
         {
-            let var_b0: &VariableB<Real> = get_variable(&thing, Key(7)).unwrap();
-            assert_eq!(var_b0.v4, 8);
+            let var_b0: &mut VarB<Real> = get_variable_mut(&mut thing, Key(7)).unwrap();
+            var_b0.val = Mat::with_dims(3, 1, |_i, _j| 10.0);
         }
         {
-            let var_b0: &mut VariableB<Real> = get_variable_mut(&mut thing, Key(7)).unwrap();
-            var_b0.v4 = 10;
-        }
-        {
-            let var_b0: &VariableB<Real> = get_variable(&thing, Key(7)).unwrap();
-            assert_eq!(var_b0.v4, 10);
+            let var_b0: &VarB<Real> = get_variable(&thing, Key(7)).unwrap();
+            assert_eq!(var_b0.val, Mat::<Real>::with_dims(3, 1, |_i, _j| 10.0));
         }
         assert_eq!(thing.dim(0), 9);
         assert_eq!(thing.len(0), 3);
