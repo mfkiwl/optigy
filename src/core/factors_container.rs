@@ -1,9 +1,8 @@
 use crate::core::factor::Factor;
 // use crate::core::variables::Factors;
-use faer_core::{RealField};
+use faer_core::RealField;
 use std::any::{type_name, TypeId};
 use std::mem;
-
 
 use super::variables_container::VariablesContainer;
 
@@ -215,13 +214,16 @@ where
     container.get_mut::<F>().unwrap().get_mut(index)
 }
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use std::marker::PhantomData;
 
     use faer_core::{Mat, MatRef, RealField};
 
     use crate::core::{
-        factor::Factor,
+        factor::{
+            tests::{FactorA, FactorB},
+            Factor,
+        },
         factors_container::{get_factor, get_factor_mut, FactorsContainer},
         key::Key,
         loss_function::{GaussianLoss, LossFunction},
@@ -311,112 +313,112 @@ mod tests {
             }
         }
     }
-    struct FactorA<R>
-    where
-        R: RealField,
-    {
-        orig: Mat<R>,
-        loss: Option<GaussianLoss>,
-    }
-    impl<R> FactorA<R>
-    where
-        R: RealField,
-    {
-        fn new(v: R, loss: Option<GaussianLoss>) -> Self {
-            FactorA {
-                orig: Mat::<R>::with_dims(3, 1, |_i, _j| v.clone()),
-                loss,
-            }
-        }
-    }
+    // struct FactorA<R>
+    // where
+    //     R: RealField,
+    // {
+    //     orig: Mat<R>,
+    //     loss: Option<GaussianLoss>,
+    // }
+    // impl<R> FactorA<R>
+    // where
+    //     R: RealField,
+    // {
+    //     fn new(v: R, loss: Option<GaussianLoss>) -> Self {
+    //         FactorA {
+    //             orig: Mat::<R>::with_dims(3, 1, |_i, _j| v.clone()),
+    //             loss,
+    //         }
+    //     }
+    // }
 
-    impl<R> Factor<R> for FactorA<R>
-    where
-        R: RealField,
-    {
-        type L = GaussianLoss;
-        fn error<C>(&self, variables: &Variables<R, C>) -> Mat<R>
-        where
-            C: VariablesContainer<R>,
-        {
-            let v0: &VarA<R> = variables.at(Key(0)).unwrap();
-            let v1: &VarB<R> = variables.at(Key(1)).unwrap();
-            let d = v0.val.clone() - v1.val.clone() + self.orig.clone();
-            d
-        }
+    // impl<R> Factor<R> for FactorA<R>
+    // where
+    //     R: RealField,
+    // {
+    //     type L = GaussianLoss;
+    //     fn error<C>(&self, variables: &Variables<R, C>) -> Mat<R>
+    //     where
+    //         C: VariablesContainer<R>,
+    //     {
+    //         let v0: &VarA<R> = variables.at(Key(0)).unwrap();
+    //         let v1: &VarB<R> = variables.at(Key(1)).unwrap();
+    //         let d = v0.val.clone() - v1.val.clone() + self.orig.clone();
+    //         d
+    //     }
 
-        fn jacobians<C>(&self, variables: &Variables<R, C>) -> Vec<Mat<R>>
-        where
-            C: VariablesContainer<R>,
-        {
-            todo!()
-        }
+    //     fn jacobians<C>(&self, variables: &Variables<R, C>) -> Vec<Mat<R>>
+    //     where
+    //         C: VariablesContainer<R>,
+    //     {
+    //         todo!()
+    //     }
 
-        fn dim(&self) -> usize {
-            3
-        }
+    //     fn dim(&self) -> usize {
+    //         3
+    //     }
 
-        fn keys(&self) -> &Vec<Key> {
-            todo!()
-        }
+    //     fn keys(&self) -> &Vec<Key> {
+    //         todo!()
+    //     }
 
-        fn loss_function(&self) -> Option<&Self::L> {
-            self.loss.as_ref()
-        }
-    }
-    struct FactorB<R>
-    where
-        R: RealField,
-    {
-        orig: Mat<R>,
-        loss: Option<GaussianLoss>,
-    }
-    impl<R> FactorB<R>
-    where
-        R: RealField,
-    {
-        fn new(v: R, loss: Option<GaussianLoss>) -> Self {
-            FactorB {
-                orig: Mat::<R>::with_dims(3, 1, |_i, _j| v.clone()),
-                loss,
-            }
-        }
-    }
+    //     fn loss_function(&self) -> Option<&Self::L> {
+    //         self.loss.as_ref()
+    //     }
+    // }
+    // struct FactorB<R>
+    // where
+    //     R: RealField,
+    // {
+    //     orig: Mat<R>,
+    //     loss: Option<GaussianLoss>,
+    // }
+    // impl<R> FactorB<R>
+    // where
+    //     R: RealField,
+    // {
+    //     fn new(v: R, loss: Option<GaussianLoss>) -> Self {
+    //         FactorB {
+    //             orig: Mat::<R>::with_dims(3, 1, |_i, _j| v.clone()),
+    //             loss,
+    //         }
+    //     }
+    // }
 
-    impl<R> Factor<R> for FactorB<R>
-    where
-        R: RealField,
-    {
-        type L = GaussianLoss;
-        fn error<C>(&self, variables: &Variables<R, C>) -> Mat<R>
-        where
-            C: VariablesContainer<R>,
-        {
-            let v0: &VarA<R> = variables.at(Key(0)).unwrap();
-            let v1: &VarB<R> = variables.at(Key(1)).unwrap();
-            let d = v0.val.clone() - v1.val.clone() + self.orig.clone();
-            d
-        }
+    // impl<R> Factor<R> for FactorB<R>
+    // where
+    //     R: RealField,
+    // {
+    //     type L = GaussianLoss;
+    //     fn error<C>(&self, variables: &Variables<R, C>) -> Mat<R>
+    //     where
+    //         C: VariablesContainer<R>,
+    //     {
+    //         let v0: &VarA<R> = variables.at(Key(0)).unwrap();
+    //         let v1: &VarB<R> = variables.at(Key(1)).unwrap();
+    //         let d = v0.val.clone() - v1.val.clone() + self.orig.clone();
+    //         d
+    //     }
 
-        fn jacobians<C>(&self, variables: &Variables<R, C>) -> Vec<Mat<R>>
-        where
-            C: VariablesContainer<R>,
-        {
-            todo!()
-        }
+    //     fn jacobians<C>(&self, variables: &Variables<R, C>) -> Vec<Mat<R>>
+    //     where
+    //         C: VariablesContainer<R>,
+    //     {
+    //         todo!()
+    //     }
 
-        fn dim(&self) -> usize {
-            3
-        }
+    //     fn dim(&self) -> usize {
+    //         3
+    //     }
 
-        fn keys(&self) -> &Vec<Key> {
-            todo!()
-        }
+    //     fn keys(&self) -> &Vec<Key> {
+    //         todo!()
+    //     }
 
-        fn loss_function(&self) -> Option<&Self::L> {
-            self.loss.as_ref()
-        }
-    }
+    //     fn loss_function(&self) -> Option<&Self::L> {
+    //         self.loss.as_ref()
+    //     }
+    // }
     #[test]
     fn make() {
         type Real = f64;
