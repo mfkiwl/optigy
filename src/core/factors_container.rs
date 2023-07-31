@@ -215,24 +215,12 @@ where
 }
 #[cfg(test)]
 pub(crate) mod tests {
-    use std::marker::PhantomData;
 
-    use faer_core::{Mat, MatRef, RealField};
+    use faer_core::Mat;
 
     use crate::core::{
-        factor::{
-            tests::{FactorA, FactorB},
-            Factor,
-        },
+        factor::tests::{FactorA, FactorB},
         factors_container::{get_factor, get_factor_mut, FactorsContainer},
-        key::Key,
-        loss_function::{GaussianLoss, LossFunction},
-        variable::{
-            tests::{VariableA, VariableB},
-            Variable,
-        },
-        variables::Variables,
-        variables_container::VariablesContainer,
     };
 
     #[test]
