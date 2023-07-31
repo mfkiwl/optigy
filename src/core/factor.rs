@@ -1,7 +1,7 @@
 use crate::core::key::Key;
 use crate::core::loss_function::LossFunction;
 use crate::core::variables::Variables;
-use faer_core::{Mat, RealField};
+use faer_core::{Mat, MatRef, RealField};
 
 use super::variables_container::VariablesContainer;
 
@@ -17,7 +17,7 @@ where
         C: VariablesContainer<R>;
 
     /// whiten error
-    fn weighted_error<C>(&self, _variables: &Variables<R, C>) -> Mat<R>
+    fn weighted_error<C>(&self, variables: &Variables<R, C>) -> Mat<R>
     where
         C: VariablesContainer<R>,
     {
@@ -25,7 +25,7 @@ where
         //     Some(loss) => loss.weight_in_place()
         //     None => todo!(),
         // }
-        todo!()
+        self.error(variables)
     }
 
     /// jacobians function
@@ -51,7 +51,7 @@ where
     }
 
     /// access of keys
-    fn keys(&self) -> &Vec<Key>;
+    fn keys(&self) -> &[Key];
 
     // const access of noisemodel
     fn loss_function(&self) -> Option<&Self::L>;
@@ -63,109 +63,41 @@ pub(crate) mod tests {
     use crate::core::{
         key::Key,
         loss_function::{GaussianLoss, LossFunction},
-        variable::Variable,
+        variable::{
+            tests::{VariableA, VariableB},
+            Variable,
+        },
         variables::Variables,
         variables_container::VariablesContainer,
     };
     use faer_core::{Mat, MatRef, RealField};
 
-    #[derive(Debug, Clone)]
-    struct VarA<R>
-    where
-        R: RealField,
-    {
-        val: Mat<R>,
-    }
-
-    impl<R> Variable<R> for VarA<R>
-    where
-        R: RealField,
-    {
-        fn local(&self, value: &Self) -> Mat<R>
-        where
-            R: RealField,
-        {
-            (self.val.as_ref() - value.val.as_ref()).clone()
-        }
-
-        fn retract(&mut self, delta: &MatRef<R>)
-        where
-            R: RealField,
-        {
-            self.val = self.val.clone() + delta.to_owned();
-        }
-
-        fn dim(&self) -> usize {
-            3
-        }
-    }
-
-    #[derive(Debug, Clone)]
-    struct VarB<R>
-    where
-        R: RealField,
-    {
-        val: Mat<R>,
-    }
-
-    impl<R> Variable<R> for VarB<R>
-    where
-        R: RealField,
-    {
-        fn local(&self, value: &Self) -> Mat<R>
-        where
-            R: RealField,
-        {
-            (self.val.as_ref() - value.val.as_ref()).clone()
-        }
-
-        fn retract(&mut self, delta: &MatRef<R>)
-        where
-            R: RealField,
-        {
-            self.val = self.val.clone() + delta.to_owned();
-        }
-
-        fn dim(&self) -> usize {
-            3
-        }
-    }
-
-    impl<R> VarA<R>
-    where
-        R: RealField,
-    {
-        fn new(v: R) -> Self {
-            VarA {
-                val: Mat::<R>::with_dims(3, 1, |_i, _j| v.clone()),
-            }
-        }
-    }
-    impl<R> VarB<R>
-    where
-        R: RealField,
-    {
-        pub fn new(v: R) -> Self {
-            VarB {
-                val: Mat::<R>::with_dims(3, 1, |_i, _j| v.clone()),
-            }
-        }
-    }
     pub struct FactorA<R>
     where
         R: RealField,
     {
         pub orig: Mat<R>,
         pub loss: Option<GaussianLoss>,
+        pub error: Mat<R>,
+        pub jacobians: Vec<Mat<R>>,
+        pub keys: Vec<Key>,
     }
     impl<R> FactorA<R>
     where
         R: RealField,
     {
         pub fn new(v: R, loss: Option<GaussianLoss>) -> Self {
+            let mut jacobians = Vec::<Mat<R>>::with_capacity(2);
+            jacobians.resize_with(2, || Mat::zeros(3, 3));
+            let mut keys = Vec::<Key>::new();
+            keys.push(Key(0));
+            keys.push(Key(1));
             FactorA {
-                orig: Mat::<R>::with_dims(3, 1, |_i, _j| v.clone()),
+                orig: Mat::with_dims(3, 1, |_i, _j| v.clone()),
                 loss,
+                error: Mat::zeros(3, 1),
+                jacobians,
+                keys,
             }
         }
     }
@@ -179,8 +111,8 @@ pub(crate) mod tests {
         where
             C: VariablesContainer<R>,
         {
-            let v0: &VarA<R> = variables.at(Key(0)).unwrap();
-            let v1: &VarB<R> = variables.at(Key(1)).unwrap();
+            let v0: &VariableA<R> = variables.at(Key(0)).unwrap();
+            let v1: &VariableB<R> = variables.at(Key(1)).unwrap();
             let d = v0.val.clone() - v1.val.clone() + self.orig.clone();
             d
         }
@@ -189,15 +121,25 @@ pub(crate) mod tests {
         where
             C: VariablesContainer<R>,
         {
-            todo!()
+            let v0: &VariableA<R> = variables.at(Key(0)).unwrap();
+            let v1: &VariableB<R> = variables.at(Key(1)).unwrap();
+            let mut j0 = Mat::<R>::zeros(3, 3);
+            j0.as_mut().col(0).clone_from(v0.val.as_ref());
+            let mut j1 = Mat::<R>::zeros(3, 3);
+            j1.as_mut().col(1).clone_from(v1.val.as_ref());
+            let mut js = Vec::<Mat<R>>::new();
+            js.push(j0);
+            js.push(j1);
+            js
+            // &self.jacobians
         }
 
         fn dim(&self) -> usize {
             3
         }
 
-        fn keys(&self) -> &Vec<Key> {
-            todo!()
+        fn keys(&self) -> &[Key] {
+            &self.keys
         }
 
         fn loss_function(&self) -> Option<&Self::L> {
@@ -211,19 +153,30 @@ pub(crate) mod tests {
     {
         pub orig: Mat<R>,
         pub loss: Option<GaussianLoss>,
+        pub error: Mat<R>,
+        pub jacobians: Vec<Mat<R>>,
+        pub keys: Vec<Key>,
     }
-
     impl<R> FactorB<R>
     where
         R: RealField,
     {
         pub fn new(v: R, loss: Option<GaussianLoss>) -> Self {
+            let mut jacobians = Vec::<Mat<R>>::with_capacity(2);
+            jacobians.resize_with(2, || Mat::zeros(3, 3));
+            let mut keys = Vec::<Key>::new();
+            keys.push(Key(0));
+            keys.push(Key(1));
             FactorB {
-                orig: Mat::<R>::with_dims(3, 1, |_i, _j| v.clone()),
+                orig: Mat::with_dims(3, 1, |_i, _j| v.clone()),
                 loss,
+                error: Mat::zeros(3, 1),
+                jacobians,
+                keys,
             }
         }
     }
+
     impl<R> Factor<R> for FactorB<R>
     where
         R: RealField,
@@ -233,8 +186,8 @@ pub(crate) mod tests {
         where
             C: VariablesContainer<R>,
         {
-            let v0: &VarA<R> = variables.at(Key(0)).unwrap();
-            let v1: &VarB<R> = variables.at(Key(1)).unwrap();
+            let v0: &VariableA<R> = variables.at(Key(0)).unwrap();
+            let v1: &VariableB<R> = variables.at(Key(1)).unwrap();
             let d = v0.val.clone() - v1.val.clone() + self.orig.clone();
             d
         }
@@ -243,28 +196,38 @@ pub(crate) mod tests {
         where
             C: VariablesContainer<R>,
         {
-            todo!()
+            let v0: &VariableA<R> = variables.at(Key(0)).unwrap();
+            let v1: &VariableB<R> = variables.at(Key(1)).unwrap();
+            let mut j0 = Mat::<R>::zeros(3, 3);
+            j0.as_mut().col(0).clone_from(v0.val.as_ref());
+            let mut j1 = Mat::<R>::zeros(3, 3);
+            j1.as_mut().col(1).clone_from(v1.val.as_ref());
+            let mut js = Vec::<Mat<R>>::new();
+            js.push(j0);
+            js.push(j1);
+            js
+            // &self.jacobians
         }
 
         fn dim(&self) -> usize {
             3
         }
 
-        fn keys(&self) -> &Vec<Key> {
-            todo!()
+        fn keys(&self) -> &[Key] {
+            &self.keys
         }
 
         fn loss_function(&self) -> Option<&Self::L> {
-            todo!()
+            self.loss.as_ref()
         }
     }
     #[test]
     fn error() {
         type Real = f64;
-        let container = ().and_variable::<VarA<Real>>().and_variable::<VarB<Real>>();
+        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
         let mut variables = Variables::new(container);
-        variables.add(Key(0), VarA::<Real>::new(4.0));
-        variables.add(Key(1), VarB::<Real>::new(2.0));
+        variables.add(Key(0), VariableA::<Real>::new(4.0));
+        variables.add(Key(1), VariableB::<Real>::new(2.0));
         let loss = GaussianLoss {};
         let f0 = FactorA::new(1.0, Some(loss.clone()));
         // let f1 = FactorB::<Real>::new(2.0);
