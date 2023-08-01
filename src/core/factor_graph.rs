@@ -25,10 +25,13 @@ where
         }
     }
     pub fn len(&self) -> usize {
-        todo!()
+        self.container.len(0)
     }
     pub fn dim(&self) -> usize {
-        todo!()
+        self.container.dim(0)
+    }
+    pub fn dim_at(&self, index: usize) -> Option<usize> {
+        self.container.dim_at(index, 0)
     }
     pub fn error<VC>(&self, _variables: &Variables<R, VC>) -> Mat<R>
     where
@@ -64,13 +67,43 @@ mod tests {
     #[test]
     fn add() {
         type Real = f64;
-        let mut container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
-        let mut graph = FactorGraph::new(container);
-        graph.add(FactorA::new(1.0, None));
-        graph.add(FactorB::new(2.0, None));
-        let f0: &FactorA<Real> = get_factor(&graph.container, 0).unwrap();
+        let container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
+        let mut factors = FactorGraph::new(container);
+        factors.add(FactorA::new(1.0, None));
+        factors.add(FactorB::new(2.0, None));
+        let f0: &FactorA<Real> = get_factor(&factors.container, 0).unwrap();
         assert_eq!(f0.orig, Mat::<Real>::with_dims(3, 1, |_i, _j| 1.0));
+        let f1: &FactorB<Real> = get_factor(&factors.container, 0).unwrap();
+        assert_eq!(f1.orig, Mat::<Real>::with_dims(3, 1, |_i, _j| 2.0));
     }
     #[test]
-    fn len() {}
+    fn len() {
+        type Real = f64;
+        let container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
+        let mut factors = FactorGraph::new(container);
+        factors.add(FactorA::new(1.0, None));
+        factors.add(FactorB::new(2.0, None));
+        assert_eq!(factors.len(), 2);
+    }
+    #[test]
+    fn dim() {
+        type Real = f64;
+        let container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
+        let mut factors = FactorGraph::new(container);
+        factors.add(FactorA::new(1.0, None));
+        factors.add(FactorB::new(2.0, None));
+        assert_eq!(factors.dim(), 6);
+    }
+
+    #[test]
+    fn dim_at() {
+        type Real = f64;
+        let container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
+        let mut factors = FactorGraph::new(container);
+        factors.add(FactorA::new(1.0, None));
+        factors.add(FactorB::new(2.0, None));
+        assert_eq!(factors.dim_at(0).unwrap(), 3);
+        assert_eq!(factors.dim_at(1).unwrap(), 3);
+        assert!(factors.dim_at(2).is_none());
+    }
 }

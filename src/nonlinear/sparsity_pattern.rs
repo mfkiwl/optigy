@@ -68,7 +68,7 @@ struct LowerHessianSparsityPattern {
 /// construct Ax = b sparsity pattern cache from a factor graph and a set of
 /// variables
 fn construct_jacobian_sparsity<R, VC, FC>(
-    graph: &FactorGraph<R, FC>,
+    factors: &FactorGraph<R, FC>,
     variables: &Variables<R, VC>,
     variable_ordering: &VariableOrdering,
 ) -> JacobianSparsityPattern
@@ -79,7 +79,7 @@ where
 {
     let mut sparsity = JacobianSparsityPattern::default();
     // A size
-    sparsity.base.A_rows = graph.dim();
+    sparsity.base.A_rows = factors.dim();
     sparsity.base.A_cols = variables.dim();
 
     // var_dim: dim of each vars (using ordering of var_ordering)
@@ -97,12 +97,12 @@ where
     // counter for row of error
     sparsity.nnz_cols.resize(sparsity.base.A_cols, 0);
     // counter row of factor
-    sparsity.factor_err_row.reserve(graph.len());
+    sparsity.factor_err_row.reserve(factors.len());
     let mut err_row_counter: usize = 0;
 
-    // for (auto f = graph.begin(); f != graph.end(); f++) {
+    // for f_index in 0..factors.len() {
     //   // factor dim
-    //   int f_dim = (int)(*f)->dim();
+    //   let  f_dim = factors.dim_at(f_index).unwrap();
 
     //   for (auto pkey = (*f)->keys().begin(); pkey != (*f)->keys().end(); pkey++) {
     //     // A col start index
@@ -117,7 +117,7 @@ where
     //     }
     //   }
 
-    //   sparsity.factor_err_row.push_back(err_row_counter);
+    //   sparsity.factor_err_row.push(err_row_counter);
     //   err_row_counter += f_dim;
     // }
 
@@ -129,7 +129,7 @@ where
 /// construct A'Ax = A'b sparsity pattern cache from a factor graph and a set of
 /// variables
 fn construct_lower_hessian_sparsity<R, VC, FC>(
-    graph: &FactorGraph<R, FC>,
+    factors: &FactorGraph<R, FC>,
     variables: &Variables<R, VC>,
     variable_ordering: &VariableOrdering,
 ) -> LowerHessianSparsityPattern

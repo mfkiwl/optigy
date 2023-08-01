@@ -39,10 +39,12 @@ where
             },
         }
     }
-    /// sum of variables dim
+    /// sum of factors dim
     fn dim(&self, init: usize) -> usize;
-    /// sum of variables maps len
+    /// sum of factors vecs len
     fn len(&self, init: usize) -> usize;
+    /// factor dim by index
+    fn dim_at(&self, index: usize, init: usize) -> Option<usize>;
     // retact variable by key and delta offset
     // fn linearization_data<C>(
     //     &self, b
@@ -72,6 +74,9 @@ where
     }
     fn len(&self, init: usize) -> usize {
         init
+    }
+    fn dim_at(&self, _index: usize, _init: usize) -> Option<usize> {
+        None
     }
     // fn keys(&self, init: Vec<Key>) -> Vec<Key> {
     //     init
@@ -136,6 +141,13 @@ where
     fn len(&self, init: usize) -> usize {
         let l = init + self.data.len();
         self.parent.len(l)
+    }
+    fn dim_at(&self, index: usize, init: usize) -> Option<usize> {
+        if (init..(init + self.data.len())).contains(&index) {
+            Some(self.data.get(index - init).unwrap().dim())
+        } else {
+            self.parent.dim_at(index, init + self.data.len())
+        }
     }
     // fn keys(&self, init: Vec<Key>) -> Vec<Key> {
     //     let mut keys = init;
@@ -315,6 +327,25 @@ pub(crate) mod tests {
             fc1.push(FactorB::new(2.0, None));
         }
         assert_eq!(container.len(0), 3);
+    }
+    #[test]
+    fn dim_at() {
+        type Real = f64;
+        let mut container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
+        {
+            let fc0 = container.get_mut::<FactorA<Real>>().unwrap();
+            fc0.push(FactorA::new(2.0, None));
+            fc0.push(FactorA::new(1.0, None));
+        }
+        {
+            let fc1 = container.get_mut::<FactorB<Real>>().unwrap();
+            fc1.push(FactorB::new(2.0, None));
+        }
+        assert_eq!(container.dim_at(0, 0).unwrap(), 3);
+        assert_eq!(container.dim_at(1, 0).unwrap(), 3);
+        assert_eq!(container.dim_at(2, 0).unwrap(), 3);
+        assert!(container.dim_at(4, 0).is_none());
+        assert!(container.dim_at(5, 0).is_none());
     }
     #[test]
     fn dim() {
