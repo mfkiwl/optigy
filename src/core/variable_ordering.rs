@@ -1,5 +1,6 @@
 use crate::core::key::Key;
 use hashbrown::HashMap;
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub struct VariableOrdering {
     keymap: HashMap<Key, usize>,
     keylist: Vec<Key>,
