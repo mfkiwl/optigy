@@ -4,6 +4,7 @@ use crate::core::variables::Variables;
 use faer_core::{Mat, RealField};
 use hashbrown::HashMap;
 use std::any::{type_name, TypeId};
+use std::marker::PhantomData;
 use std::mem;
 
 pub trait VariablesKey<R>
@@ -56,6 +57,7 @@ where
     ) -> usize
     where
         C: VariablesContainer<R>;
+    fn dim_at(&mut self, key: Key) -> Option<usize>;
 }
 
 /// The base case for recursive variadics: no fields.
@@ -95,6 +97,9 @@ where
         C: VariablesContainer<R>,
     {
         offset
+    }
+    fn dim_at(&mut self, _key: Key) -> Option<usize> {
+        None
     }
 }
 
@@ -180,6 +185,13 @@ impl<T: VariablesKey<R>, P: VariablesContainer<R>, R: RealField> VariablesContai
             None => self.parent.local(variables, delta, key, offset),
         }
     }
+    fn dim_at(&mut self, key: Key) -> Option<usize> {
+        let var = self.data.get(&key);
+        match var {
+            Some(var) => Some(var.dim()),
+            None => self.parent.dim_at(key),
+        }
+    }
 }
 
 impl<T, R> VariablesKey<R> for T
@@ -214,6 +226,17 @@ mod tests {
         variable::tests::{VariableA, VariableB},
         variables_container::*,
     };
+    #[test]
+    fn at_dim() {
+        type Real = f64;
+        let mut container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
+        let a = container.get_mut::<VariableA<Real>>();
+        a.unwrap().insert(Key(3), VariableA::new(4.0));
+        let a = container.get_mut::<VariableB<Real>>();
+        a.unwrap().insert(Key(4), VariableB::new(4.0));
+        assert_eq!(container.dim_at(Key(3)).unwrap(), 3);
+        assert_eq!(container.dim_at(Key(4)).unwrap(), 3);
+    }
 
     #[test]
     fn recursive_map_container() {

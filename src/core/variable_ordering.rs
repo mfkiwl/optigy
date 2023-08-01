@@ -1,3 +1,5 @@
+use std::ops::Index;
+
 use crate::core::key::Key;
 use hashbrown::HashMap;
 #[cfg_attr(debug_assertions, derive(Debug))]
@@ -14,7 +16,7 @@ impl VariableOrdering {
         self.keylist.len()
     }
 
-    pub fn keys(&self) -> &Vec<Key> {
+    pub fn keys(&self) -> &[Key] {
         &self.keylist
     }
 }
@@ -36,5 +38,12 @@ impl VariableOrdering {
             keymap,
             keylist: keylist.to_owned(),
         }
+    }
+}
+impl Index<usize> for VariableOrdering {
+    type Output = Key;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.keylist[index]
     }
 }
