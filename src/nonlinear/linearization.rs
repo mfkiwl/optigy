@@ -5,7 +5,7 @@ use crate::core::{
     variables_container::VariablesContainer,
 };
 
-fn linearzation_jacobian<R, VC, FC>(factors: &FactorGraph<R, VC, FC>, variables: &Variables<R, VC>)
+fn linearzation_jacobian<R, VC, FC>(factors: &FactorGraph<R, FC>, variables: &Variables<R, VC>)
 where
     R: RealField,
     VC: VariablesContainer<R>,

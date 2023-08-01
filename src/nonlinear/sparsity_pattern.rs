@@ -1,8 +1,6 @@
 use crate::core::{
-    factor_graph::FactorGraph,
-    factors_container::FactorsContainer,
-    variable_ordering::{self, VariableOrdering},
-    variables::Variables,
+    factor_graph::FactorGraph, factors_container::FactorsContainer,
+    variable_ordering::VariableOrdering, variables::Variables,
     variables_container::VariablesContainer,
 };
 use faer_core::RealField;
@@ -70,7 +68,7 @@ struct LowerHessianSparsityPattern {
 /// construct Ax = b sparsity pattern cache from a factor graph and a set of
 /// variables
 fn construct_jacobian_sparsity<R, VC, FC>(
-    graph: &FactorGraph<R, VC, FC>,
+    graph: &FactorGraph<R, FC>,
     variables: &Variables<R, VC>,
     variable_ordering: &VariableOrdering,
 ) -> JacobianSparsityPattern
@@ -96,12 +94,11 @@ where
         sparsity.base.var_dim.push(vdim);
         col_counter += vdim;
     }
-    todo!()
-    // // counter for row of error
-    // sparsity.nnz_cols.resize(sparsity.A_cols, 0);
-    // // counter row of factor
-    // sparsity.factor_err_row.reserve(graph.size());
-    // int err_row_counter = 0;
+    // counter for row of error
+    sparsity.nnz_cols.resize(sparsity.base.A_cols, 0);
+    // counter row of factor
+    sparsity.factor_err_row.reserve(graph.len());
+    let mut err_row_counter: usize = 0;
 
     // for (auto f = graph.begin(); f != graph.end(); f++) {
     //   // factor dim
@@ -124,16 +121,15 @@ where
     //   err_row_counter += f_dim;
     // }
 
-    // // copy var ordering
-    // sparsity.var_ordering = var_ordering;
-
-    // return sparsity;
+    // copy var ordering
+    sparsity.base.var_ordering = variable_ordering.clone();
+    sparsity
 }
 
 /// construct A'Ax = A'b sparsity pattern cache from a factor graph and a set of
 /// variables
 fn construct_lower_hessian_sparsity<R, VC, FC>(
-    graph: &FactorGraph<R, VC, FC>,
+    graph: &FactorGraph<R, FC>,
     variables: &Variables<R, VC>,
     variable_ordering: &VariableOrdering,
 ) -> LowerHessianSparsityPattern
@@ -143,4 +139,9 @@ where
     FC: FactorsContainer<R>,
 {
     todo!()
+}
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn construct_jacobian_sparsity() {}
 }

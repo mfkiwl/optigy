@@ -3,6 +3,7 @@ use std::ops::Index;
 use crate::core::key::Key;
 use hashbrown::HashMap;
 #[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone)]
 pub struct VariableOrdering {
     keymap: HashMap<Key, usize>,
     keylist: Vec<Key>,
