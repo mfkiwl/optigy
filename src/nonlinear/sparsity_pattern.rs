@@ -1,7 +1,6 @@
 use crate::core::{
-    factor_graph::FactorGraph, factors_container::FactorsContainer,
-    variable_ordering::VariableOrdering, variables::Variables,
-    variables_container::VariablesContainer,
+    factors::Factors, factors_container::FactorsContainer, variable_ordering::VariableOrdering,
+    variables::Variables, variables_container::VariablesContainer,
 };
 use faer_core::RealField;
 use hashbrown::{HashMap, HashSet};
@@ -68,7 +67,7 @@ struct LowerHessianSparsityPattern {
 /// construct Ax = b sparsity pattern cache from a factor graph and a set of
 /// variables
 fn construct_jacobian_sparsity<R, VC, FC>(
-    factors: &FactorGraph<R, FC>,
+    factors: &Factors<R, FC>,
     variables: &Variables<R, VC>,
     variable_ordering: &VariableOrdering,
 ) -> JacobianSparsityPattern
@@ -100,26 +99,26 @@ where
     sparsity.factor_err_row.reserve(factors.len());
     let mut err_row_counter: usize = 0;
 
-    // for f_index in 0..factors.len() {
-    //   // factor dim
-    //   let  f_dim = factors.dim_at(f_index).unwrap();
+    for f_index in 0..factors.len() {
+        // factor dim
+        let f_dim = factors.dim_at(f_index).unwrap();
 
-    //   for (auto pkey = (*f)->keys().begin(); pkey != (*f)->keys().end(); pkey++) {
-    //     // A col start index
-    //     Key vkey = *pkey;
-    //     size_t key_order_idx = var_ordering.searchKey(vkey);
-    //     // A col non-zeros
-    //     for (int nz_col = sparsity.var_col[key_order_idx];
-    //          nz_col <
-    //          sparsity.var_col[key_order_idx] + sparsity.var_dim[key_order_idx];
-    //          nz_col++) {
-    //       sparsity.nnz_cols[nz_col] += f_dim;
-    //     }
-    //   }
+        // for (auto pkey = (*f)->keys().begin(); pkey != (*f)->keys().end(); pkey++) {
+        //   // A col start index
+        //   Key vkey = *pkey;
+        //   size_t key_order_idx = var_ordering.searchKey(vkey);
+        //   // A col non-zeros
+        //   for (int nz_col = sparsity.var_col[key_order_idx];
+        //        nz_col <
+        //        sparsity.var_col[key_order_idx] + sparsity.var_dim[key_order_idx];
+        //        nz_col++) {
+        //     sparsity.nnz_cols[nz_col] += f_dim;
+        //   }
+        // }
 
-    //   sparsity.factor_err_row.push(err_row_counter);
-    //   err_row_counter += f_dim;
-    // }
+        sparsity.factor_err_row.push(err_row_counter);
+        err_row_counter += f_dim;
+    }
 
     // copy var ordering
     sparsity.base.var_ordering = variable_ordering.clone();
@@ -129,7 +128,7 @@ where
 /// construct A'Ax = A'b sparsity pattern cache from a factor graph and a set of
 /// variables
 fn construct_lower_hessian_sparsity<R, VC, FC>(
-    factors: &FactorGraph<R, FC>,
+    factors: &Factors<R, FC>,
     variables: &Variables<R, VC>,
     variable_ordering: &VariableOrdering,
 ) -> LowerHessianSparsityPattern

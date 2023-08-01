@@ -1,5 +1,5 @@
 pub mod factor;
-pub mod factor_graph;
+pub mod factors;
 pub mod factors_container;
 pub mod key;
 pub mod loss_function;
