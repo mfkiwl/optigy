@@ -90,12 +90,12 @@ where
     sparsity.base.var_col.reserve(variable_ordering.len());
     let mut col_counter: usize = 0;
 
-    // for i in 0..variable_ordering.len() {
-    //     sparsity.base.var_col.push(col_counter);
-    //     let vdim = variables.at(variable_ordering[i]).unwrap().dim();
-    //     sparsity.base.var_dim.push(vdim);
-    //     col_counter += vdim;
-    // }
+    for i in 0..variable_ordering.len() {
+        sparsity.base.var_col.push(col_counter);
+        let vdim = variables.dim_at(variable_ordering[i]).unwrap();
+        sparsity.base.var_dim.push(vdim);
+        col_counter += vdim;
+    }
     todo!()
     // // counter for row of error
     // sparsity.nnz_cols.resize(sparsity.A_cols, 0);

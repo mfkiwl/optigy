@@ -79,6 +79,9 @@ where
     {
         self.container.get_mut::<V>().unwrap().insert(key, var);
     }
+    pub fn dim_at(&self, key: Key) -> Option<usize> {
+        self.container.dim_at(key)
+    }
 }
 #[cfg(test)]
 mod tests {
@@ -107,7 +110,6 @@ mod tests {
         let _var_1: &VariableB<_> = variables.at(Key(1)).unwrap();
     }
     #[test]
-
     fn get_mut_variable() {
         type Real = f64;
         let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
@@ -127,7 +129,24 @@ mod tests {
         assert_eq!(var_0.val, Mat::<Real>::with_dims(3, 1, |_i, _j| 1.0));
         assert_eq!(var_1.val, Mat::<Real>::with_dims(3, 1, |_i, _j| 2.0));
     }
-
+    #[test]
+    fn dim_at() {
+        type Real = f64;
+        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
+        let mut variables = Variables::new(container);
+        variables.add(Key(0), VariableA::<Real>::new(0.0));
+        variables.add(Key(1), VariableB::<Real>::new(0.0));
+        {
+            let var_0: &mut VariableA<_> = variables.at_mut(Key(0)).unwrap();
+            var_0.val.as_mut().cwise().for_each(|mut x| x.write(1.0));
+        }
+        {
+            let var_1: &mut VariableB<_> = variables.at_mut(Key(1)).unwrap();
+            var_1.val.as_mut().cwise().for_each(|mut x| x.write(2.0));
+        }
+        assert_eq!(variables.dim_at(Key(0)).unwrap(), 3);
+        assert_eq!(variables.dim_at(Key(1)).unwrap(), 3);
+    }
     #[test]
     fn local() {
         type Real = f64;

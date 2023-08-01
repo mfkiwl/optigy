@@ -57,7 +57,7 @@ where
     ) -> usize
     where
         C: VariablesContainer<R>;
-    fn dim_at(&mut self, key: Key) -> Option<usize>;
+    fn dim_at(&self, key: Key) -> Option<usize>;
 }
 
 /// The base case for recursive variadics: no fields.
@@ -98,7 +98,7 @@ where
     {
         offset
     }
-    fn dim_at(&mut self, _key: Key) -> Option<usize> {
+    fn dim_at(&self, _key: Key) -> Option<usize> {
         None
     }
 }
@@ -185,7 +185,7 @@ impl<T: VariablesKey<R>, P: VariablesContainer<R>, R: RealField> VariablesContai
             None => self.parent.local(variables, delta, key, offset),
         }
     }
-    fn dim_at(&mut self, key: Key) -> Option<usize> {
+    fn dim_at(&self, key: Key) -> Option<usize> {
         let var = self.data.get(&key);
         match var {
             Some(var) => Some(var.dim()),
