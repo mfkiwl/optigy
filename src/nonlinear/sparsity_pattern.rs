@@ -250,14 +250,14 @@ mod tests {
         assert_eq!(pattern.factor_err_row[1], 3);
         assert_eq!(pattern.nnz_cols.len(), 9);
         println!("ordering {:?}", variable_ordering);
-        assert_eq!(pattern.nnz_cols[0], 3);
-        assert_eq!(pattern.nnz_cols[1], 3);
-        assert_eq!(pattern.nnz_cols[2], 3);
-        assert_eq!(pattern.nnz_cols[3], 6);
-        assert_eq!(pattern.nnz_cols[4], 6);
-        assert_eq!(pattern.nnz_cols[5], 6);
-        assert_eq!(pattern.nnz_cols[6], 3);
-        assert_eq!(pattern.nnz_cols[7], 3);
-        assert_eq!(pattern.nnz_cols[8], 3);
+        assert_eq!(pattern.nnz_cols[0 + variable_ordering.key(Key(0))], 3);
+        assert_eq!(pattern.nnz_cols[1 + variable_ordering.key(Key(0))], 3);
+        assert_eq!(pattern.nnz_cols[2 + variable_ordering.key(Key(0))], 3);
+        assert_eq!(pattern.nnz_cols[3 + variable_ordering.key(Key(1))], 6);
+        assert_eq!(pattern.nnz_cols[4 + variable_ordering.key(Key(1))], 6);
+        assert_eq!(pattern.nnz_cols[5 + variable_ordering.key(Key(1))], 6);
+        assert_eq!(pattern.nnz_cols[6 + variable_ordering.key(Key(2))], 3);
+        assert_eq!(pattern.nnz_cols[7 + variable_ordering.key(Key(2))], 3);
+        assert_eq!(pattern.nnz_cols[8 + variable_ordering.key(Key(2))], 3);
     }
 }
