@@ -1,10 +1,9 @@
 use crate::core::factor::Factor;
-// use crate::core::variables::Factors;
 use faer_core::RealField;
 use std::any::{type_name, TypeId};
 use std::mem;
 
-use super::variables_container::VariablesContainer;
+use super::key::Key;
 
 pub trait FactorsKey<R>
 where
@@ -45,16 +44,8 @@ where
     fn len(&self, init: usize) -> usize;
     /// factor dim by index
     fn dim_at(&self, index: usize, init: usize) -> Option<usize>;
-    // retact variable by key and delta offset
-    // fn linearization_data<C>(
-    //     &self, b
-    //     variables: &Factors<R, C>,
-    //     delta: &mut Mat<R>,
-    //     key: Key,
-    //     offset: usize,
-    // ) -> usize
-    // where
-    //     C: FactorsContainer<R>;
+    /// factor keys by index
+    fn keys_at(&self, index: usize, init: usize) -> Option<&[Key]>;
 }
 
 /// The base case for recursive variadics: no fields.
@@ -78,26 +69,9 @@ where
     fn dim_at(&self, _index: usize, _init: usize) -> Option<usize> {
         None
     }
-    // fn keys(&self, init: Vec<Key>) -> Vec<Key> {
-    //     init
-    // }
-
-    // fn retract(&mut self, _delta: &Mat<R>, _key: Key, offset: usize) -> usize {
-    //     offset
-    // }
-
-    // fn local<C>(
-    //     &self,
-    //     _variables: &Factors<R, C>,
-    //     _delta: &mut Mat<R>,
-    //     _key: Key,
-    //     offset: usize,
-    // ) -> usize
-    // where
-    //     C: FactorsContainer<R>,
-    // {
-    //     offset
-    // }
+    fn keys_at(&self, index: usize, init: usize) -> Option<&[Key]> {
+        None
+    }
 }
 
 /// Wraps some field data and a parent, which is either another Entry or Empty
@@ -149,53 +123,13 @@ where
             self.parent.dim_at(index, init + self.data.len())
         }
     }
-    // fn keys(&self, init: Vec<Key>) -> Vec<Key> {
-    //     let mut keys = init;
-    //     for (key, _val) in self.data.iter() {
-    //         keys.push(*key);
-    //     }
-    //     self.parent.keys(keys)
-    // }
-
-    // fn retract(&mut self, delta: &Mat<R>, key: Key, offset: usize) -> usize {
-    //     let var = self.data.get_mut(&key);
-    //     match var {
-    //         Some(var) => {
-    //             let vd = var.dim();
-    //             let dx = delta.as_ref().subrows(offset, vd);
-    //             var.retract(&dx);
-    //             offset + vd
-    //         }
-
-    //         None => self.parent.retract(delta, key, offset),
-    //     }
-    // }
-
-    // fn local<C>(
-    //     &self,
-    //     variables: &Factors<R, C>,
-    //     delta: &mut Mat<R>,
-    //     key: Key,
-    //     offset: usize,
-    // ) -> usize
-    // where
-    //     C: FactorsContainer<R>,
-    // {
-    //     let var_this = self.data.get(&key);
-    //     match var_this {
-    //         Some(var_this) => {
-    //             let var = variables.at::<T::Value>(key).unwrap();
-    //             let vd = var.dim();
-    //             delta
-    //                 .as_mut()
-    //                 .subrows(offset, vd)
-    //                 .clone_from(var_this.local(var).as_ref());
-    //             offset + vd
-    //         }
-
-    //         None => self.parent.local(variables, delta, key, offset),
-    //     }
-    // }
+    fn keys_at(&self, index: usize, init: usize) -> Option<&[Key]> {
+        if (init..(init + self.data.len())).contains(&index) {
+            Some(self.data.get(index - init).unwrap().keys())
+        } else {
+            self.parent.keys_at(index, init + self.data.len())
+        }
+    }
 }
 
 impl<T, R> FactorsKey<R> for T
@@ -230,6 +164,7 @@ pub(crate) mod tests {
     use crate::core::{
         factor::tests::{FactorA, FactorB},
         factors_container::{get_factor, get_factor_mut, FactorsContainer},
+        key::Key,
     };
 
     #[test]
@@ -245,12 +180,12 @@ pub(crate) mod tests {
         let mut container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
         {
             let fc0 = container.get_mut::<FactorA<Real>>().unwrap();
-            fc0.push(FactorA::new(2.0, None));
-            fc0.push(FactorA::new(1.0, None));
+            fc0.push(FactorA::new(2.0, None, Key(0), Key(1)));
+            fc0.push(FactorA::new(1.0, None, Key(0), Key(1)));
         }
         {
             let fc1 = container.get_mut::<FactorB<Real>>().unwrap();
-            fc1.push(FactorB::new(2.0, None));
+            fc1.push(FactorB::new(2.0, None, Key(0), Key(1)));
         }
         let fc0 = container.get::<FactorA<Real>>().unwrap();
         assert_eq!(
@@ -277,12 +212,12 @@ pub(crate) mod tests {
         let mut container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
         {
             let fc0 = container.get_mut::<FactorA<Real>>().unwrap();
-            fc0.push(FactorA::new(2.0, None));
-            fc0.push(FactorA::new(1.0, None));
+            fc0.push(FactorA::new(2.0, None, Key(0), Key(1)));
+            fc0.push(FactorA::new(1.0, None, Key(0), Key(1)));
         }
         {
             let fc1 = container.get_mut::<FactorB<Real>>().unwrap();
-            fc1.push(FactorB::new(2.0, None));
+            fc1.push(FactorB::new(2.0, None, Key(0), Key(1)));
         }
         {
             let f: &mut FactorA<_> = get_factor_mut(&mut container, 0).unwrap();
@@ -319,12 +254,12 @@ pub(crate) mod tests {
         let mut container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
         {
             let fc0 = container.get_mut::<FactorA<Real>>().unwrap();
-            fc0.push(FactorA::new(2.0, None));
-            fc0.push(FactorA::new(1.0, None));
+            fc0.push(FactorA::new(2.0, None, Key(0), Key(1)));
+            fc0.push(FactorA::new(1.0, None, Key(0), Key(1)));
         }
         {
             let fc1 = container.get_mut::<FactorB<Real>>().unwrap();
-            fc1.push(FactorB::new(2.0, None));
+            fc1.push(FactorB::new(2.0, None, Key(0), Key(1)));
         }
         assert_eq!(container.len(0), 3);
     }
@@ -334,12 +269,12 @@ pub(crate) mod tests {
         let mut container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
         {
             let fc0 = container.get_mut::<FactorA<Real>>().unwrap();
-            fc0.push(FactorA::new(2.0, None));
-            fc0.push(FactorA::new(1.0, None));
+            fc0.push(FactorA::new(2.0, None, Key(0), Key(1)));
+            fc0.push(FactorA::new(1.0, None, Key(0), Key(1)));
         }
         {
             let fc1 = container.get_mut::<FactorB<Real>>().unwrap();
-            fc1.push(FactorB::new(2.0, None));
+            fc1.push(FactorB::new(2.0, None, Key(0), Key(1)));
         }
         assert_eq!(container.dim_at(0, 0).unwrap(), 3);
         assert_eq!(container.dim_at(1, 0).unwrap(), 3);
@@ -353,13 +288,35 @@ pub(crate) mod tests {
         let mut container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
         {
             let fc0 = container.get_mut::<FactorA<Real>>().unwrap();
-            fc0.push(FactorA::new(2.0, None));
-            fc0.push(FactorA::new(1.0, None));
+            fc0.push(FactorA::new(2.0, None, Key(0), Key(1)));
+            fc0.push(FactorA::new(1.0, None, Key(0), Key(1)));
         }
         {
             let fc1 = container.get_mut::<FactorB<Real>>().unwrap();
-            fc1.push(FactorB::new(2.0, None));
+            fc1.push(FactorB::new(2.0, None, Key(0), Key(1)));
         }
         assert_eq!(container.dim(0), 9);
+    }
+    #[test]
+    fn keys_at() {
+        type Real = f64;
+        let mut container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
+        {
+            let fc0 = container.get_mut::<FactorA<Real>>().unwrap();
+            fc0.push(FactorA::new(2.0, None, Key(0), Key(1)));
+            fc0.push(FactorA::new(1.0, None, Key(0), Key(1)));
+        }
+        {
+            let fc1 = container.get_mut::<FactorB<Real>>().unwrap();
+            fc1.push(FactorB::new(2.0, None, Key(0), Key(1)));
+        }
+        let mut keys = Vec::<Key>::new();
+        keys.push(Key(0));
+        keys.push(Key(1));
+        assert_eq!(container.keys_at(0, 0).unwrap(), keys);
+        assert_eq!(container.keys_at(1, 0).unwrap(), keys);
+        assert_eq!(container.keys_at(2, 0).unwrap(), keys);
+        assert!(container.keys_at(4, 0).is_none());
+        assert!(container.keys_at(5, 0).is_none());
     }
 }

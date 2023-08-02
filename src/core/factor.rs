@@ -101,12 +101,12 @@ pub(crate) mod tests {
     where
         R: RealField,
     {
-        pub fn new(v: R, loss: Option<GaussianLoss>) -> Self {
+        pub fn new(v: R, loss: Option<GaussianLoss>, var0: Key, var1: Key) -> Self {
             let mut jacobians = Vec::<Mat<R>>::with_capacity(2);
             jacobians.resize_with(2, || Mat::zeros(3, 3));
             let mut keys = Vec::<Key>::new();
-            keys.push(Key(0));
-            keys.push(Key(1));
+            keys.push(var0);
+            keys.push(var1);
             FactorA {
                 orig: Mat::with_dims(3, 1, |_i, _j| v.clone()),
                 loss,
@@ -176,12 +176,12 @@ pub(crate) mod tests {
     where
         R: RealField,
     {
-        pub fn new(v: R, loss: Option<GaussianLoss>) -> Self {
+        pub fn new(v: R, loss: Option<GaussianLoss>, var0: Key, var1: Key) -> Self {
             let mut jacobians = Vec::<Mat<R>>::with_capacity(2);
             jacobians.resize_with(2, || Mat::zeros(3, 3));
             let mut keys = Vec::<Key>::new();
-            keys.push(Key(0));
-            keys.push(Key(1));
+            keys.push(var0);
+            keys.push(var1);
             FactorB {
                 orig: Mat::with_dims(3, 1, |_i, _j| v.clone()),
                 loss,
@@ -244,7 +244,7 @@ pub(crate) mod tests {
         variables.add(Key(0), VariableA::<Real>::new(4.0));
         variables.add(Key(1), VariableB::<Real>::new(2.0));
         let loss = GaussianLoss {};
-        let f0 = FactorA::new(1.0, Some(loss.clone()));
+        let f0 = FactorA::new(1.0, Some(loss.clone()), Key(0), Key(1));
         // let f1 = FactorB::<Real>::new(2.0);
         let e0 = f0.error(&variables);
         // let e1 = f1.error(&variables);
