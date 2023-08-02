@@ -4,19 +4,21 @@ use crate::core::{
 };
 use faer_core::RealField;
 use hashbrown::{HashMap, HashSet};
-// base class for A and A'A sparsity pattern, if variable ordering is fixed,
-// only need to be constructed once for different linearzation runs
+/// base class for A and A'A sparsity pattern, if variable ordering is fixed,
+/// only need to be constructed once for different linearzation runs
 #[cfg_attr(debug_assertions, derive(Debug))]
 #[allow(non_snake_case)]
 #[derive(Default)]
 struct SparsityPatternBase {
-    // basic size information
-    A_rows: usize, // = b size
-    A_cols: usize, // = A'A size
+    /// basic size information
+    A_rows: usize,
+    /// = b size
+    A_cols: usize,
+    /// = A'A size
     var_ordering: VariableOrdering,
 
-    // var_dim: dim of each vars (using ordering of var_ordering)
-    // var_col: start col of each vars (using ordering of var_ordering)
+    /// var_dim: dim of each vars (using ordering of var_ordering)
+    /// var_col: start col of each vars (using ordering of var_ordering)
     var_dim: Vec<usize>,
     var_col: Vec<usize>,
 }
@@ -26,40 +28,40 @@ struct SparsityPatternBase {
 #[derive(Default)]
 struct JacobianSparsityPattern {
     base: SparsityPatternBase,
-    // Eigen::Sparse memory allocation information
-    // number of non-zeros count for each col of A, use for Eigen sparse matrix A
-    // reservation
+    /// Eigen::Sparse memory allocation information
+    /// number of non-zeros count for each col of A, use for Eigen sparse matrix A
+    /// reservation
     nnz_cols: Vec<usize>,
 
-    // start row of each factor
+    /// start row of each factor
     factor_err_row: Vec<usize>,
 }
 
-// struct store A'A lower part sparsity pattern given variable ordering
-// note this does not apply to full A'A!
+/// struct store A'A lower part sparsity pattern given variable ordering
+/// note this does not apply to full A'A!
 #[cfg_attr(debug_assertions, derive(Debug))]
 #[allow(non_snake_case)]
 #[derive(Default)]
 struct LowerHessianSparsityPattern {
     base: SparsityPatternBase,
-    // number of non-zeros count for each col of AtA (each row of A)
-    // use for Eigen sparse matrix AtA reserve
+    /// number of non-zeros count for each col of AtA (each row of A)
+    /// use for Eigen sparse matrix AtA reserve
     nnz_AtA_cols: Vec<usize>,
     total_nnz_AtA_cols: usize,
 
-    // accumulated nnzs in AtA before each var
-    // index: var idx, value: total skip nnz
+    /// accumulated nnzs in AtA before each var
+    /// index: var idx, value: total skip nnz
     nnz_AtA_vars_accum: Vec<usize>,
 
-    // corl_vars: variable ordering position of all correlated vars of each var
-    // (not include self), set must be ordered
+    /// corl_vars: variable ordering position of all correlated vars of each var
+    /// (not include self), set must be ordered
     corl_vars: Vec<HashSet<usize>>,
 
-    // inner index of each coorelated vars, exculde lower triangular part
-    // index: corl var idx, value: inner index
+    /// inner index of each coorelated vars, exculde lower triangular part
+    /// index: corl var idx, value: inner index
     inner_insert_map: Vec<HashMap<usize, usize>>,
 
-    // sparse matrix inner/outer index
+    /// sparse matrix inner/outer index
     inner_index: Vec<usize>,
     inner_nnz_index: Vec<usize>,
     outer_index: Vec<usize>,
@@ -108,7 +110,7 @@ where
             let key_order_idx = variable_ordering.search_key(*vkey).unwrap();
             // A col non-zeros
             let var_col = sparsity.base.var_col[key_order_idx];
-            for nz_col in var_col..var_col + sparsity.base.var_dim[key_order_idx] {
+            for nz_col in var_col..(var_col + sparsity.base.var_dim[key_order_idx]) {
                 sparsity.nnz_cols[nz_col] += f_dim;
             }
         }
@@ -137,6 +139,125 @@ where
 }
 #[cfg(test)]
 mod tests {
+    use std::any::type_name;
+
+    use crate::{
+        core::{
+            factor::tests::{FactorA, FactorB},
+            factors::Factors,
+            factors_container::FactorsContainer,
+            key::Key,
+            variable::tests::{VariableA, VariableB},
+            variables::Variables,
+            variables_container::VariablesContainer,
+        },
+        nonlinear::sparsity_pattern::construct_jacobian_sparsity,
+    };
+
+    // #[test]
+    // fn jacobian_sparsity_0() {
+    //     type Real = f64;
+    //     let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
+    //     let mut variables = Variables::new(container);
+    //     variables.add(Key(0), VariableA::<Real>::new(0.0));
+    //     variables.add(Key(1), VariableB::<Real>::new(0.0));
+    //     variables.add(Key(2), VariableB::<Real>::new(0.0));
+
+    //     let container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
+    //     let mut factors = Factors::new(container);
+    //     factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
+    //     factors.add(FactorB::new(2.0, None, Key(1), Key(2)));
+    //     factors.add(FactorB::new(3.0, None, Key(0), Key(2)));
+    //     let variable_ordering = variables.default_variable_ordering();
+    //     let pattern = construct_jacobian_sparsity(&factors, &variables, &variable_ordering);
+    //     assert_eq!(pattern.base.A_rows, 9);
+    //     assert_eq!(pattern.base.A_cols, 9);
+    //     assert_eq!(pattern.base.var_dim, vec![3, 3, 3]);
+    //     assert_eq!(pattern.base.var_col, vec![0, 3, 6]);
+    //     assert_eq!(pattern.factor_err_row[0], 0);
+    //     assert_eq!(pattern.factor_err_row[1], 3);
+    //     assert_eq!(pattern.factor_err_row[2], 6);
+    //     assert_eq!(pattern.nnz_cols[0], 6);
+    //     assert_eq!(pattern.nnz_cols[1], 6);
+    //     assert_eq!(pattern.nnz_cols[2], 6);
+    //     assert_eq!(pattern.nnz_cols[3], 6);
+    //     assert_eq!(pattern.nnz_cols[4], 6);
+    //     assert_eq!(pattern.nnz_cols[5], 6);
+    //     assert_eq!(pattern.nnz_cols[6], 6);
+    //     assert_eq!(pattern.nnz_cols[7], 6);
+    //     assert_eq!(pattern.nnz_cols[8], 6);
+    // }
+    // #[test]
+    // fn jacobian_sparsity_1() {
+    //     type Real = f64;
+    //     let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
+    //     let mut variables = Variables::new(container);
+    //     variables.add(Key(0), VariableA::<Real>::new(0.0));
+    //     variables.add(Key(1), VariableB::<Real>::new(0.0));
+    //     variables.add(Key(2), VariableB::<Real>::new(0.0));
+
+    //     let container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
+    //     let mut factors = Factors::new(container);
+    //     factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
+    //     factors.add(FactorB::new(2.0, None, Key(1), Key(2)));
+    //     factors.add(FactorB::new(3.0, None, Key(0), Key(1)));
+    //     let variable_ordering = variables.default_variable_ordering();
+    //     let pattern = construct_jacobian_sparsity(&factors, &variables, &variable_ordering);
+    //     assert_eq!(pattern.base.A_rows, 9);
+    //     assert_eq!(pattern.base.A_cols, 9);
+    //     assert_eq!(pattern.base.var_dim.len(), 3);
+    //     assert_eq!(pattern.base.var_col.len(), 3);
+    //     assert_eq!(pattern.base.var_dim, vec![3, 3, 3]);
+    //     assert_eq!(pattern.base.var_col, vec![0, 3, 6]);
+    //     assert_eq!(pattern.factor_err_row.len(), 3);
+    //     assert_eq!(pattern.factor_err_row[0], 0);
+    //     assert_eq!(pattern.factor_err_row[1], 3);
+    //     assert_eq!(pattern.factor_err_row[2], 6);
+    //     assert_eq!(pattern.nnz_cols.len(), 9);
+    //     assert_eq!(pattern.nnz_cols[0], 3);
+    //     assert_eq!(pattern.nnz_cols[1], 3);
+    //     assert_eq!(pattern.nnz_cols[2], 3);
+    //     assert_eq!(pattern.nnz_cols[3], 9);
+    //     assert_eq!(pattern.nnz_cols[4], 9);
+    //     assert_eq!(pattern.nnz_cols[5], 9);
+    //     assert_eq!(pattern.nnz_cols[6], 6);
+    //     assert_eq!(pattern.nnz_cols[7], 6);
+    //     assert_eq!(pattern.nnz_cols[8], 6);
+    // }
     #[test]
-    fn construct_jacobian_sparsity() {}
+    fn jacobian_sparsity_2() {
+        type Real = f64;
+        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
+        let mut variables = Variables::new(container);
+        variables.add(Key(0), VariableA::<Real>::new(0.0));
+        variables.add(Key(1), VariableB::<Real>::new(0.0));
+        variables.add(Key(2), VariableB::<Real>::new(0.0));
+
+        let container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
+        let mut factors = Factors::new(container);
+        factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
+        factors.add(FactorB::new(2.0, None, Key(1), Key(2)));
+        let variable_ordering = variables.default_variable_ordering();
+        let pattern = construct_jacobian_sparsity(&factors, &variables, &variable_ordering);
+        assert_eq!(pattern.base.A_rows, 6);
+        assert_eq!(pattern.base.A_cols, 9);
+        assert_eq!(pattern.base.var_dim.len(), 3);
+        assert_eq!(pattern.base.var_col.len(), 3);
+        assert_eq!(pattern.base.var_dim, vec![3, 3, 3]);
+        assert_eq!(pattern.base.var_col, vec![0, 3, 6]);
+        assert_eq!(pattern.factor_err_row.len(), 2);
+        assert_eq!(pattern.factor_err_row[0], 0);
+        assert_eq!(pattern.factor_err_row[1], 3);
+        assert_eq!(pattern.nnz_cols.len(), 9);
+        println!("ordering {:?}", variable_ordering);
+        assert_eq!(pattern.nnz_cols[0], 3);
+        assert_eq!(pattern.nnz_cols[1], 3);
+        assert_eq!(pattern.nnz_cols[2], 3);
+        assert_eq!(pattern.nnz_cols[3], 6);
+        assert_eq!(pattern.nnz_cols[4], 6);
+        assert_eq!(pattern.nnz_cols[5], 6);
+        assert_eq!(pattern.nnz_cols[6], 3);
+        assert_eq!(pattern.nnz_cols[7], 3);
+        assert_eq!(pattern.nnz_cols[8], 3);
+    }
 }

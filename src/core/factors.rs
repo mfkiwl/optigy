@@ -49,7 +49,7 @@ where
     {
         todo!()
     }
-    fn add<F>(&mut self, f: F)
+    pub fn add<F>(&mut self, f: F)
     where
         F: Factor<R> + 'static,
         R: RealField,
