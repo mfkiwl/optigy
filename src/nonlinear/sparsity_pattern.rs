@@ -154,76 +154,130 @@ mod tests {
         nonlinear::sparsity_pattern::construct_jacobian_sparsity,
     };
 
-    // #[test]
-    // fn jacobian_sparsity_0() {
-    //     type Real = f64;
-    //     let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
-    //     let mut variables = Variables::new(container);
-    //     variables.add(Key(0), VariableA::<Real>::new(0.0));
-    //     variables.add(Key(1), VariableB::<Real>::new(0.0));
-    //     variables.add(Key(2), VariableB::<Real>::new(0.0));
+    #[test]
+    fn jacobian_sparsity_0() {
+        type Real = f64;
+        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
+        let mut variables = Variables::new(container);
+        variables.add(Key(0), VariableA::<Real>::new(0.0));
+        variables.add(Key(1), VariableB::<Real>::new(0.0));
+        variables.add(Key(2), VariableB::<Real>::new(0.0));
 
-    //     let container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
-    //     let mut factors = Factors::new(container);
-    //     factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
-    //     factors.add(FactorB::new(2.0, None, Key(1), Key(2)));
-    //     factors.add(FactorB::new(3.0, None, Key(0), Key(2)));
-    //     let variable_ordering = variables.default_variable_ordering();
-    //     let pattern = construct_jacobian_sparsity(&factors, &variables, &variable_ordering);
-    //     assert_eq!(pattern.base.A_rows, 9);
-    //     assert_eq!(pattern.base.A_cols, 9);
-    //     assert_eq!(pattern.base.var_dim, vec![3, 3, 3]);
-    //     assert_eq!(pattern.base.var_col, vec![0, 3, 6]);
-    //     assert_eq!(pattern.factor_err_row[0], 0);
-    //     assert_eq!(pattern.factor_err_row[1], 3);
-    //     assert_eq!(pattern.factor_err_row[2], 6);
-    //     assert_eq!(pattern.nnz_cols[0], 6);
-    //     assert_eq!(pattern.nnz_cols[1], 6);
-    //     assert_eq!(pattern.nnz_cols[2], 6);
-    //     assert_eq!(pattern.nnz_cols[3], 6);
-    //     assert_eq!(pattern.nnz_cols[4], 6);
-    //     assert_eq!(pattern.nnz_cols[5], 6);
-    //     assert_eq!(pattern.nnz_cols[6], 6);
-    //     assert_eq!(pattern.nnz_cols[7], 6);
-    //     assert_eq!(pattern.nnz_cols[8], 6);
-    // }
-    // #[test]
-    // fn jacobian_sparsity_1() {
-    //     type Real = f64;
-    //     let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
-    //     let mut variables = Variables::new(container);
-    //     variables.add(Key(0), VariableA::<Real>::new(0.0));
-    //     variables.add(Key(1), VariableB::<Real>::new(0.0));
-    //     variables.add(Key(2), VariableB::<Real>::new(0.0));
+        let container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
+        let mut factors = Factors::new(container);
+        factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
+        factors.add(FactorB::new(2.0, None, Key(1), Key(2)));
+        factors.add(FactorB::new(3.0, None, Key(0), Key(2)));
+        let variable_ordering = variables.default_variable_ordering();
+        let pattern = construct_jacobian_sparsity(&factors, &variables, &variable_ordering);
+        assert_eq!(pattern.base.A_rows, 9);
+        assert_eq!(pattern.base.A_cols, 9);
+        assert_eq!(pattern.base.var_dim, vec![3, 3, 3]);
+        assert_eq!(pattern.base.var_col, vec![0, 3, 6]);
+        assert_eq!(pattern.factor_err_row[0], 0);
+        assert_eq!(pattern.factor_err_row[1], 3);
+        assert_eq!(pattern.factor_err_row[2], 6);
+        assert_eq!(
+            pattern.nnz_cols[0 + variable_ordering.search_key(Key(0)).unwrap() * 3],
+            6
+        );
+        assert_eq!(
+            pattern.nnz_cols[1 + variable_ordering.search_key(Key(0)).unwrap() * 3],
+            6
+        );
+        assert_eq!(
+            pattern.nnz_cols[2 + variable_ordering.search_key(Key(0)).unwrap() * 3],
+            6
+        );
+        assert_eq!(
+            pattern.nnz_cols[0 + variable_ordering.search_key(Key(1)).unwrap() * 3],
+            6
+        );
+        assert_eq!(
+            pattern.nnz_cols[1 + variable_ordering.search_key(Key(1)).unwrap() * 3],
+            6
+        );
+        assert_eq!(
+            pattern.nnz_cols[2 + variable_ordering.search_key(Key(1)).unwrap() * 3],
+            6
+        );
+        assert_eq!(
+            pattern.nnz_cols[0 + variable_ordering.search_key(Key(2)).unwrap() * 3],
+            6
+        );
+        assert_eq!(
+            pattern.nnz_cols[1 + variable_ordering.search_key(Key(2)).unwrap() * 3],
+            6
+        );
+        assert_eq!(
+            pattern.nnz_cols[2 + variable_ordering.search_key(Key(2)).unwrap() * 3],
+            6
+        );
+    }
+    #[test]
+    fn jacobian_sparsity_1() {
+        type Real = f64;
+        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
+        let mut variables = Variables::new(container);
+        variables.add(Key(0), VariableA::<Real>::new(0.0));
+        variables.add(Key(1), VariableB::<Real>::new(0.0));
+        variables.add(Key(2), VariableB::<Real>::new(0.0));
 
-    //     let container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
-    //     let mut factors = Factors::new(container);
-    //     factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
-    //     factors.add(FactorB::new(2.0, None, Key(1), Key(2)));
-    //     factors.add(FactorB::new(3.0, None, Key(0), Key(1)));
-    //     let variable_ordering = variables.default_variable_ordering();
-    //     let pattern = construct_jacobian_sparsity(&factors, &variables, &variable_ordering);
-    //     assert_eq!(pattern.base.A_rows, 9);
-    //     assert_eq!(pattern.base.A_cols, 9);
-    //     assert_eq!(pattern.base.var_dim.len(), 3);
-    //     assert_eq!(pattern.base.var_col.len(), 3);
-    //     assert_eq!(pattern.base.var_dim, vec![3, 3, 3]);
-    //     assert_eq!(pattern.base.var_col, vec![0, 3, 6]);
-    //     assert_eq!(pattern.factor_err_row.len(), 3);
-    //     assert_eq!(pattern.factor_err_row[0], 0);
-    //     assert_eq!(pattern.factor_err_row[1], 3);
-    //     assert_eq!(pattern.factor_err_row[2], 6);
-    //     assert_eq!(pattern.nnz_cols.len(), 9);
-    //     assert_eq!(pattern.nnz_cols[0], 3);
-    //     assert_eq!(pattern.nnz_cols[1], 3);
-    //     assert_eq!(pattern.nnz_cols[2], 3);
-    //     assert_eq!(pattern.nnz_cols[3], 9);
-    //     assert_eq!(pattern.nnz_cols[4], 9);
-    //     assert_eq!(pattern.nnz_cols[5], 9);
-    //     assert_eq!(pattern.nnz_cols[6], 6);
-    //     assert_eq!(pattern.nnz_cols[7], 6);
-    //     assert_eq!(pattern.nnz_cols[8], 6);
-    // }
+        let container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
+        let mut factors = Factors::new(container);
+        factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
+        factors.add(FactorB::new(2.0, None, Key(1), Key(2)));
+        factors.add(FactorB::new(3.0, None, Key(0), Key(1)));
+        let variable_ordering = variables.default_variable_ordering();
+        let pattern = construct_jacobian_sparsity(&factors, &variables, &variable_ordering);
+        assert_eq!(pattern.base.A_rows, 9);
+        assert_eq!(pattern.base.A_cols, 9);
+        assert_eq!(pattern.base.var_dim.len(), 3);
+        assert_eq!(pattern.base.var_col.len(), 3);
+        assert_eq!(pattern.base.var_dim, vec![3, 3, 3]);
+        assert_eq!(pattern.base.var_col, vec![0, 3, 6]);
+        assert_eq!(pattern.factor_err_row.len(), 3);
+        assert_eq!(pattern.factor_err_row[0], 0);
+        assert_eq!(pattern.factor_err_row[1], 3);
+        assert_eq!(pattern.factor_err_row[2], 6);
+        assert_eq!(pattern.nnz_cols.len(), 9);
+        assert_eq!(
+            pattern.nnz_cols[0 + variable_ordering.search_key(Key(0)).unwrap() * 3],
+            6
+        );
+        assert_eq!(
+            pattern.nnz_cols[1 + variable_ordering.search_key(Key(0)).unwrap() * 3],
+            6
+        );
+        assert_eq!(
+            pattern.nnz_cols[2 + variable_ordering.search_key(Key(0)).unwrap() * 3],
+            6
+        );
+        assert_eq!(
+            pattern.nnz_cols[0 + variable_ordering.search_key(Key(1)).unwrap() * 3],
+            9
+        );
+        assert_eq!(
+            pattern.nnz_cols[1 + variable_ordering.search_key(Key(1)).unwrap() * 3],
+            9
+        );
+        assert_eq!(
+            pattern.nnz_cols[2 + variable_ordering.search_key(Key(1)).unwrap() * 3],
+            9
+        );
+        assert_eq!(
+            pattern.nnz_cols[0 + variable_ordering.search_key(Key(2)).unwrap() * 3],
+            3
+        );
+        assert_eq!(
+            pattern.nnz_cols[1 + variable_ordering.search_key(Key(2)).unwrap() * 3],
+            3
+        );
+        assert_eq!(
+            pattern.nnz_cols[2 + variable_ordering.search_key(Key(2)).unwrap() * 3],
+            3
+        );
+    }
     #[test]
     fn jacobian_sparsity_2() {
         type Real = f64;
@@ -249,15 +303,41 @@ mod tests {
         assert_eq!(pattern.factor_err_row[0], 0);
         assert_eq!(pattern.factor_err_row[1], 3);
         assert_eq!(pattern.nnz_cols.len(), 9);
-        println!("ordering {:?}", variable_ordering);
-        assert_eq!(pattern.nnz_cols[0 + variable_ordering.key(Key(0))], 3);
-        assert_eq!(pattern.nnz_cols[1 + variable_ordering.key(Key(0))], 3);
-        assert_eq!(pattern.nnz_cols[2 + variable_ordering.key(Key(0))], 3);
-        assert_eq!(pattern.nnz_cols[3 + variable_ordering.key(Key(1))], 6);
-        assert_eq!(pattern.nnz_cols[4 + variable_ordering.key(Key(1))], 6);
-        assert_eq!(pattern.nnz_cols[5 + variable_ordering.key(Key(1))], 6);
-        assert_eq!(pattern.nnz_cols[6 + variable_ordering.key(Key(2))], 3);
-        assert_eq!(pattern.nnz_cols[7 + variable_ordering.key(Key(2))], 3);
-        assert_eq!(pattern.nnz_cols[8 + variable_ordering.key(Key(2))], 3);
+        assert_eq!(
+            pattern.nnz_cols[0 + variable_ordering.search_key(Key(0)).unwrap() * 3],
+            3
+        );
+        assert_eq!(
+            pattern.nnz_cols[1 + variable_ordering.search_key(Key(0)).unwrap() * 3],
+            3
+        );
+        assert_eq!(
+            pattern.nnz_cols[2 + variable_ordering.search_key(Key(0)).unwrap() * 3],
+            3
+        );
+        assert_eq!(
+            pattern.nnz_cols[0 + variable_ordering.search_key(Key(1)).unwrap() * 3],
+            6
+        );
+        assert_eq!(
+            pattern.nnz_cols[1 + variable_ordering.search_key(Key(1)).unwrap() * 3],
+            6
+        );
+        assert_eq!(
+            pattern.nnz_cols[2 + variable_ordering.search_key(Key(1)).unwrap() * 3],
+            6
+        );
+        assert_eq!(
+            pattern.nnz_cols[0 + variable_ordering.search_key(Key(2)).unwrap() * 3],
+            3
+        );
+        assert_eq!(
+            pattern.nnz_cols[1 + variable_ordering.search_key(Key(2)).unwrap() * 3],
+            3
+        );
+        assert_eq!(
+            pattern.nnz_cols[2 + variable_ordering.search_key(Key(2)).unwrap() * 3],
+            3
+        );
     }
 }
