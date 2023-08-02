@@ -39,7 +39,7 @@ where
         assert_eq!(delta.ncols(), 1);
         let mut d: usize = 0;
         for i in 0..variable_ordering.len() {
-            let key = variable_ordering.key(i);
+            let key = variable_ordering.key(i).unwrap();
             d = self.container.retract(delta, key, d);
         }
     }
@@ -48,7 +48,7 @@ where
         let mut delta = Mat::<R>::zeros(self.dim(), 1);
         let mut d: usize = 0;
         for i in 0..variable_ordering.len() {
-            let key = variable_ordering.key(i);
+            let key = variable_ordering.key(i).unwrap();
             d = self.container.local(variables, &mut delta, key, d);
         }
         assert_eq!(delta.nrows(), d);

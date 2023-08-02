@@ -102,20 +102,16 @@ where
     for f_index in 0..factors.len() {
         // factor dim
         let f_dim = factors.dim_at(f_index).unwrap();
-
-        // for (auto pkey = (*f)->keys().begin(); pkey != (*f)->keys().end(); pkey++) {
-        //   // A col start index
-        //   Key vkey = *pkey;
-        //   size_t key_order_idx = var_ordering.searchKey(vkey);
-        //   // A col non-zeros
-        //   for (int nz_col = sparsity.var_col[key_order_idx];
-        //        nz_col <
-        //        sparsity.var_col[key_order_idx] + sparsity.var_dim[key_order_idx];
-        //        nz_col++) {
-        //     sparsity.nnz_cols[nz_col] += f_dim;
-        //   }
-        // }
-
+        let keys = factors.keys_at(f_index).unwrap();
+        for vkey in keys {
+            // A col start index
+            let key_order_idx = variable_ordering.search_key(*vkey).unwrap();
+            // A col non-zeros
+            let var_col = sparsity.base.var_col[key_order_idx];
+            for nz_col in var_col..var_col + sparsity.base.var_dim[key_order_idx] {
+                sparsity.nnz_cols[nz_col] += f_dim;
+            }
+        }
         sparsity.factor_err_row.push(err_row_counter);
         err_row_counter += f_dim;
     }
