@@ -3,7 +3,10 @@ use faer_core::RealField;
 use std::any::{type_name, TypeId};
 use std::mem;
 
+use super::factor::JacobiansError;
 use super::key::Key;
+use super::variables::Variables;
+use super::variables_container::VariablesContainer;
 
 pub trait FactorsKey<R>
 where
@@ -46,6 +49,15 @@ where
     fn dim_at(&self, index: usize, init: usize) -> Option<usize>;
     /// factor keys by index
     fn keys_at(&self, index: usize, init: usize) -> Option<&[Key]>;
+    /// factor weighted jacobians error  by index
+    fn weighted_jacobians_error_at<C>(
+        &self,
+        variables: &Variables<R, C>,
+        index: usize,
+        init: usize,
+    ) -> Option<JacobiansError<'_, R>>
+    where
+        C: VariablesContainer<R>;
 }
 
 /// The base case for recursive variadics: no fields.
@@ -70,6 +82,18 @@ where
         None
     }
     fn keys_at(&self, index: usize, init: usize) -> Option<&[Key]> {
+        None
+    }
+
+    fn weighted_jacobians_error_at<C>(
+        &self,
+        variables: &Variables<R, C>,
+        index: usize,
+        init: usize,
+    ) -> Option<JacobiansError<'_, R>>
+    where
+        C: VariablesContainer<R>,
+    {
         None
     }
 }
@@ -130,6 +154,28 @@ where
             self.parent.keys_at(index, init + self.data.len())
         }
     }
+
+    fn weighted_jacobians_error_at<C>(
+        &self,
+        variables: &Variables<R, C>,
+        index: usize,
+        init: usize,
+    ) -> Option<JacobiansError<'_, R>>
+    where
+        C: VariablesContainer<R>,
+    {
+        if (init..(init + self.data.len())).contains(&index) {
+            Some(
+                self.data
+                    .get(index - init)
+                    .unwrap()
+                    .weighted_jacobians_error(&variables),
+            )
+        } else {
+            self.parent
+                .weighted_jacobians_error_at(&variables, index, init + self.data.len())
+        }
+    }
 }
 
 impl<T, R> FactorsKey<R> for T
@@ -159,12 +205,17 @@ where
 #[cfg(test)]
 pub(crate) mod tests {
 
+    use std::ops::Deref;
+
     use faer_core::Mat;
 
     use crate::core::{
         factor::tests::{FactorA, FactorB},
         factors_container::{get_factor, get_factor_mut, FactorsContainer},
         key::Key,
+        variable::tests::{VariableA, VariableB},
+        variables::Variables,
+        variables_container::VariablesContainer,
     };
 
     #[test]
@@ -318,5 +369,59 @@ pub(crate) mod tests {
         assert_eq!(container.keys_at(2, 0).unwrap(), keys);
         assert!(container.keys_at(4, 0).is_none());
         assert!(container.keys_at(5, 0).is_none());
+    }
+    #[test]
+    fn jacobians_at() {
+        type Real = f64;
+
+        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
+        let mut variables = Variables::new(container);
+        variables.add(Key(0), VariableA::<Real>::new(1.0));
+        variables.add(Key(1), VariableB::<Real>::new(2.0));
+
+        let mut container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
+        {
+            let fc0 = container.get_mut::<FactorA<Real>>().unwrap();
+            fc0.push(FactorA::new(2.0, None, Key(0), Key(1)));
+            fc0.push(FactorA::new(1.0, None, Key(0), Key(1)));
+        }
+        {
+            let fc1 = container.get_mut::<FactorB<Real>>().unwrap();
+            fc1.push(FactorB::new(2.0, None, Key(0), Key(1)));
+        }
+        let mut jacobians = Vec::<Mat<Real>>::with_capacity(2);
+        jacobians.resize_with(2, || Mat::zeros(3, 3));
+        jacobians[0].as_mut().col(0).set_constant(1.0);
+        jacobians[1].as_mut().col(1).set_constant(2.0);
+        assert_eq!(
+            container
+                .weighted_jacobians_error_at(&variables, 0, 0)
+                .unwrap()
+                .jacobians
+                .deref(),
+            &jacobians
+        );
+        assert_eq!(
+            container
+                .weighted_jacobians_error_at(&variables, 1, 0)
+                .unwrap()
+                .jacobians
+                .deref(),
+            &jacobians
+        );
+        assert_eq!(
+            container
+                .weighted_jacobians_error_at(&variables, 2, 0)
+                .unwrap()
+                .jacobians
+                .deref(),
+            &jacobians
+        );
+        assert!(container
+            .weighted_jacobians_error_at(&variables, 4, 0)
+            .is_none());
+        assert!(container
+            .weighted_jacobians_error_at(&variables, 5, 0)
+            .is_none());
     }
 }
