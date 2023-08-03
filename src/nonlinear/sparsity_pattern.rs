@@ -1,6 +1,9 @@
 use crate::core::{
-    factors::Factors, factors_container::FactorsContainer, variable_ordering::VariableOrdering,
-    variables::Variables, variables_container::VariablesContainer,
+    factors::{self, Factors},
+    factors_container::FactorsContainer,
+    variable_ordering::VariableOrdering,
+    variables::Variables,
+    variables_container::VariablesContainer,
 };
 use faer_core::RealField;
 use hashbrown::{HashMap, HashSet};
@@ -9,32 +12,32 @@ use hashbrown::{HashMap, HashSet};
 #[cfg_attr(debug_assertions, derive(Debug))]
 #[allow(non_snake_case)]
 #[derive(Default)]
-struct SparsityPatternBase {
+pub struct SparsityPatternBase {
     /// basic size information
-    A_rows: usize,
+    pub A_rows: usize,
     /// = b size
-    A_cols: usize,
+    pub A_cols: usize,
     /// = A'A size
-    var_ordering: VariableOrdering,
+    pub var_ordering: VariableOrdering,
 
     /// var_dim: dim of each vars (using ordering of var_ordering)
     /// var_col: start col of each vars (using ordering of var_ordering)
-    var_dim: Vec<usize>,
-    var_col: Vec<usize>,
+    pub var_dim: Vec<usize>,
+    pub var_col: Vec<usize>,
 }
 
 // struct store  given variable ordering
 #[cfg_attr(debug_assertions, derive(Debug))]
 #[derive(Default)]
-struct JacobianSparsityPattern {
-    base: SparsityPatternBase,
+pub struct JacobianSparsityPattern {
+    pub base: SparsityPatternBase,
     /// Eigen::Sparse memory allocation information
     /// number of non-zeros count for each col of A, use for Eigen sparse matrix A
     /// reservation
-    nnz_cols: Vec<usize>,
+    pub nnz_cols: Vec<usize>,
 
     /// start row of each factor
-    factor_err_row: Vec<usize>,
+    pub factor_err_row: Vec<usize>,
 }
 
 /// struct store A'A lower part sparsity pattern given variable ordering
@@ -42,33 +45,33 @@ struct JacobianSparsityPattern {
 #[cfg_attr(debug_assertions, derive(Debug))]
 #[allow(non_snake_case)]
 #[derive(Default)]
-struct LowerHessianSparsityPattern {
-    base: SparsityPatternBase,
+pub struct LowerHessianSparsityPattern {
+    pub base: SparsityPatternBase,
     /// number of non-zeros count for each col of AtA (each row of A)
     /// use for Eigen sparse matrix AtA reserve
-    nnz_AtA_cols: Vec<usize>,
-    total_nnz_AtA_cols: usize,
+    pub nnz_AtA_cols: Vec<usize>,
+    pub total_nnz_AtA_cols: usize,
 
     /// accumulated nnzs in AtA before each var
     /// index: var idx, value: total skip nnz
-    nnz_AtA_vars_accum: Vec<usize>,
+    pub nnz_AtA_vars_accum: Vec<usize>,
 
     /// corl_vars: variable ordering position of all correlated vars of each var
     /// (not include self), set must be ordered
-    corl_vars: Vec<HashSet<usize>>,
+    pub corl_vars: Vec<HashSet<usize>>,
 
     /// inner index of each coorelated vars, exculde lower triangular part
     /// index: corl var idx, value: inner index
-    inner_insert_map: Vec<HashMap<usize, usize>>,
+    pub inner_insert_map: Vec<HashMap<usize, usize>>,
 
     /// sparse matrix inner/outer index
-    inner_index: Vec<usize>,
-    inner_nnz_index: Vec<usize>,
-    outer_index: Vec<usize>,
+    pub inner_index: Vec<usize>,
+    pub inner_nnz_index: Vec<usize>,
+    pub outer_index: Vec<usize>,
 }
 /// construct Ax = b sparsity pattern cache from a factor graph and a set of
 /// variables
-fn construct_jacobian_sparsity<R, VC, FC>(
+pub fn construct_jacobian_sparsity<R, VC, FC>(
     factors: &Factors<R, FC>,
     variables: &Variables<R, VC>,
     variable_ordering: &VariableOrdering,
@@ -125,7 +128,7 @@ where
 
 /// construct A'Ax = A'b sparsity pattern cache from a factor graph and a set of
 /// variables
-fn construct_lower_hessian_sparsity<R, VC, FC>(
+pub fn construct_lower_hessian_sparsity<R, VC, FC>(
     factors: &Factors<R, FC>,
     variables: &Variables<R, VC>,
     variable_ordering: &VariableOrdering,
@@ -139,7 +142,6 @@ where
 }
 #[cfg(test)]
 mod tests {
-    use std::any::type_name;
 
     use crate::{
         core::{

@@ -3,7 +3,9 @@ use faer_core::{Mat, RealField};
 use std::marker::PhantomData;
 
 use super::{
-    factor::Factor, factors_container::FactorsContainer, key::Key,
+    factor::{Factor, JacobiansError},
+    factors_container::FactorsContainer,
+    key::Key,
     variables_container::VariablesContainer,
 };
 pub struct Factors<R, C>
@@ -36,6 +38,17 @@ where
     }
     pub fn keys_at(&self, index: usize) -> Option<&[Key]> {
         self.container.keys_at(index, 0)
+    }
+    pub fn weighted_jacobians_error_at<VC>(
+        &self,
+        variables: &Variables<R, VC>,
+        index: usize,
+    ) -> Option<JacobiansError<'_, R>>
+    where
+        VC: VariablesContainer<R>,
+    {
+        self.container
+            .weighted_jacobians_error_at(variables, index, 0)
     }
     pub fn error<VC>(&self, _variables: &Variables<R, VC>) -> Mat<R>
     where
