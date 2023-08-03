@@ -128,7 +128,7 @@ pub(crate) mod tests {
         R: RealField,
     {
         type L = GaussianLoss;
-        fn error<C>(&self, variables: &Variables<R, C>) -> RefMut<'_, Mat<R>>
+        fn error<C>(&self, variables: &Variables<R, C>) -> RefMut<Mat<R>>
         where
             C: VariablesContainer<R>,
         {
@@ -140,7 +140,7 @@ pub(crate) mod tests {
             self.error.borrow_mut()
         }
 
-        fn jacobians<C>(&self, variables: &Variables<R, C>) -> RefMut<'_, Jacobians<R>>
+        fn jacobians<C>(&self, variables: &Variables<R, C>) -> RefMut<Jacobians<R>>
         where
             C: VariablesContainer<R>,
         {
@@ -202,7 +202,7 @@ pub(crate) mod tests {
         R: RealField,
     {
         type L = GaussianLoss;
-        fn error<C>(&self, variables: &Variables<R, C>) -> RefMut<'_, Mat<R>>
+        fn error<C>(&self, variables: &Variables<R, C>) -> RefMut<Mat<R>>
         where
             C: VariablesContainer<R>,
         {
@@ -214,7 +214,7 @@ pub(crate) mod tests {
             self.error.borrow_mut()
         }
 
-        fn jacobians<C>(&self, variables: &Variables<R, C>) -> RefMut<'_, Jacobians<R>>
+        fn jacobians<C>(&self, variables: &Variables<R, C>) -> RefMut<Jacobians<R>>
         where
             C: VariablesContainer<R>,
         {
