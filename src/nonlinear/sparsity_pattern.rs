@@ -138,7 +138,7 @@ where
     VC: VariablesContainer<R>,
     FC: FactorsContainer<R>,
 {
-    todo!()
+    LowerHessianSparsityPattern::default()
 }
 #[cfg(test)]
 mod tests {
