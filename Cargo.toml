@@ -7,4 +7,6 @@ edition = "2021"
 
 [dependencies]
 faer-core = { git = "https://github.com/sarah-ek/faer-rs", rev="663f2e18aa4e6baf50667343f2cc519bc7043b40"}
+faer-cholesky = "0.9"
+dyn-stack = "0.9.0"
 hashbrown = "0.11.2"
