@@ -1,4 +1,5 @@
 mod core;
+mod linear;
 mod nonlinear;
 
 mod prelude;

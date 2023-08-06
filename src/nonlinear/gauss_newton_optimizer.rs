@@ -34,7 +34,7 @@ where
         VC: VariablesContainer<R>,
         FC: FactorsContainer<R>,
     {
-        let dx: Mat<R> = Mat::zeros(3, 1);
+        let dx: Mat<R> = Mat::zeros(9, 1);
         let var_ordering = if 1 > 0 {
             &h_sparsity.base.var_ordering
         } else {
