@@ -29,6 +29,7 @@ where
     R: RealField,
     S: SparseLinearSolver<R>,
 {
+    #[allow(non_snake_case)]
     fn iterate<VC, FC>(
         &self,
         factors: &Factors<R, FC>,
