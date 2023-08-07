@@ -56,7 +56,7 @@ where
     {
         todo!()
     }
-    pub fn error_squared_norm<VC>(&self, _variables: &Variables<R, VC>) -> R
+    pub fn error_squared_norm<VC>(&self, _variables: &Variables<R, VC>) -> f64
     where
         VC: VariablesContainer<R>,
     {

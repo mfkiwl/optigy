@@ -7,20 +7,23 @@ use crate::core::{
     variables_container::VariablesContainer,
 };
 
-use super::sparsity_pattern::JacobianSparsityPattern;
+use super::sparsity_pattern::{JacobianSparsityPattern, LowerHessianSparsityPattern};
 
+#[allow(non_snake_case)]
 pub fn linearzation_jacobian<R, VC, FC>(
     factors: &Factors<R, FC>,
     variables: &Variables<R, VC>,
     sparsity: &JacobianSparsityPattern,
-) -> (Mat<R>, Mat<R>)
-where
+    A: &mut Mat<R>,
+    b: &mut Mat<R>,
+) where
     R: RealField,
     VC: VariablesContainer<R>,
     FC: FactorsContainer<R>,
 {
-    let mut A = Mat::<R>::zeros(sparsity.base.A_rows, sparsity.base.A_cols);
-    let mut b = Mat::<R>::zeros(sparsity.base.A_rows, 1);
+    assert_eq!(A.nrows(), sparsity.base.A_rows);
+    assert_eq!(A.ncols(), sparsity.base.A_cols);
+    assert_eq!(b.nrows(), sparsity.base.A_rows);
     let mut err_row_counter = 0;
     for f_index in 0..factors.len() {
         // factor dim
@@ -54,10 +57,43 @@ where
 
         err_row_counter += f_dim;
     }
-    (A, b)
+}
+
+#[allow(non_snake_case)]
+pub fn linearzation_lower_hessian<R, VC, FC>(
+    factors: &Factors<R, FC>,
+    variables: &Variables<R, VC>,
+    sparsity: &LowerHessianSparsityPattern,
+    A: &mut Mat<R>,
+    b: &mut Mat<R>,
+) where
+    R: RealField,
+    R: RealField,
+    VC: VariablesContainer<R>,
+    FC: FactorsContainer<R>,
+{
+    todo!()
+}
+
+#[allow(non_snake_case)]
+pub fn linearzation_full_hessian<R, VC, FC>(
+    factors: &Factors<R, FC>,
+    variables: &Variables<R, VC>,
+    sparsity: &LowerHessianSparsityPattern,
+    A: &mut Mat<R>,
+    b: &mut Mat<R>,
+) where
+    R: RealField,
+    R: RealField,
+    VC: VariablesContainer<R>,
+    FC: FactorsContainer<R>,
+{
+    todo!()
 }
 #[cfg(test)]
 mod tests {
+    use faer_core::Mat;
+
     use crate::{
         core::{
             factor::tests::{FactorA, FactorB},
@@ -74,6 +110,7 @@ mod tests {
     };
 
     #[test]
+    #[allow(non_snake_case)]
     fn linearize_jacobian() {
         type Real = f64;
         let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
@@ -88,7 +125,9 @@ mod tests {
         factors.add(FactorB::new(2.0, None, Key(1), Key(2)));
         let variable_ordering = variables.default_variable_ordering();
         let pattern = construct_jacobian_sparsity(&factors, &variables, &variable_ordering);
-        let (A, b) = linearzation_jacobian(&factors, &variables, &pattern);
+        let mut A = Mat::<Real>::zeros(pattern.base.A_rows, pattern.base.A_cols);
+        let mut b = Mat::<Real>::zeros(pattern.base.A_rows, 1);
+        linearzation_jacobian(&factors, &variables, &pattern, &mut A, &mut b);
         println!("A {:?}", A);
         println!("b {:?}", b);
     }

@@ -1,6 +1,7 @@
 use faer_core::{Mat, RealField};
 
 /// return status of solving linear system
+#[derive(PartialEq, Eq)]
 pub enum LinearSolverStatus {
     ///problem solve successfully (iterative methods converge)
     Success,

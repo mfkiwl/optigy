@@ -2,25 +2,32 @@ use std::marker::PhantomData;
 
 use faer_core::{Mat, RealField};
 
-use crate::core::{
-    factors::Factors, factors_container::FactorsContainer, variables::Variables,
-    variables_container::VariablesContainer,
+use crate::{
+    core::{
+        factors::Factors, factors_container::FactorsContainer, variables::Variables,
+        variables_container::VariablesContainer,
+    },
+    linear::linear_solver::{LinearSolverStatus, SparseLinearSolver},
 };
 
 use super::{
-    nonlinear_optimizer::{NonlinearOptimizationStatus, Optimizer},
+    nonlinear_optimizer::{NonlinearOptimizationStatus, OptIterate},
     sparsity_pattern::{JacobianSparsityPattern, LowerHessianSparsityPattern},
 };
 #[derive(Default)]
-pub struct GaussNewtonOptimizer<R>
+pub struct GaussNewtonOptimizer<R, S>
 where
     R: RealField,
+    S: SparseLinearSolver<R>,
 {
     __marker: PhantomData<R>,
+    /// linear solver
+    pub linear_solver: S,
 }
-impl<R> Optimizer<R> for GaussNewtonOptimizer<R>
+impl<R, S> OptIterate<R, S> for GaussNewtonOptimizer<R, S>
 where
     R: RealField,
+    S: SparseLinearSolver<R>,
 {
     fn iterate<VC, FC>(
         &self,
@@ -28,20 +35,37 @@ where
         variables: &mut Variables<R, VC>,
         h_sparsity: &LowerHessianSparsityPattern,
         j_sparsity: &JacobianSparsityPattern,
+        A: &Mat<R>,
+        b: &Mat<R>,
+        err_uptodate: &mut bool,
+        err_squared_norm: &mut f64,
     ) -> NonlinearOptimizationStatus
     where
         R: RealField,
         VC: VariablesContainer<R>,
         FC: FactorsContainer<R>,
     {
-        let dx: Mat<R> = Mat::zeros(9, 1);
-        let var_ordering = if 1 > 0 {
+        let var_ordering = if self.linear_solver.is_normal() {
             &h_sparsity.base.var_ordering
         } else {
             &j_sparsity.base.var_ordering
         };
-        variables.retract(&dx, &var_ordering);
-        NonlinearOptimizationStatus::default()
+        let mut dx: Mat<R> = Mat::zeros(variables.dim(), 1);
+        let linear_solver_status = self.linear_solver.solve(A, b, &mut dx);
+        if linear_solver_status == LinearSolverStatus::Success {
+            variables.retract(&dx, &var_ordering);
+            return NonlinearOptimizationStatus::Success;
+        } else if linear_solver_status == LinearSolverStatus::RankDeficiency {
+            println!("Warning: linear system has rank deficiency");
+            return NonlinearOptimizationStatus::RankDeficiency;
+        } else {
+            println!("Warning: linear solver returns invalid state");
+            return NonlinearOptimizationStatus::Invalid;
+        }
+    }
+
+    fn linear_solver(&self) -> &S {
+        &self.linear_solver
     }
 }
 #[cfg(test)]
@@ -58,7 +82,7 @@ mod tests {
         },
         nonlinear::{
             gauss_newton_optimizer::GaussNewtonOptimizer,
-            nonlinear_optimizer::Optimizer,
+            nonlinear_optimizer::OptIterate,
             sparsity_pattern::{construct_jacobian_sparsity, construct_lower_hessian_sparsity},
         },
     };
