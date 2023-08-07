@@ -71,6 +71,8 @@ where
 }
 #[cfg(test)]
 mod tests {
+    use faer_core::Mat;
+
     use crate::{
         core::{
             factor::tests::{FactorA, FactorB},
@@ -105,6 +107,21 @@ mod tests {
         let optimizer = GaussNewtonOptimizer::<Real>::default();
         let j_sparsity = construct_jacobian_sparsity(&factors, &variables, &variable_ordering);
         let h_sparsity = construct_lower_hessian_sparsity(&factors, &variables, &variable_ordering);
-        let opt_res = optimizer.iterate(&factors, &mut variables, &h_sparsity, &j_sparsity);
+        let mut err_uptodate = false;
+        let mut err_squared_norm = 0.0;
+        let A_rows: usize = 0;
+        let A_cols: usize = 0;
+        let mut A: Mat<Real> = Mat::zeros(A_rows, A_cols);
+        let mut b: Mat<Real> = Mat::zeros(A_rows, 1);
+        let opt_res = optimizer.iterate(
+            &factors,
+            &mut variables,
+            &h_sparsity,
+            &j_sparsity,
+            &A,
+            &b,
+            &mut err_uptodate,
+            &mut err_squared_norm,
+        );
     }
 }
