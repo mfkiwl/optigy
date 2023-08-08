@@ -1,7 +1,7 @@
+use nalgebra::{DVector, RealField};
+
 use crate::core::variables::Variables;
 use core::{cell::RefMut, marker::PhantomData};
-use faer_core::{Mat, RealField};
-use std::ops::AddAssign;
 
 use super::{
     factor::{Factor, JacobiansError},
@@ -55,13 +55,13 @@ where
         &self,
         variables: &Variables<R, VC>,
         index: usize,
-    ) -> Option<RefMut<Mat<R>>>
+    ) -> Option<RefMut<DVector<R>>>
     where
         VC: VariablesContainer<R>,
     {
         self.container.weighted_error_at(variables, index, 0)
     }
-    pub fn error<VC>(&self, _variables: &Variables<R, VC>) -> Mat<R>
+    pub fn error<VC>(&self, _variables: &Variables<R, VC>) -> DVector<R>
     where
         VC: VariablesContainer<R>,
     {
@@ -90,7 +90,8 @@ where
 }
 #[cfg(test)]
 mod tests {
-    use faer_core::Mat;
+
+    use nalgebra::DVector;
 
     use crate::core::{
         factor::tests::{FactorA, FactorB},
@@ -108,9 +109,9 @@ mod tests {
         factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
         factors.add(FactorB::new(2.0, None, Key(0), Key(1)));
         let f0: &FactorA<Real> = get_factor(&factors.container, 0).unwrap();
-        assert_eq!(f0.orig, Mat::<Real>::with_dims(3, 1, |_i, _j| 1.0));
+        assert_eq!(f0.orig, DVector::<Real>::from_element(3, 1.0));
         let f1: &FactorB<Real> = get_factor(&factors.container, 0).unwrap();
-        assert_eq!(f1.orig, Mat::<Real>::with_dims(3, 1, |_i, _j| 2.0));
+        assert_eq!(f1.orig, DVector::<Real>::from_element(3, 2.0));
     }
     #[test]
     fn len() {

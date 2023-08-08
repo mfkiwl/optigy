@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use faer_core::{Mat, RealField};
+use nalgebra::{DMatrix, DVector, RealField, RowDVector};
 
 use crate::{
     core::{
@@ -108,8 +108,8 @@ where
         variables: &mut Variables<R, VC>,
         h_sparsity: &LowerHessianSparsityPattern,
         j_sparsity: &JacobianSparsityPattern,
-        A: &Mat<R>,
-        b: &Mat<R>,
+        A: &DMatrix<R>,
+        b: &DVector<R>,
         err_uptodate: &mut bool,
         err_squared_norm: &mut f64,
     ) -> NonlinearOptimizationStatus
@@ -193,8 +193,8 @@ where
         if self.params.verbosity_level >= NonlinearOptimizerVerbosityLevel::Iteration {
             println!("initial error: {}", self.last_err_squared_norm);
         }
-        let mut A: Mat<R> = Mat::zeros(A_rows, A_cols);
-        let mut b: Mat<R> = Mat::zeros(A_rows, 1);
+        let mut A: DMatrix<R> = DMatrix::zeros(A_rows, A_cols);
+        let mut b: DVector<R> = DVector::zeros(A_rows);
         while self.iterations < self.params.max_iterations {
             if self.opt.linear_solver().is_normal() {
                 if self.opt.linear_solver().is_normal_lower() {

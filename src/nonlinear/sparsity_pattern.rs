@@ -1,12 +1,9 @@
 use crate::core::{
-    factors::{self, Factors},
-    factors_container::FactorsContainer,
-    variable_ordering::VariableOrdering,
-    variables::Variables,
-    variables_container::VariablesContainer,
+    factors::Factors, factors_container::FactorsContainer, variable_ordering::VariableOrdering,
+    variables::Variables, variables_container::VariablesContainer,
 };
-use faer_core::RealField;
 use hashbrown::{HashMap, HashSet};
+use nalgebra::RealField;
 /// base class for A and A'A sparsity pattern, if variable ordering is fixed,
 /// only need to be constructed once for different linearzation runs
 #[cfg_attr(debug_assertions, derive(Debug))]

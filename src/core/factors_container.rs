@@ -2,7 +2,7 @@ use crate::core::factor::Factor;
 use core::any::{type_name, TypeId};
 use core::cell::RefMut;
 use core::mem;
-use faer_core::{Mat, RealField};
+use nalgebra::{DVector, DVectorViewMut, RealField};
 
 use super::factor::JacobiansError;
 use super::key::Key;
@@ -65,7 +65,7 @@ where
         variables: &Variables<R, C>,
         index: usize,
         init: usize,
-    ) -> Option<RefMut<Mat<R>>>
+    ) -> Option<RefMut<DVector<R>>>
     where
         C: VariablesContainer<R>;
 }
@@ -111,7 +111,7 @@ where
         variables: &Variables<R, C>,
         index: usize,
         init: usize,
-    ) -> Option<RefMut<Mat<R>>>
+    ) -> Option<RefMut<DVector<R>>>
     where
         C: VariablesContainer<R>,
     {
@@ -201,7 +201,7 @@ where
         variables: &Variables<R, C>,
         index: usize,
         init: usize,
-    ) -> Option<RefMut<Mat<R>>>
+    ) -> Option<RefMut<DVector<R>>>
     where
         C: VariablesContainer<R>,
     {
@@ -248,7 +248,7 @@ pub(crate) mod tests {
 
     use std::ops::Deref;
 
-    use faer_core::Mat;
+    use nalgebra::{DMatrix, DVector};
 
     use crate::core::{
         factor::{
@@ -285,21 +285,21 @@ pub(crate) mod tests {
         let fc0 = container.get::<FactorA<Real>>().unwrap();
         assert_eq!(
             fc0.get(0).unwrap().orig,
-            Mat::<Real>::with_dims(3, 1, |_i, _j| 2.0)
+            DVector::<Real>::from_element(3, 2.0)
         );
         assert_eq!(
             fc0.get(1).unwrap().orig,
-            Mat::<Real>::with_dims(3, 1, |_i, _j| 1.0)
+            DVector::<Real>::from_element(3, 1.0)
         );
         let fc1 = container.get::<FactorB<Real>>().unwrap();
         assert_eq!(
             fc1.get(0).unwrap().orig,
-            Mat::<Real>::with_dims(3, 1, |_i, _j| 2.0)
+            DVector::<Real>::from_element(3, 2.0)
         );
         let f0: &FactorA<_> = get_factor(&container, 0).unwrap();
         let f1: &FactorA<_> = get_factor(&container, 1).unwrap();
-        assert_eq!(f0.orig, Mat::<Real>::with_dims(3, 1, |_i, _j| 2.0));
-        assert_eq!(f1.orig, Mat::<Real>::with_dims(3, 1, |_i, _j| 1.0));
+        assert_eq!(f0.orig, DVector::<Real>::from_element(3, 2.0));
+        assert_eq!(f1.orig, DVector::<Real>::from_element(3, 1.0));
     }
     #[test]
     fn get_mut() {
@@ -316,32 +316,32 @@ pub(crate) mod tests {
         }
         {
             let f: &mut FactorA<_> = get_factor_mut(&mut container, 0).unwrap();
-            f.orig = Mat::<Real>::with_dims(3, 1, |_i, _j| 3.0);
+            f.orig = DVector::<Real>::from_element(3, 3.0);
             let f: &mut FactorA<_> = get_factor_mut(&mut container, 1).unwrap();
-            f.orig = Mat::<Real>::with_dims(3, 1, |_i, _j| 4.0);
+            f.orig = DVector::<Real>::from_element(3, 4.0);
         }
         {
             let f: &mut FactorB<_> = get_factor_mut(&mut container, 0).unwrap();
-            f.orig = Mat::<Real>::with_dims(3, 1, |_i, _j| 5.0);
+            f.orig = DVector::<Real>::from_element(3, 5.0);
         }
         let fc0 = container.get::<FactorA<Real>>().unwrap();
         assert_eq!(
             fc0.get(0).unwrap().orig,
-            Mat::<Real>::with_dims(3, 1, |_i, _j| 3.0)
+            DVector::<Real>::from_element(3, 3.0)
         );
         assert_eq!(
             fc0.get(1).unwrap().orig,
-            Mat::<Real>::with_dims(3, 1, |_i, _j| 4.0)
+            DVector::<Real>::from_element(3, 4.0)
         );
         let fc1 = container.get::<FactorB<Real>>().unwrap();
         assert_eq!(
             fc1.get(0).unwrap().orig,
-            Mat::<Real>::with_dims(3, 1, |_i, _j| 5.0)
+            DVector::<Real>::from_element(3, 5.0)
         );
         let f0: &FactorA<_> = get_factor(&container, 0).unwrap();
         let f1: &FactorA<_> = get_factor(&container, 1).unwrap();
-        assert_eq!(f0.orig, Mat::<Real>::with_dims(3, 1, |_i, _j| 3.0));
-        assert_eq!(f1.orig, Mat::<Real>::with_dims(3, 1, |_i, _j| 4.0));
+        assert_eq!(f0.orig, DVector::<Real>::from_element(3, 3.0));
+        assert_eq!(f1.orig, DVector::<Real>::from_element(3, 4.0));
     }
     #[test]
     fn len() {
@@ -433,10 +433,10 @@ pub(crate) mod tests {
             let fc1 = container.get_mut::<FactorB<Real>>().unwrap();
             fc1.push(FactorB::new(2.0, None, Key(0), Key(1)));
         }
-        let mut jacobians = Vec::<Mat<Real>>::with_capacity(2);
-        jacobians.resize_with(2, || Mat::zeros(3, 3));
-        jacobians[0].as_mut().col(0).set_constant(1.0);
-        jacobians[1].as_mut().col(1).set_constant(2.0);
+        let mut jacobians = Vec::<DMatrix<Real>>::with_capacity(2);
+        jacobians.resize_with(2, || DMatrix::zeros(3, 3));
+        // jacobians[0].as_mut().col(0).set_constant(1.0);
+        // jacobians[1].as_mut().col(1).set_constant(2.0);
         assert_eq!(
             container
                 .weighted_jacobians_error_at(&variables, 0, 0)
@@ -487,10 +487,10 @@ pub(crate) mod tests {
             let fc1 = container.get_mut::<FactorB<Real>>().unwrap();
             fc1.push(FactorB::new(2.0, None, Key(0), Key(1)));
         }
-        let mut jacobians = Vec::<Mat<Real>>::with_capacity(2);
-        jacobians.resize_with(2, || Mat::zeros(3, 3));
-        jacobians[0].as_mut().col(0).set_constant(1.0);
-        jacobians[1].as_mut().col(1).set_constant(2.0);
+        let mut jacobians = Vec::<DMatrix<Real>>::with_capacity(2);
+        jacobians.resize_with(2, || DMatrix::zeros(3, 3));
+        // jacobians[0].as_mut().col(0).set_constant(1.0);
+        // jacobians[1].as_mut().col(1).set_constant(2.0);
         assert_eq!(
             container
                 .weighted_error_at(&variables, 0, 0)

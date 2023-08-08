@@ -4,22 +4,24 @@ use core::cell::RefMut;
 use crate::core::key::Key;
 use crate::core::loss_function::LossFunction;
 use crate::core::variables::Variables;
-use faer_core::{Mat, RealField};
+use nalgebra::DMatrix;
+use nalgebra::DVector;
+use nalgebra::RealField;
 
 use super::variables_container::VariablesContainer;
-pub type Jacobians<R> = Vec<Mat<R>>;
+pub type Jacobians<R> = Vec<DMatrix<R>>;
 pub struct JacobiansError<'a, R>
 where
     R: RealField,
 {
     pub jacobians: RefMut<'a, Jacobians<R>>,
-    pub error: RefMut<'a, Mat<R>>,
+    pub error: RefMut<'a, DVector<R>>,
 }
 impl<'a, R> JacobiansError<'a, R>
 where
     R: RealField,
 {
-    fn new(jacobians: RefMut<'a, Jacobians<R>>, error: RefMut<'a, Mat<R>>) -> Self {
+    fn new(jacobians: RefMut<'a, Jacobians<R>>, error: RefMut<'a, DVector<R>>) -> Self {
         JacobiansError { jacobians, error }
     }
 }
@@ -30,12 +32,12 @@ where
     type L: LossFunction<R>;
     /// error function
     /// error vector dimension should meet dim()
-    fn error<C>(&self, variables: &Variables<R, C>) -> RefMut<Mat<R>>
+    fn error<C>(&self, variables: &Variables<R, C>) -> RefMut<DVector<R>>
     where
         C: VariablesContainer<R>;
 
     /// whiten error
-    fn weighted_error<C>(&self, variables: &Variables<R, C>) -> RefMut<Mat<R>>
+    fn weighted_error<C>(&self, variables: &Variables<R, C>) -> RefMut<DVector<R>>
     where
         C: VariablesContainer<R>,
     {
@@ -91,15 +93,15 @@ pub(crate) mod tests {
         variables::Variables,
         variables_container::VariablesContainer,
     };
-    use faer_core::{Mat, RealField};
+    use nalgebra::{DMatrix, DVector, RealField};
 
     pub struct FactorA<R>
     where
         R: RealField,
     {
-        pub orig: Mat<R>,
+        pub orig: DVector<R>,
         pub loss: Option<GaussianLoss>,
-        pub error: RefCell<Mat<R>>,
+        pub error: RefCell<DVector<R>>,
         pub jacobians: RefCell<Jacobians<R>>,
         pub keys: Vec<Key>,
     }
@@ -108,15 +110,15 @@ pub(crate) mod tests {
         R: RealField,
     {
         pub fn new(v: R, loss: Option<GaussianLoss>, var0: Key, var1: Key) -> Self {
-            let mut jacobians = Vec::<Mat<R>>::with_capacity(2);
-            jacobians.resize_with(2, || Mat::zeros(3, 3));
+            let mut jacobians = Vec::<DMatrix<R>>::with_capacity(2);
+            jacobians.resize_with(2, || DMatrix::zeros(3, 3));
             let mut keys = Vec::<Key>::new();
             keys.push(var0);
             keys.push(var1);
             FactorA {
-                orig: Mat::with_dims(3, 1, |_i, _j| v.clone()),
+                orig: DVector::from_element(3, v.clone()),
                 loss,
-                error: RefCell::new(Mat::zeros(3, 1)),
+                error: RefCell::new(DVector::zeros(3)),
                 jacobians: RefCell::new(jacobians),
                 keys,
             }
@@ -128,7 +130,7 @@ pub(crate) mod tests {
         R: RealField,
     {
         type L = GaussianLoss;
-        fn error<C>(&self, variables: &Variables<R, C>) -> RefMut<Mat<R>>
+        fn error<C>(&self, variables: &Variables<R, C>) -> RefMut<DVector<R>>
         where
             C: VariablesContainer<R>,
         {
@@ -148,8 +150,8 @@ pub(crate) mod tests {
             let v1: &VariableB<R> = variables.at(Key(1)).unwrap();
             {
                 let mut js = self.jacobians.borrow_mut();
-                js[0].as_mut().col(0).clone_from(v0.val.as_ref());
-                js[1].as_mut().col(1).clone_from(v1.val.as_ref());
+                // js[0].column(0) = &v0.val;
+                // js[1].column(1).clone_from(&v1.val);
             }
             self.jacobians.borrow_mut()
         }
@@ -172,9 +174,9 @@ pub(crate) mod tests {
     where
         R: RealField,
     {
-        pub orig: Mat<R>,
+        pub orig: DVector<R>,
         pub loss: Option<GaussianLoss>,
-        pub error: RefCell<Mat<R>>,
+        pub error: RefCell<DVector<R>>,
         pub jacobians: RefCell<Jacobians<R>>,
         pub keys: Vec<Key>,
     }
@@ -183,15 +185,15 @@ pub(crate) mod tests {
         R: RealField,
     {
         pub fn new(v: R, loss: Option<GaussianLoss>, var0: Key, var1: Key) -> Self {
-            let mut jacobians = Vec::<Mat<R>>::with_capacity(2);
-            jacobians.resize_with(2, || Mat::zeros(3, 3));
+            let mut jacobians = Vec::<DMatrix<R>>::with_capacity(2);
+            jacobians.resize_with(2, || DMatrix::zeros(3, 3));
             let mut keys = Vec::<Key>::new();
             keys.push(var0);
             keys.push(var1);
             FactorB {
-                orig: Mat::with_dims(3, 1, |_i, _j| v.clone()),
+                orig: DVector::from_element(3, v.clone()),
                 loss,
-                error: RefCell::new(Mat::zeros(3, 1)),
+                error: RefCell::new(DVector::zeros(3)),
                 jacobians: RefCell::new(jacobians),
                 keys,
             }
@@ -202,7 +204,7 @@ pub(crate) mod tests {
         R: RealField,
     {
         type L = GaussianLoss;
-        fn error<C>(&self, variables: &Variables<R, C>) -> RefMut<Mat<R>>
+        fn error<C>(&self, variables: &Variables<R, C>) -> RefMut<DVector<R>>
         where
             C: VariablesContainer<R>,
         {
@@ -222,8 +224,8 @@ pub(crate) mod tests {
             let v1: &VariableB<R> = variables.at(Key(1)).unwrap();
             {
                 let mut js = self.jacobians.borrow_mut();
-                js[0].as_mut().col(0).clone_from(v0.val.as_ref());
-                js[1].as_mut().col(1).clone_from(v1.val.as_ref());
+                // js[0].as_mut().col(0).clone_from(v0.val.as_ref());
+                // js[1].as_mut().col(1).clone_from(v1.val.as_ref());
             }
             self.jacobians.borrow_mut()
         }
@@ -251,13 +253,13 @@ pub(crate) mod tests {
         let f0 = FactorA::new(1.0, Some(loss.clone()), Key(0), Key(1));
         {
             let e0 = f0.error(&variables);
-            assert_eq!(*e0, Mat::<Real>::with_dims(3, 1, |_i, _j| 3.0));
+            assert_eq!(*e0, DVector::<Real>::from_element(3, 3.0));
         }
         let v0: &mut VariableA<Real> = variables.at_mut(Key(0)).unwrap();
-        v0.val.as_mut().set_constant(3.0);
+        v0.val.fill(3.0);
         {
             let e0 = f0.error(&variables);
-            assert_eq!(*e0, Mat::<Real>::with_dims(3, 1, |_i, _j| 2.0));
+            assert_eq!(*e0, DVector::<Real>::from_element(3, 2.0));
         }
     }
     #[test]

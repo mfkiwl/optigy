@@ -1,15 +1,15 @@
-use faer_core::{Mat, MatRef, RealField};
+use nalgebra::{DVector, DVectorView, RealField};
 pub trait Variable<R>
 where
     R: RealField,
 {
     /// local coordinate
-    fn local(&self, value: &Self) -> Mat<R>
+    fn local(&self, value: &Self) -> DVector<R>
     where
         R: RealField;
 
     /// retract
-    fn retract(&mut self, delta: &MatRef<R>)
+    fn retract(&mut self, delta: DVectorView<R>)
     where
         R: RealField;
 
@@ -24,25 +24,25 @@ pub(crate) mod tests {
     where
         R: RealField,
     {
-        pub val: Mat<R>,
+        pub val: DVector<R>,
     }
 
     impl<R> Variable<R> for VariableA<R>
     where
         R: RealField,
     {
-        fn local(&self, value: &Self) -> Mat<R>
+        fn local(&self, value: &Self) -> DVector<R>
         where
             R: RealField,
         {
-            (self.val.as_ref() - value.val.as_ref()).clone()
+            self.val.clone() - value.val.clone()
         }
 
-        fn retract(&mut self, delta: &MatRef<R>)
+        fn retract(&mut self, delta: DVectorView<R>)
         where
             R: RealField,
         {
-            self.val = self.val.clone() + delta.to_owned();
+            self.val = self.val.clone() + delta;
         }
 
         fn dim(&self) -> usize {
@@ -54,25 +54,25 @@ pub(crate) mod tests {
     where
         R: RealField,
     {
-        pub val: Mat<R>,
+        pub val: DVector<R>,
     }
 
     impl<R> Variable<R> for VariableB<R>
     where
         R: RealField,
     {
-        fn local(&self, value: &Self) -> Mat<R>
+        fn local(&self, value: &Self) -> DVector<R>
         where
             R: RealField,
         {
-            (self.val.as_ref() - value.val.as_ref()).clone()
+            self.val.clone() - value.val.clone()
         }
 
-        fn retract(&mut self, delta: &MatRef<R>)
+        fn retract(&mut self, delta: DVectorView<R>)
         where
             R: RealField,
         {
-            self.val = self.val.clone() + delta.to_owned();
+            self.val = self.val.clone() + delta.clone();
         }
 
         fn dim(&self) -> usize {
@@ -86,7 +86,7 @@ pub(crate) mod tests {
     {
         pub fn new(v: R) -> Self {
             VariableA {
-                val: Mat::<R>::with_dims(3, 1, |_i, _j| v.clone()),
+                val: DVector::<R>::from_element(3, v.clone()),
             }
         }
     }
@@ -96,7 +96,7 @@ pub(crate) mod tests {
     {
         pub fn new(v: R) -> Self {
             VariableB {
-                val: Mat::<R>::with_dims(3, 1, |_i, _j| v.clone()),
+                val: DVector::<R>::from_element(3, v.clone()),
             }
         }
     }

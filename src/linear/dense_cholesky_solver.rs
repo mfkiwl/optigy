@@ -1,5 +1,6 @@
-use faer_core::{Mat, Parallelism, RealField};
 use std::marker::PhantomData;
+
+use nalgebra::{DMatrix, DVector, RealField};
 
 use super::linear_solver::{DenseLinearSolver, LinearSolverStatus};
 
@@ -13,7 +14,7 @@ impl<R> DenseLinearSolver<R> for DenseCholeskySolver<R>
 where
     R: RealField,
 {
-    fn solve(&self, A: &Mat<R>, b: &Mat<R>, x: &mut Mat<R>) -> LinearSolverStatus {
+    fn solve(&self, A: &DMatrix<R>, b: &DVector<R>, x: &mut DVector<R>) -> LinearSolverStatus {
         // // allocate a workspace with the size and alignment needed for the operations
         // let mut mem = GlobalMemBuffer::new(StackReq::any_of([
         //     ldl::compute::raw_cholesky_in_place_req::<f64>(

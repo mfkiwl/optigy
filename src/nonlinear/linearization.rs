@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use faer_core::{Mat, RealField};
+use nalgebra::{DMatrix, DVector, RealField};
 
 use crate::core::{
     factors::Factors, factors_container::FactorsContainer, variables::Variables,
@@ -14,8 +14,8 @@ pub fn linearzation_jacobian<R, VC, FC>(
     factors: &Factors<R, FC>,
     variables: &Variables<R, VC>,
     sparsity: &JacobianSparsityPattern,
-    A: &mut Mat<R>,
-    b: &mut Mat<R>,
+    A: &mut DMatrix<R>,
+    b: &mut DVector<R>,
 ) where
     R: RealField,
     VC: VariablesContainer<R>,
@@ -39,20 +39,16 @@ pub fn linearzation_jacobian<R, VC, FC>(
             .unwrap();
         let wht_js = wht_js_err.jacobians.deref();
         // TODO: do wht_js_err.errror negation
-        b.as_mut()
-            .subrows(err_row_counter, f_dim)
-            .clone_from(wht_js_err.error.deref().as_ref());
+        b.rows_mut(err_row_counter, f_dim)
+            .copy_from(wht_js_err.error.deref());
 
         for j_idx in 0..wht_js.len() {
             let jacob = &wht_js[j_idx];
-            A.as_mut()
-                .submatrix(
-                    err_row_counter,
-                    jacobian_col[j_idx],
-                    jacob.nrows(),
-                    jacob.ncols(),
-                )
-                .clone_from(jacob.as_ref());
+            A.view_mut(
+                (err_row_counter, jacobian_col[j_idx]),
+                (jacob.nrows(), jacob.ncols()),
+            )
+            .copy_from(&jacob);
         }
 
         err_row_counter += f_dim;
@@ -64,8 +60,8 @@ pub fn linearzation_lower_hessian<R, VC, FC>(
     factors: &Factors<R, FC>,
     variables: &Variables<R, VC>,
     sparsity: &LowerHessianSparsityPattern,
-    A: &mut Mat<R>,
-    b: &mut Mat<R>,
+    A: &mut DMatrix<R>,
+    b: &mut DVector<R>,
 ) where
     R: RealField,
     R: RealField,
@@ -80,8 +76,8 @@ pub fn linearzation_full_hessian<R, VC, FC>(
     factors: &Factors<R, FC>,
     variables: &Variables<R, VC>,
     sparsity: &LowerHessianSparsityPattern,
-    A: &mut Mat<R>,
-    b: &mut Mat<R>,
+    A: &mut DMatrix<R>,
+    b: &mut DVector<R>,
 ) where
     R: RealField,
     R: RealField,
@@ -92,7 +88,8 @@ pub fn linearzation_full_hessian<R, VC, FC>(
 }
 #[cfg(test)]
 mod tests {
-    use faer_core::Mat;
+
+    use nalgebra::{DMatrix, DVector};
 
     use crate::{
         core::{
@@ -125,8 +122,8 @@ mod tests {
         factors.add(FactorB::new(2.0, None, Key(1), Key(2)));
         let variable_ordering = variables.default_variable_ordering();
         let pattern = construct_jacobian_sparsity(&factors, &variables, &variable_ordering);
-        let mut A = Mat::<Real>::zeros(pattern.base.A_rows, pattern.base.A_cols);
-        let mut b = Mat::<Real>::zeros(pattern.base.A_rows, 1);
+        let mut A = DMatrix::<Real>::zeros(pattern.base.A_rows, pattern.base.A_cols);
+        let mut b = DVector::<Real>::zeros(pattern.base.A_rows);
         linearzation_jacobian(&factors, &variables, &pattern, &mut A, &mut b);
         println!("A {:?}", A);
         println!("b {:?}", b);

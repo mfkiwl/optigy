@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use faer_core::{Mat, RealField};
+use nalgebra::{DMatrix, DVector, RealField};
 
 use crate::{
     core::{
@@ -36,8 +36,8 @@ where
         variables: &mut Variables<R, VC>,
         h_sparsity: &LowerHessianSparsityPattern,
         j_sparsity: &JacobianSparsityPattern,
-        A: &Mat<R>,
-        b: &Mat<R>,
+        A: &DMatrix<R>,
+        b: &DVector<R>,
         err_uptodate: &mut bool,
         err_squared_norm: &mut f64,
     ) -> NonlinearOptimizationStatus
@@ -51,10 +51,10 @@ where
         } else {
             &j_sparsity.base.var_ordering
         };
-        let mut dx: Mat<R> = Mat::zeros(variables.dim(), 1);
+        let mut dx: DVector<R> = DVector::zeros(variables.dim());
         let linear_solver_status = self.linear_solver.solve(A, b, &mut dx);
         if linear_solver_status == LinearSolverStatus::Success {
-            variables.retract(&dx, &var_ordering);
+            variables.retract(dx.as_view(), &var_ordering);
             return NonlinearOptimizationStatus::Success;
         } else if linear_solver_status == LinearSolverStatus::RankDeficiency {
             println!("Warning: linear system has rank deficiency");
@@ -71,8 +71,7 @@ where
 }
 #[cfg(test)]
 mod tests {
-    use faer_core::{Mat, RealField};
-    use nalgebra::{DMatrix, DMatrixView, DVector, DVectorView};
+    use nalgebra::{DMatrix, DMatrixView, DVector, DVectorView, RealField};
 
     use crate::{
         core::{
@@ -91,13 +90,6 @@ mod tests {
             sparsity_pattern::{construct_jacobian_sparsity, construct_lower_hessian_sparsity},
         },
     };
-
-    fn foo<T>(v: DVectorView<T>)
-    where
-        T: RealField,
-    {
-        todo!()
-    }
 
     #[test]
     fn iterate() {
@@ -120,8 +112,8 @@ mod tests {
         let mut err_squared_norm = 0.0;
         let A_rows: usize = 0;
         let A_cols: usize = 0;
-        let mut A: Mat<Real> = Mat::zeros(A_rows, A_cols);
-        let mut b: Mat<Real> = Mat::zeros(A_rows, 1);
+        let mut A: DMatrix<Real> = DMatrix::zeros(A_rows, A_cols);
+        let mut b: DVector<Real> = DVector::zeros(A_rows);
         let opt_res = optimizer.iterate(
             &factors,
             &mut variables,
@@ -132,7 +124,5 @@ mod tests {
             &mut err_uptodate,
             &mut err_squared_norm,
         );
-        let dynamic_v = DVector::from_element(30, 1.0);
-        foo(dynamic_v.rows(0, 5));
     }
 }

@@ -1,4 +1,4 @@
-use faer_core::{Mat, RealField};
+use nalgebra::{DMatrix, DVector, RealField};
 
 /// return status of solving linear system
 #[derive(PartialEq, Eq)]
@@ -18,14 +18,14 @@ where
     /// call once before solving Ax = b share the same sparsity structure
     /// needs an actual implementation, if the empty one if not used
     #[allow(non_snake_case)]
-    fn initialize(&self, A: &Mat<R>) -> LinearSolverStatus {
+    fn initialize(&self, A: &DMatrix<R>) -> LinearSolverStatus {
         LinearSolverStatus::Success
     }
     /// solve Ax = b, return solving status
     /// request A's sparsity pattern is setup by initialize();
     /// needs an actual implementation
     #[allow(non_snake_case)]
-    fn solve(&self, A: &Mat<R>, b: &Mat<R>, x: &mut Mat<R>) -> LinearSolverStatus;
+    fn solve(&self, A: &DMatrix<R>, b: &DVector<R>, x: &mut DVector<R>) -> LinearSolverStatus;
 
     /// is it a normal equation solver
     /// if ture, the solver solves A'Ax = A'b, request input A is SPD
@@ -46,7 +46,7 @@ where
     /// solve Ax = b, return solving status
     /// needs an actual implementation
     #[allow(non_snake_case)]
-    fn solve(&self, A: &Mat<R>, b: &Mat<R>, x: &mut Mat<R>) -> LinearSolverStatus;
+    fn solve(&self, A: &DMatrix<R>, b: &DVector<R>, x: &mut DVector<R>) -> LinearSolverStatus;
 
     /// is it a normal equation solver
     /// if ture, the solver solves A'Ax = A'b, request input A is SPD

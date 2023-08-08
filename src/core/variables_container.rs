@@ -1,8 +1,8 @@
 use crate::core::key::Key;
 use crate::core::variable::Variable;
 use crate::core::variables::Variables;
-use faer_core::{Mat, RealField};
 use hashbrown::HashMap;
+use nalgebra::{DVectorView, DVectorViewMut, RealField};
 use std::any::{type_name, TypeId};
 use std::marker::PhantomData;
 use std::mem;
@@ -47,11 +47,11 @@ where
     /// join keys of variables
     fn keys(&self, init: Vec<Key>) -> Vec<Key>;
     /// retact variable by key and delta offset
-    fn retract(&mut self, delta: &Mat<R>, key: Key, offset: usize) -> usize;
+    fn retract(&mut self, delta: DVectorView<R>, key: Key, offset: usize) -> usize;
     fn local<C>(
         &self,
         variables: &Variables<R, C>,
-        delta: &mut Mat<R>,
+        delta: DVectorViewMut<R>,
         key: Key,
         offset: usize,
     ) -> usize
@@ -82,14 +82,14 @@ where
         init
     }
 
-    fn retract(&mut self, _delta: &Mat<R>, _key: Key, offset: usize) -> usize {
+    fn retract(&mut self, _delta: DVectorView<R>, _key: Key, offset: usize) -> usize {
         offset
     }
 
     fn local<C>(
         &self,
         _variables: &Variables<R, C>,
-        _delta: &mut Mat<R>,
+        _delta: DVectorViewMut<R>,
         _key: Key,
         offset: usize,
     ) -> usize
@@ -146,13 +146,13 @@ impl<T: VariablesKey<R>, P: VariablesContainer<R>, R: RealField> VariablesContai
         self.parent.keys(keys)
     }
 
-    fn retract(&mut self, delta: &Mat<R>, key: Key, offset: usize) -> usize {
+    fn retract(&mut self, delta: DVectorView<R>, key: Key, offset: usize) -> usize {
         let var = self.data.get_mut(&key);
         match var {
             Some(var) => {
                 let vd = var.dim();
-                let dx = delta.as_ref().subrows(offset, vd);
-                var.retract(&dx);
+                let dx = delta.rows(offset, vd);
+                var.retract(dx);
                 offset + vd
             }
 
@@ -163,7 +163,7 @@ impl<T: VariablesKey<R>, P: VariablesContainer<R>, R: RealField> VariablesContai
     fn local<C>(
         &self,
         variables: &Variables<R, C>,
-        delta: &mut Mat<R>,
+        mut delta: DVectorViewMut<R>,
         key: Key,
         offset: usize,
     ) -> usize
@@ -175,10 +175,7 @@ impl<T: VariablesKey<R>, P: VariablesContainer<R>, R: RealField> VariablesContai
             Some(var_this) => {
                 let var = variables.at::<T::Value>(key).unwrap();
                 let vd = var.dim();
-                delta
-                    .as_mut()
-                    .subrows(offset, vd)
-                    .clone_from(var_this.local(var).as_ref());
+                delta.rows_mut(offset, vd).copy_from(&var_this.local(var));
                 offset + vd
             }
 
@@ -220,7 +217,7 @@ where
 }
 #[cfg(test)]
 mod tests {
-    use faer_core::MatRef;
+    use nalgebra::DVector;
 
     use crate::core::{
         variable::tests::{VariableA, VariableB},
@@ -253,12 +250,12 @@ mod tests {
             let a = thing.get::<VariableA<Real>>();
             assert_eq!(
                 a.unwrap().get(&Key(3)).unwrap().val,
-                Mat::<Real>::with_dims(3, 1, |_i, _j| 4.0)
+                DVector::<Real>::from_element(3, 4.0)
             );
 
             assert_eq!(
                 a.unwrap().get(&Key(4)).unwrap().val,
-                Mat::<Real>::with_dims(3, 1, |_i, _j| 4.0)
+                DVector::<Real>::from_element(3, 4.0)
             );
 
             let a = thing.get_mut::<VariableB<Real>>();
@@ -268,16 +265,16 @@ mod tests {
                 get_variable::<_, _, VariableB<Real>>(&thing, Key(7))
                     .unwrap()
                     .val,
-                Mat::with_dims(3, 1, |_i, _j| 7.0)
+                DVector::from_element(3, 7.0)
             );
         }
         {
             let var_b0: &mut VariableB<Real> = get_variable_mut(&mut thing, Key(7)).unwrap();
-            var_b0.val = Mat::with_dims(3, 1, |_i, _j| 10.0);
+            var_b0.val = DVector::from_element(3, 10.0);
         }
         {
             let var_b0: &VariableB<Real> = get_variable(&thing, Key(7)).unwrap();
-            assert_eq!(var_b0.val, Mat::<Real>::with_dims(3, 1, |_i, _j| 10.0));
+            assert_eq!(var_b0.val, DVector::<Real>::from_element(3, 10.0));
         }
         assert_eq!(thing.dim(0), 9);
         assert_eq!(thing.len(0), 3);
