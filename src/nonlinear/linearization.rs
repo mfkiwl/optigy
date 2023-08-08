@@ -56,137 +56,136 @@ pub fn linearzation_jacobian<R, VC, FC>(
     }
 }
 
-#ifdef MINISAM_WITH_MULTI_THREADS
-void linearzationLowerHessianSingleFactor_(
-    const std::shared_ptr<Factor>& f, const Variables& values,
-    const LowerHessianSparsityPattern& sparsity,
-    Eigen::SparseMatrix<double>& AtA, Eigen::VectorXd& Atb, std::mutex& mutex_A,
-    std::mutex& mutex_b) {
-#else
-void linearzationLowerHessianSingleFactor_(
-    const std::shared_ptr<Factor>& f, const Variables& values,
-    const LowerHessianSparsityPattern& sparsity,
-    Eigen::SparseMatrix<double>& AtA, Eigen::VectorXd& Atb) {
-#endif
+fn linearzation_lower_hessian_single_factor<R, VC, FC>(
+    factors: &Factors<R, FC>,
+    variables: &Variables<R, VC>,
+    sparsity: &LowerHessianSparsityPattern,
+    AtA: &mut DMatrix<R>,
+    Atb: &mut DVector<R>,
+) where
+    R: RealField + Float,
+    VC: VariablesContainer<R>,
+    FC: FactorsContainer<R>,
+{
 
-  // whiten err and jacobians
-  vector<size_t> var_idx, jacobian_col, jacobian_col_local;
-  var_idx.reserve(f->size());
-  jacobian_col.reserve(f->size());
-  jacobian_col_local.reserve(f->size());
-  size_t local_col = 0;
-  for (Key vkey : f->keys()) {
-    // A col start index
-    size_t key_idx = sparsity.var_ordering.searchKeyUnsafe(vkey);
-    var_idx.push_back(key_idx);
-    jacobian_col.push_back(sparsity.var_col[key_idx]);
-    jacobian_col_local.push_back(local_col);
-    local_col += sparsity.var_dim[key_idx];
-  }
+    // // whiten err and jacobians
+    // vector<size_t> var_idx, jacobian_col, jacobian_col_local;
+    // var_idx.reserve(f->size());
+    // jacobian_col.reserve(f->size());
+    // jacobian_col_local.reserve(f->size());
+    // size_t local_col = 0;
+    // for (Key vkey : f->keys()) {
+    //   // A col start index
+    //   size_t key_idx = sparsity.var_ordering.searchKeyUnsafe(vkey);
+    //   var_idx.push_back(key_idx);
+    //   jacobian_col.push_back(sparsity.var_col[key_idx]);
+    //   jacobian_col_local.push_back(local_col);
+    //   local_col += sparsity.var_dim[key_idx];
+    // }
 
-  const pair<vector<Eigen::MatrixXd>, Eigen::VectorXd> wht_Js_err =
-      f->weightedJacobiansError(values);
+    // const pair<vector<Eigen::MatrixXd>, Eigen::VectorXd> wht_Js_err =
+    //     f->weightedJacobiansError(values);
 
-  const vector<Eigen::MatrixXd>& wht_Js = wht_Js_err.first;
-  const Eigen::VectorXd& wht_err = wht_Js_err.second;
+    // const vector<Eigen::MatrixXd>& wht_Js = wht_Js_err.first;
+    // const Eigen::VectorXd& wht_err = wht_Js_err.second;
 
-  Eigen::MatrixXd stackJ = stackMatrixCol_(wht_Js);
+    // Eigen::MatrixXd stackJ = stackMatrixCol_(wht_Js);
 
-  Eigen::MatrixXd stackJtJ(stackJ.cols(), stackJ.cols());
+    // Eigen::MatrixXd stackJtJ(stackJ.cols(), stackJ.cols());
 
-  // adaptive multiply for better speed
-  if (stackJ.cols() > 12) {
-    // stackJtJ.setZero();
-    memset(stackJtJ.data(), 0, stackJ.cols() * stackJ.cols() * sizeof(double));
-    stackJtJ.selfadjointView<Eigen::Lower>().rankUpdate(stackJ.transpose());
-  } else {
-    stackJtJ.noalias() = stackJ.transpose() * stackJ;
-  }
+    // // adaptive multiply for better speed
+    // if (stackJ.cols() > 12) {
+    //   // stackJtJ.setZero();
+    //   memset(stackJtJ.data(), 0, stackJ.cols() * stackJ.cols() * sizeof(double));
+    //   stackJtJ.selfadjointView<Eigen::Lower>().rankUpdate(stackJ.transpose());
+    // } else {
+    //   stackJtJ.noalias() = stackJ.transpose() * stackJ;
+    // }
 
-  const Eigen::VectorXd stackJtb = stackJ.transpose() * wht_err;
+    // const Eigen::VectorXd stackJtb = stackJ.transpose() * wht_err;
 
-#ifdef MINISAM_WITH_MULTI_THREADS
-  mutex_b.lock();
-#endif
+    // #ifdef MINISAM_WITH_MULTI_THREADS
+    //   mutex_b.lock();
+    // #endif
 
-  for (size_t j_idx = 0; j_idx < wht_Js.size(); j_idx++) {
-    Atb.segment(jacobian_col[j_idx], wht_Js[j_idx].cols()) -=
-        stackJtb.segment(jacobian_col_local[j_idx], wht_Js[j_idx].cols());
-  }
+    // for (size_t j_idx = 0; j_idx < wht_Js.size(); j_idx++) {
+    //   Atb.segment(jacobian_col[j_idx], wht_Js[j_idx].cols()) -=
+    //       stackJtb.segment(jacobian_col_local[j_idx], wht_Js[j_idx].cols());
+    // }
 
-#ifdef MINISAM_WITH_MULTI_THREADS
-  mutex_b.unlock();
-  mutex_A.lock();
-#endif
+    // #ifdef MINISAM_WITH_MULTI_THREADS
+    //   mutex_b.unlock();
+    //   mutex_A.lock();
+    // #endif
 
-  for (size_t j_idx = 0; j_idx < wht_Js.size(); j_idx++) {
-    // scan by row
-    size_t nnz_AtA_vars_accum_var = sparsity.nnz_AtA_vars_accum[var_idx[j_idx]];
-    double* value_ptr = AtA.valuePtr() + nnz_AtA_vars_accum_var;
+    // for (size_t j_idx = 0; j_idx < wht_Js.size(); j_idx++) {
+    //   // scan by row
+    //   size_t nnz_AtA_vars_accum_var = sparsity.nnz_AtA_vars_accum[var_idx[j_idx]];
+    //   double* value_ptr = AtA.valuePtr() + nnz_AtA_vars_accum_var;
 
-    for (int j = 0; j < wht_Js[j_idx].cols(); j++) {
-      for (int i = j; i < wht_Js[j_idx].cols(); i++) {
-        *(value_ptr++) += stackJtJ(jacobian_col_local[j_idx] + i,
-                                   jacobian_col_local[j_idx] + j);
-      }
-      value_ptr += (sparsity.nnz_AtA_cols[jacobian_col[j_idx] + j] -
-                    wht_Js[j_idx].cols() + j);
-    }
-  }
+    //   for (int j = 0; j < wht_Js[j_idx].cols(); j++) {
+    //     for (int i = j; i < wht_Js[j_idx].cols(); i++) {
+    //       *(value_ptr++) += stackJtJ(jacobian_col_local[j_idx] + i,
+    //                                  jacobian_col_local[j_idx] + j);
+    //     }
+    //     value_ptr += (sparsity.nnz_AtA_cols[jacobian_col[j_idx] + j] -
+    //                   wht_Js[j_idx].cols() + j);
+    //   }
+    // }
 
-#ifdef MINISAM_WITH_MULTI_THREADS
-  mutex_A.unlock();
-#endif
+    // #ifdef MINISAM_WITH_MULTI_THREADS
+    //   mutex_A.unlock();
+    // #endif
 
-  // update lower non-diag hessian blocks
-  for (size_t j1_idx = 0; j1_idx < wht_Js.size(); j1_idx++) {
-    for (size_t j2_idx = 0; j2_idx < wht_Js.size(); j2_idx++) {
-      // we know var_idx[j1_idx] != var_idx[j2_idx]
-      // assume var_idx[j1_idx] > var_idx[j2_idx]
-      // insert to block location (j1_idx, j2_idx)
-      if (var_idx[j1_idx] > var_idx[j2_idx]) {
-        size_t nnz_AtA_vars_accum_var2 =
-            sparsity.nnz_AtA_vars_accum[var_idx[j2_idx]];
-        int var2_dim = sparsity.var_dim[var_idx[j2_idx]];
+    // // update lower non-diag hessian blocks
+    // for (size_t j1_idx = 0; j1_idx < wht_Js.size(); j1_idx++) {
+    //   for (size_t j2_idx = 0; j2_idx < wht_Js.size(); j2_idx++) {
+    //     // we know var_idx[j1_idx] != var_idx[j2_idx]
+    //     // assume var_idx[j1_idx] > var_idx[j2_idx]
+    //     // insert to block location (j1_idx, j2_idx)
+    //     if (var_idx[j1_idx] > var_idx[j2_idx]) {
+    //       size_t nnz_AtA_vars_accum_var2 =
+    //           sparsity.nnz_AtA_vars_accum[var_idx[j2_idx]];
+    //       int var2_dim = sparsity.var_dim[var_idx[j2_idx]];
 
-        int inner_insert_var2_var1 =
-            sparsity.inner_insert_map[var_idx[j2_idx]].at(var_idx[j1_idx]);
+    //       int inner_insert_var2_var1 =
+    //           sparsity.inner_insert_map[var_idx[j2_idx]].at(var_idx[j1_idx]);
 
-        double* value_ptr = AtA.valuePtr() + nnz_AtA_vars_accum_var2 +
-                            var2_dim + inner_insert_var2_var1;
+    //       double* value_ptr = AtA.valuePtr() + nnz_AtA_vars_accum_var2 +
+    //                           var2_dim + inner_insert_var2_var1;
 
-#ifdef MINISAM_WITH_MULTI_THREADS
-        mutex_A.lock();
-#endif
+    // #ifdef MINISAM_WITH_MULTI_THREADS
+    //         mutex_A.lock();
+    // #endif
 
-        if (j1_idx > j2_idx) {
-          for (int j = 0; j < wht_Js[j2_idx].cols(); j++) {
-            for (int i = 0; i < wht_Js[j1_idx].cols(); i++) {
-              *(value_ptr++) += stackJtJ(jacobian_col_local[j1_idx] + i,
-                                         jacobian_col_local[j2_idx] + j);
-            }
-            value_ptr += (sparsity.nnz_AtA_cols[jacobian_col[j2_idx] + j] - 1 -
-                          wht_Js[j1_idx].cols());
-          }
-        } else {
-          for (int j = 0; j < wht_Js[j2_idx].cols(); j++) {
-            for (int i = 0; i < wht_Js[j1_idx].cols(); i++) {
-              *(value_ptr++) += stackJtJ(jacobian_col_local[j2_idx] + j,
-                                         jacobian_col_local[j1_idx] + i);
-            }
-            value_ptr += (sparsity.nnz_AtA_cols[jacobian_col[j2_idx] + j] - 1 -
-                          wht_Js[j1_idx].cols());
-          }
-        }
+    // if (j1_idx > j2_idx) {
+    //   for (int j = 0; j < wht_Js[j2_idx].cols(); j++) {
+    //     for (int i = 0; i < wht_Js[j1_idx].cols(); i++) {
+    //       *(value_ptr++) += stackJtJ(jacobian_col_local[j1_idx] + i,
+    //                                  jacobian_col_local[j2_idx] + j);
+    //     }
+    //     value_ptr += (sparsity.nnz_AtA_cols[jacobian_col[j2_idx] + j] - 1 -
+    //                   wht_Js[j1_idx].cols());
+    //   }
+    // } else {
+    //   for (int j = 0; j < wht_Js[j2_idx].cols(); j++) {
+    //     for (int i = 0; i < wht_Js[j1_idx].cols(); i++) {
+    //       *(value_ptr++) += stackJtJ(jacobian_col_local[j2_idx] + j,
+    //                                  jacobian_col_local[j1_idx] + i);
+    //     }
+    //     value_ptr += (sparsity.nnz_AtA_cols[jacobian_col[j2_idx] + j] - 1 -
+    //                   wht_Js[j1_idx].cols());
+    //   }
+    // }
 
-#ifdef MINISAM_WITH_MULTI_THREADS
-        mutex_A.unlock();
-#endif
-      }
-    }
-  }
+    // #ifdef MINISAM_WITH_MULTI_THREADS
+    //         mutex_A.unlock();
+    // #endif
+    // }
+    // }
+    // }
 }
- 
+
 #[allow(non_snake_case)]
 pub fn linearzation_lower_hessian<R, VC, FC>(
     factors: &Factors<R, FC>,
