@@ -136,7 +136,124 @@ where
     VC: VariablesContainer<R>,
     FC: FactorsContainer<R>,
 {
-    LowerHessianSparsityPattern::default()
+    let mut sparsity = LowerHessianSparsityPattern::default();
+
+    // A size
+    sparsity.base.A_rows = factors.dim();
+    sparsity.base.A_cols = variables.dim();
+
+    // var_dim: dim of each vars (using ordering of var_ordering)
+    // var_col: start col of each vars (using ordering of var_ordering)
+    sparsity.base.var_dim.reserve(variable_ordering.len());
+    sparsity.base.var_col.reserve(variable_ordering.len());
+    let mut col_counter: usize = 0;
+
+    for i in 0..variable_ordering.len() {
+        sparsity.base.var_col.push(col_counter);
+        let vdim = variables.dim_at(variable_ordering[i]).unwrap();
+        sparsity.base.var_dim.push(vdim);
+        col_counter += vdim;
+    }
+
+    // AtA col correlated vars of lower part
+    // does not include itself
+    sparsity
+        .corl_vars
+        .resize(variable_ordering.len(), HashSet::default());
+
+    for f_index in 0..factors.len() {
+        let mut factor_key_order_idx: Vec<usize> = Vec::new();
+        let keys = factors.keys_at(f_index).unwrap();
+        factor_key_order_idx.reserve(keys.len());
+        for key in keys {
+            factor_key_order_idx.push(variable_ordering.search_key(*key).unwrap());
+        }
+        for i in &factor_key_order_idx {
+            for j in &factor_key_order_idx {
+                // only lower part
+                if i < j {
+                    sparsity.corl_vars[*i].insert(*j);
+                };
+            }
+        }
+    }
+
+    sparsity.nnz_AtA_cols.resize(sparsity.base.A_cols, 0);
+    sparsity
+        .nnz_AtA_vars_accum
+        .reserve(variable_ordering.len() + 1);
+    sparsity.nnz_AtA_vars_accum.push(0);
+    let mut last_nnz_AtA_vars_accum: usize = 0;
+
+    for var_idx in 0..variable_ordering.len() {
+        let self_dim = sparsity.base.var_dim[var_idx];
+        let self_col = sparsity.base.var_col[var_idx];
+        // self: lower triangular part
+        last_nnz_AtA_vars_accum += ((1 + self_dim) * self_dim) / 2;
+        for i in 0..self_dim {
+            let col = self_col + i;
+            sparsity.nnz_AtA_cols[col] += self_dim - i;
+        }
+        // non-self
+        for corl_var_idx in &sparsity.corl_vars[var_idx] {
+            last_nnz_AtA_vars_accum += sparsity.base.var_dim[*corl_var_idx] * self_dim;
+            // for (int col = self_col; col < self_col + self_dim; col++) {
+            for col in self_col..(self_col + self_dim) {
+                sparsity.nnz_AtA_cols[col] += sparsity.base.var_dim[*corl_var_idx];
+            }
+        }
+        sparsity.nnz_AtA_vars_accum.push(last_nnz_AtA_vars_accum);
+    }
+    sparsity.total_nnz_AtA_cols = sparsity.nnz_AtA_cols.iter().sum();
+
+    // where to insert nnz element
+    sparsity
+        .inner_insert_map
+        .resize(variable_ordering.len(), HashMap::new());
+
+    for var1_idx in 0..variable_ordering.len() {
+        let mut nnzdim_counter: usize = 0;
+        // non-self
+        for var2_idx in &sparsity.corl_vars[var1_idx] {
+            sparsity.inner_insert_map[var1_idx].insert(*var2_idx, nnzdim_counter);
+            nnzdim_counter += sparsity.base.var_dim[*var2_idx];
+        }
+    }
+
+    // prepare sparse matrix inner/outer index
+    sparsity.inner_index.resize(sparsity.total_nnz_AtA_cols, 0);
+    sparsity.inner_nnz_index.resize(sparsity.base.A_cols, 0);
+    sparsity.outer_index.resize(sparsity.base.A_cols + 1, 0);
+
+    let mut inner_index_ptr = sparsity.inner_index.iter_mut();
+    let mut inner_nnz_ptr = sparsity.inner_nnz_index.iter_mut();
+    let mut outer_index_ptr = sparsity.outer_index.iter_mut();
+    let mut out_counter: usize = 0;
+    *outer_index_ptr.next().unwrap() = 0;
+
+    for var_idx in 0..sparsity.base.var_dim.len() {
+        for i in 0..sparsity.base.var_dim[var_idx] {
+            *inner_nnz_ptr.next().unwrap() =
+                sparsity.nnz_AtA_cols[i + sparsity.base.var_col[var_idx]];
+            out_counter += sparsity.nnz_AtA_cols[i + sparsity.base.var_col[var_idx]];
+            *outer_index_ptr.next().unwrap() = out_counter;
+
+            // self
+            for ii in i..sparsity.base.var_dim[var_idx] {
+                *inner_index_ptr.next().unwrap() = sparsity.base.var_col[var_idx] + ii;
+            }
+            // non-self
+            for corl_idx in &sparsity.corl_vars[var_idx] {
+                for j in 0..sparsity.base.var_dim[*corl_idx] {
+                    *inner_index_ptr.next().unwrap() = j + sparsity.base.var_col[*corl_idx];
+                }
+            }
+        }
+    }
+
+    // copy
+    sparsity.base.var_ordering = variable_ordering.clone();
+    sparsity
 }
 #[cfg(test)]
 mod tests {
@@ -151,7 +268,9 @@ mod tests {
             variables::Variables,
             variables_container::VariablesContainer,
         },
-        nonlinear::sparsity_pattern::construct_jacobian_sparsity,
+        nonlinear::sparsity_pattern::{
+            construct_jacobian_sparsity, construct_lower_hessian_sparsity,
+        },
     };
 
     #[test]
@@ -339,5 +458,82 @@ mod tests {
             pattern.nnz_cols[2 + variable_ordering.search_key(Key(2)).unwrap() * 3],
             3
         );
+    }
+    #[test]
+    fn hessian_sparsity_0() {
+        type Real = f64;
+        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
+        let mut variables = Variables::new(container);
+        variables.add(Key(0), VariableA::<Real>::new(0.0));
+        variables.add(Key(1), VariableB::<Real>::new(0.0));
+
+        let container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
+        let mut factors = Factors::new(container);
+        factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
+        factors.add(FactorB::new(2.0, None, Key(0), Key(1)));
+        factors.add(FactorB::new(3.0, None, Key(0), Key(1)));
+        let variable_ordering = variables.default_variable_ordering();
+        let pattern = construct_lower_hessian_sparsity(&factors, &variables, &variable_ordering);
+        assert_eq!(pattern.base.A_rows, 9);
+        assert_eq!(pattern.base.A_cols, 6);
+        assert_eq!(pattern.base.var_dim.len(), 2);
+        assert_eq!(pattern.base.var_col.len(), 2);
+        assert_eq!(pattern.base.var_dim, vec![3, 3]);
+        assert_eq!(pattern.base.var_col, vec![0, 3]);
+        assert_eq!(pattern.nnz_AtA_cols.len(), 6);
+        assert_eq!(pattern.nnz_AtA_cols[0], 6);
+        assert_eq!(pattern.nnz_AtA_cols[1], 5);
+        assert_eq!(pattern.nnz_AtA_cols[2], 4);
+        assert_eq!(pattern.nnz_AtA_cols[3], 3);
+        assert_eq!(pattern.nnz_AtA_cols[4], 2);
+        assert_eq!(pattern.nnz_AtA_cols[5], 1);
+
+        assert_eq!(pattern.total_nnz_AtA_cols, 21);
+        assert_eq!(pattern.nnz_AtA_vars_accum[0], 0);
+        assert_eq!(pattern.nnz_AtA_vars_accum[1], 15);
+        assert_eq!(pattern.nnz_AtA_vars_accum[2], 21);
+
+        assert_eq!(pattern.corl_vars.len(), 2);
+        assert!(pattern.corl_vars[0].get(&1).is_some());
+        assert!(pattern.corl_vars[0].get(&0).is_none());
+        assert!(pattern.corl_vars[1].get(&0).is_none());
+        assert!(pattern.corl_vars[1].get(&1).is_none());
+
+        // assert_eq!(
+        //     pattern.nnz_cols[0 + variable_ordering.search_key(Key(0)).unwrap() * 3],
+        //     3
+        // );
+        // assert_eq!(
+        //     pattern.nnz_cols[1 + variable_ordering.search_key(Key(0)).unwrap() * 3],
+        //     3
+        // );
+        // assert_eq!(
+        //     pattern.nnz_cols[2 + variable_ordering.search_key(Key(0)).unwrap() * 3],
+        //     3
+        // );
+        // assert_eq!(
+        //     pattern.nnz_cols[0 + variable_ordering.search_key(Key(1)).unwrap() * 3],
+        //     6
+        // );
+        // assert_eq!(
+        //     pattern.nnz_cols[1 + variable_ordering.search_key(Key(1)).unwrap() * 3],
+        //     6
+        // );
+        // assert_eq!(
+        //     pattern.nnz_cols[2 + variable_ordering.search_key(Key(1)).unwrap() * 3],
+        //     6
+        // );
+        // assert_eq!(
+        //     pattern.nnz_cols[0 + variable_ordering.search_key(Key(2)).unwrap() * 3],
+        //     3
+        // );
+        // assert_eq!(
+        //     pattern.nnz_cols[1 + variable_ordering.search_key(Key(2)).unwrap() * 3],
+        //     3
+        // );
+        // assert_eq!(
+        //     pattern.nnz_cols[2 + variable_ordering.search_key(Key(2)).unwrap() * 3],
+        //     3
+        // );
     }
 }

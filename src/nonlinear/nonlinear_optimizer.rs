@@ -180,7 +180,7 @@ where
         if self.opt.linear_solver().is_normal() {
             self.h_sparsity =
                 construct_lower_hessian_sparsity(factors, variables, &variable_ordering);
-            A_rows = self.h_sparsity.base.A_rows;
+            A_rows = self.h_sparsity.base.A_cols;
             A_cols = self.h_sparsity.base.A_cols;
         } else {
             self.j_sparsity = construct_jacobian_sparsity(factors, variables, &variable_ordering);

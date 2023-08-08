@@ -111,8 +111,8 @@ mod tests {
         let h_sparsity = construct_lower_hessian_sparsity(&factors, &variables, &variable_ordering);
         let mut err_uptodate = false;
         let mut err_squared_norm = 0.0;
-        let A_rows: usize = 0;
-        let A_cols: usize = 0;
+        let A_rows: usize = h_sparsity.base.A_cols;
+        let A_cols: usize = h_sparsity.base.A_cols;
         let mut A: DMatrix<Real> = DMatrix::zeros(A_rows, A_cols);
         let mut b: DVector<Real> = DVector::zeros(A_rows);
         let opt_res = optimizer.iterate(
