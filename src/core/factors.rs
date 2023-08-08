@@ -1,6 +1,7 @@
 use crate::core::variables::Variables;
+use core::{cell::RefMut, marker::PhantomData};
 use faer_core::{Mat, RealField};
-use std::marker::PhantomData;
+use std::ops::AddAssign;
 
 use super::{
     factor::{Factor, JacobiansError},
@@ -50,17 +51,34 @@ where
         self.container
             .weighted_jacobians_error_at(variables, index, 0)
     }
+    pub fn weighted_error_at<VC>(
+        &self,
+        variables: &Variables<R, VC>,
+        index: usize,
+    ) -> Option<RefMut<Mat<R>>>
+    where
+        VC: VariablesContainer<R>,
+    {
+        self.container.weighted_error_at(variables, index, 0)
+    }
     pub fn error<VC>(&self, _variables: &Variables<R, VC>) -> Mat<R>
     where
         VC: VariablesContainer<R>,
     {
         todo!()
     }
-    pub fn error_squared_norm<VC>(&self, _variables: &Variables<R, VC>) -> f64
+    pub fn error_squared_norm<VC>(&self, variables: &Variables<R, VC>) -> f64
     where
         VC: VariablesContainer<R>,
     {
-        todo!()
+        let mut err_squared_norm = 0.0;
+        // for f_index in 0..self.len() {
+        //     let werr = self.weighted_error_at(variables, f_index).unwrap().as_ref();
+        //     for i in 0..werr.nrows() {
+        //         err_squared_norm += werr.read(i, 0).mul(&werr.read(i, 0));
+        //     }
+        // }
+        err_squared_norm
     }
     pub fn add<F>(&mut self, f: F)
     where

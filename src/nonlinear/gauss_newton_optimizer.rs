@@ -83,6 +83,7 @@ mod tests {
             variables::Variables,
             variables_container::VariablesContainer,
         },
+        linear::sparse_cholesky_solver::SparseCholeskySolver,
         nonlinear::{
             gauss_newton_optimizer::GaussNewtonOptimizer,
             nonlinear_optimizer::OptIterate,
@@ -104,7 +105,7 @@ mod tests {
         factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
         factors.add(FactorB::new(2.0, None, Key(1), Key(2)));
         let variable_ordering = variables.default_variable_ordering();
-        let optimizer = GaussNewtonOptimizer::<Real>::default();
+        let optimizer = GaussNewtonOptimizer::<Real, SparseCholeskySolver<Real>>::default();
         let j_sparsity = construct_jacobian_sparsity(&factors, &variables, &variable_ordering);
         let h_sparsity = construct_lower_hessian_sparsity(&factors, &variables, &variable_ordering);
         let mut err_uptodate = false;

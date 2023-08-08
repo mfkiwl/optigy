@@ -1,7 +1,8 @@
 use crate::core::factor::Factor;
-use faer_core::RealField;
-use std::any::{type_name, TypeId};
-use std::mem;
+use core::any::{type_name, TypeId};
+use core::cell::RefMut;
+use core::mem;
+use faer_core::{Mat, RealField};
 
 use super::factor::JacobiansError;
 use super::key::Key;
@@ -49,13 +50,22 @@ where
     fn dim_at(&self, index: usize, init: usize) -> Option<usize>;
     /// factor keys by index
     fn keys_at(&self, index: usize, init: usize) -> Option<&[Key]>;
-    /// factor weighted jacobians error  by index
+    /// factor weighted jacobians error by index
     fn weighted_jacobians_error_at<C>(
         &self,
         variables: &Variables<R, C>,
         index: usize,
         init: usize,
     ) -> Option<JacobiansError<'_, R>>
+    where
+        C: VariablesContainer<R>;
+    /// factor weighted error by index
+    fn weighted_error_at<C>(
+        &self,
+        variables: &Variables<R, C>,
+        index: usize,
+        init: usize,
+    ) -> Option<RefMut<Mat<R>>>
     where
         C: VariablesContainer<R>;
 }
@@ -91,6 +101,17 @@ where
         index: usize,
         init: usize,
     ) -> Option<JacobiansError<'_, R>>
+    where
+        C: VariablesContainer<R>,
+    {
+        None
+    }
+    fn weighted_error_at<C>(
+        &self,
+        variables: &Variables<R, C>,
+        index: usize,
+        init: usize,
+    ) -> Option<RefMut<Mat<R>>>
     where
         C: VariablesContainer<R>,
     {
@@ -154,7 +175,6 @@ where
             self.parent.keys_at(index, init + self.data.len())
         }
     }
-
     fn weighted_jacobians_error_at<C>(
         &self,
         variables: &Variables<R, C>,
@@ -174,6 +194,27 @@ where
         } else {
             self.parent
                 .weighted_jacobians_error_at(&variables, index, init + self.data.len())
+        }
+    }
+    fn weighted_error_at<C>(
+        &self,
+        variables: &Variables<R, C>,
+        index: usize,
+        init: usize,
+    ) -> Option<RefMut<Mat<R>>>
+    where
+        C: VariablesContainer<R>,
+    {
+        if (init..(init + self.data.len())).contains(&index) {
+            Some(
+                self.data
+                    .get(index - init)
+                    .unwrap()
+                    .weighted_error(&variables),
+            )
+        } else {
+            self.parent
+                .weighted_error_at(&variables, index, init + self.data.len())
         }
     }
 }
@@ -210,7 +251,10 @@ pub(crate) mod tests {
     use faer_core::Mat;
 
     use crate::core::{
-        factor::tests::{FactorA, FactorB},
+        factor::{
+            tests::{FactorA, FactorB},
+            Factor,
+        },
         factors_container::{get_factor, get_factor_mut, FactorsContainer},
         key::Key,
         variable::tests::{VariableA, VariableB},
@@ -423,5 +467,42 @@ pub(crate) mod tests {
         assert!(container
             .weighted_jacobians_error_at(&variables, 5, 0)
             .is_none());
+    }
+    #[test]
+    fn weighted_error_at() {
+        type Real = f64;
+
+        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
+        let mut variables = Variables::new(container);
+        variables.add(Key(0), VariableA::<Real>::new(1.0));
+        variables.add(Key(1), VariableB::<Real>::new(2.0));
+
+        let mut container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
+        {
+            let fc0 = container.get_mut::<FactorA<Real>>().unwrap();
+            fc0.push(FactorA::new(2.0, None, Key(0), Key(1)));
+            fc0.push(FactorA::new(1.0, None, Key(0), Key(1)));
+        }
+        {
+            let fc1 = container.get_mut::<FactorB<Real>>().unwrap();
+            fc1.push(FactorB::new(2.0, None, Key(0), Key(1)));
+        }
+        let mut jacobians = Vec::<Mat<Real>>::with_capacity(2);
+        jacobians.resize_with(2, || Mat::zeros(3, 3));
+        jacobians[0].as_mut().col(0).set_constant(1.0);
+        jacobians[1].as_mut().col(1).set_constant(2.0);
+        assert_eq!(
+            container
+                .weighted_error_at(&variables, 0, 0)
+                .unwrap()
+                .deref(),
+            container
+                .get::<FactorA<Real>>()
+                .unwrap()
+                .get(0)
+                .unwrap()
+                .weighted_error(&variables)
+                .deref()
+        );
     }
 }

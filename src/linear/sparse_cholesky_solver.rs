@@ -4,7 +4,7 @@ use faer_core::{Mat, Parallelism, RealField};
 use std::marker::PhantomData;
 
 use super::linear_solver::{LinearSolverStatus, SparseLinearSolver};
-
+#[derive(Default)]
 pub struct SparseCholeskySolver<R>
 where
     R: RealField,
