@@ -71,7 +71,8 @@ where
 }
 #[cfg(test)]
 mod tests {
-    use faer_core::Mat;
+    use faer_core::{Mat, RealField};
+    use nalgebra::{DMatrix, DMatrixView, DVector, DVectorView};
 
     use crate::{
         core::{
@@ -90,6 +91,13 @@ mod tests {
             sparsity_pattern::{construct_jacobian_sparsity, construct_lower_hessian_sparsity},
         },
     };
+
+    fn foo<T>(v: DVectorView<T>)
+    where
+        T: RealField,
+    {
+        todo!()
+    }
 
     #[test]
     fn iterate() {
@@ -124,5 +132,7 @@ mod tests {
             &mut err_uptodate,
             &mut err_squared_norm,
         );
+        let dynamic_v = DVector::from_element(30, 1.0);
+        foo(dynamic_v.rows(0, 5));
     }
 }

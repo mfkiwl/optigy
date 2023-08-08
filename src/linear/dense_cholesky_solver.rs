@@ -1,5 +1,3 @@
-use dyn_stack::{DynStack, GlobalMemBuffer, StackReq};
-use faer_cholesky::ldlt_diagonal as ldl;
 use faer_core::{Mat, Parallelism, RealField};
 use std::marker::PhantomData;
 
