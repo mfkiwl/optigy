@@ -10,3 +10,4 @@ faer-core = { git = "https://github.com/sarah-ek/faer-rs", rev="663f2e18aa4e6baf
 dyn-stack = "0.9.0"
 hashbrown = "0.11.2"
 nalgebra = "0.32.3"
+num = "0.4.1"

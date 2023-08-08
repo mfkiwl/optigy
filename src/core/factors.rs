@@ -1,4 +1,5 @@
 use nalgebra::{DVector, RealField};
+use num::Float;
 
 use crate::core::variables::Variables;
 use core::{cell::RefMut, marker::PhantomData};
@@ -11,7 +12,7 @@ use super::{
 };
 pub struct Factors<R, C>
 where
-    R: RealField,
+    R: RealField + Float,
     C: FactorsContainer<R>,
 {
     container: C,
@@ -19,7 +20,7 @@ where
 }
 impl<R, C> Factors<R, C>
 where
-    R: RealField,
+    R: RealField + Float,
     C: FactorsContainer<R>,
 {
     pub fn new(container: C) -> Self {
@@ -72,12 +73,10 @@ where
         VC: VariablesContainer<R>,
     {
         let mut err_squared_norm = 0.0;
-        // for f_index in 0..self.len() {
-        //     let werr = self.weighted_error_at(variables, f_index).unwrap().as_ref();
-        //     for i in 0..werr.nrows() {
-        //         err_squared_norm += werr.read(i, 0).mul(&werr.read(i, 0));
-        //     }
-        // }
+        for f_index in 0..self.len() {
+            let werr = self.weighted_error_at(variables, f_index).unwrap();
+            err_squared_norm += werr.norm_squared().to_f64().unwrap();
+        }
         err_squared_norm
     }
     pub fn add<F>(&mut self, f: F)
@@ -94,9 +93,15 @@ mod tests {
     use nalgebra::DVector;
 
     use crate::core::{
-        factor::tests::{FactorA, FactorB},
+        factor::{
+            tests::{FactorA, FactorB},
+            Factor,
+        },
         factors_container::{get_factor, FactorsContainer},
         key::Key,
+        variable::tests::{VariableA, VariableB},
+        variables::Variables,
+        variables_container::VariablesContainer,
     };
 
     use super::Factors;
@@ -157,5 +162,24 @@ mod tests {
         assert_eq!(factors.keys_at(1).unwrap(), keys);
         assert!(factors.keys_at(4).is_none());
         assert!(factors.keys_at(5).is_none());
+    }
+    #[test]
+    fn squered_error() {
+        type Real = f64;
+        let container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
+        let mut factors = Factors::new(container);
+        factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
+        factors.add(FactorB::new(2.0, None, Key(0), Key(1)));
+        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
+        let mut variables = Variables::new(container);
+        variables.add(Key(0), VariableA::<Real>::new(0.0));
+        variables.add(Key(1), VariableB::<Real>::new(0.0));
+        assert_eq!(
+            FactorA::new(1.0, None, Key(0), Key(1))
+                .weighted_error(&variables)
+                .norm_squared(),
+            3.0
+        );
+        assert_eq!(factors.error_squared_norm(&variables), 15.0);
     }
 }

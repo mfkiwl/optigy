@@ -1,18 +1,19 @@
 use std::marker::PhantomData;
 
 use nalgebra::{DMatrix, DVector, RealField};
+use num::Float;
 
 use super::linear_solver::{DenseLinearSolver, LinearSolverStatus};
 
 pub struct DenseCholeskySolver<R>
 where
-    R: RealField,
+    R: RealField + Float,
 {
     __marker: PhantomData<R>,
 }
 impl<R> DenseLinearSolver<R> for DenseCholeskySolver<R>
 where
-    R: RealField,
+    R: RealField + Float,
 {
     fn solve(&self, A: &DMatrix<R>, b: &DVector<R>, x: &mut DVector<R>) -> LinearSolverStatus {
         // // allocate a workspace with the size and alignment needed for the operations

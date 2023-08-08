@@ -4,6 +4,7 @@ use crate::core::{
 };
 use hashbrown::{HashMap, HashSet};
 use nalgebra::RealField;
+use num::Float;
 /// base class for A and A'A sparsity pattern, if variable ordering is fixed,
 /// only need to be constructed once for different linearzation runs
 #[cfg_attr(debug_assertions, derive(Debug))]
@@ -74,7 +75,7 @@ pub fn construct_jacobian_sparsity<R, VC, FC>(
     variable_ordering: &VariableOrdering,
 ) -> JacobianSparsityPattern
 where
-    R: RealField,
+    R: RealField + Float,
     VC: VariablesContainer<R>,
     FC: FactorsContainer<R>,
 {
@@ -131,7 +132,7 @@ pub fn construct_lower_hessian_sparsity<R, VC, FC>(
     variable_ordering: &VariableOrdering,
 ) -> LowerHessianSparsityPattern
 where
-    R: RealField,
+    R: RealField + Float,
     VC: VariablesContainer<R>,
     FC: FactorsContainer<R>,
 {

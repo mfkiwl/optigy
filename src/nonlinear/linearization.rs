@@ -1,6 +1,7 @@
 use std::ops::Deref;
 
 use nalgebra::{DMatrix, DVector, RealField};
+use num::Float;
 
 use crate::core::{
     factors::Factors, factors_container::FactorsContainer, variables::Variables,
@@ -17,7 +18,7 @@ pub fn linearzation_jacobian<R, VC, FC>(
     A: &mut DMatrix<R>,
     b: &mut DVector<R>,
 ) where
-    R: RealField,
+    R: RealField + Float,
     VC: VariablesContainer<R>,
     FC: FactorsContainer<R>,
 {
@@ -63,8 +64,7 @@ pub fn linearzation_lower_hessian<R, VC, FC>(
     A: &mut DMatrix<R>,
     b: &mut DVector<R>,
 ) where
-    R: RealField,
-    R: RealField,
+    R: RealField + Float,
     VC: VariablesContainer<R>,
     FC: FactorsContainer<R>,
 {
@@ -79,8 +79,7 @@ pub fn linearzation_full_hessian<R, VC, FC>(
     A: &mut DMatrix<R>,
     b: &mut DVector<R>,
 ) where
-    R: RealField,
-    R: RealField,
+    R: RealField + Float,
     VC: VariablesContainer<R>,
     FC: FactorsContainer<R>,
 {

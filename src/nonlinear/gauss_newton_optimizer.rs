@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use nalgebra::{DMatrix, DVector, RealField};
+use num::Float;
 
 use crate::{
     core::{
@@ -17,7 +18,7 @@ use super::{
 #[derive(Default)]
 pub struct GaussNewtonOptimizer<R, S>
 where
-    R: RealField,
+    R: RealField + Float,
     S: SparseLinearSolver<R>,
 {
     __marker: PhantomData<R>,
@@ -26,7 +27,7 @@ where
 }
 impl<R, S> OptIterate<R, S> for GaussNewtonOptimizer<R, S>
 where
-    R: RealField,
+    R: RealField + Float,
     S: SparseLinearSolver<R>,
 {
     #[allow(non_snake_case)]
@@ -71,7 +72,7 @@ where
 }
 #[cfg(test)]
 mod tests {
-    use nalgebra::{DMatrix, DMatrixView, DVector, DVectorView, RealField};
+    use nalgebra::{DMatrix, DVector};
 
     use crate::{
         core::{

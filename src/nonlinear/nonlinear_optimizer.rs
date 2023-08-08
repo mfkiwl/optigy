@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use nalgebra::{DMatrix, DVector, RealField, RowDVector};
+use num::Float;
 
 use crate::{
     core::{
@@ -94,7 +95,7 @@ impl Default for NonlinearOptimizationStatus {
 }
 pub trait OptIterate<R, S>
 where
-    R: RealField,
+    R: RealField + Float,
     S: SparseLinearSolver<R>,
 {
     /// method to run a single iteration to update variables
@@ -122,7 +123,7 @@ where
 
 pub struct NonlinearOptimizer<R, S, O>
 where
-    R: RealField,
+    R: RealField + Float,
     S: SparseLinearSolver<R>,
     O: OptIterate<R, S>,
 {
@@ -151,7 +152,7 @@ where
 
 impl<R, S, O> NonlinearOptimizer<R, S, O>
 where
-    R: RealField,
+    R: RealField + Float,
     S: SparseLinearSolver<R>,
     O: OptIterate<R, S>,
 {

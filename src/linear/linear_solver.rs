@@ -1,7 +1,8 @@
 use nalgebra::{DMatrix, DVector, RealField};
+use num::Float;
 
 /// return status of solving linear system
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum LinearSolverStatus {
     ///problem solve successfully (iterative methods converge)
     Success,
@@ -12,7 +13,7 @@ pub enum LinearSolverStatus {
 }
 pub trait SparseLinearSolver<R>
 where
-    R: RealField,
+    R: RealField + Float,
 {
     /// initialize the solver with sparsity pattern of system Ax = b
     /// call once before solving Ax = b share the same sparsity structure

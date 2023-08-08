@@ -1,36 +1,29 @@
 use std::marker::PhantomData;
 
 use nalgebra::{DMatrix, DVector, RealField};
+use num::Float;
 
 use super::linear_solver::{LinearSolverStatus, SparseLinearSolver};
 #[derive(Default)]
 pub struct SparseCholeskySolver<R>
 where
-    R: RealField,
+    R: RealField + Float,
 {
     __marker: PhantomData<R>,
 }
 impl<R> SparseLinearSolver<R> for SparseCholeskySolver<R>
 where
-    R: RealField,
+    R: RealField + Float,
 {
+    #[allow(non_snake_case)]
     fn solve(&self, A: &DMatrix<R>, b: &DVector<R>, x: &mut DVector<R>) -> LinearSolverStatus {
-        // // allocate a workspace with the size and alignment needed for the operations
-        // let mut mem = GlobalMemBuffer::new(StackReq::any_of([
-        //     ldl::compute::raw_cholesky_in_place_req::<f64>(
-        //         A.nrows(),
-        //         Parallelism::None,
-        //         Default::default(), // use default parameters
-        //     )
-        //     .unwrap(),
-        //     ldl::update::insert_rows_and_cols_clobber_req::<f64>(
-        //         1, // we're inserting one column
-        //         Parallelism::None,
-        //     )
-        //     .unwrap(),
-        // ]));
-        // let mut stack = DynStack::new(&mut mem);
-        LinearSolverStatus::Success
+        match A.clone().cholesky() {
+            Some(llt) => {
+                x.copy_from(&llt.solve(b));
+                LinearSolverStatus::Success
+            }
+            None => LinearSolverStatus::RankDeficiency,
+        }
     }
 
     fn is_normal(&self) -> bool {
@@ -39,5 +32,25 @@ where
 
     fn is_normal_lower(&self) -> bool {
         true
+    }
+}
+#[cfg(test)]
+mod tests {
+    use nalgebra::{dmatrix, dvector, DVector};
+
+    use crate::linear::linear_solver::{LinearSolverStatus, SparseLinearSolver};
+
+    use super::SparseCholeskySolver;
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn lin_solve() {
+        let A = dmatrix![11.0, 5.0, 0.0; 5.0, 5.0, 4.0; 0.0, 4.0, 6.0];
+        let b = dvector![21.0, 27.0, 26.0];
+        let solver = SparseCholeskySolver::<f64>::default();
+        let mut x = DVector::zeros(3);
+        let status = solver.solve(&A, &b, &mut x);
+        assert_eq!(status, LinearSolverStatus::Success);
+        assert!((x - dvector![1.0, 2.0, 3.0]).norm() < 1e-9);
     }
 }
