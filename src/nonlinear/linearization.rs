@@ -1,5 +1,6 @@
 use std::ops::Deref;
 
+use hashbrown::HashSet;
 use nalgebra::{DMatrix, DVector, RealField};
 use num::Float;
 
@@ -9,7 +10,15 @@ use crate::core::{
 };
 
 use super::sparsity_pattern::{JacobianSparsityPattern, LowerHessianSparsityPattern};
-
+use core::hash::Hash;
+fn has_unique_elements<T>(iter: T) -> bool
+where
+    T: IntoIterator,
+    T::Item: Eq + Hash,
+{
+    let mut uniq = HashSet::new();
+    iter.into_iter().all(move |x| uniq.insert(x))
+}
 #[allow(non_snake_case)]
 pub fn linearzation_jacobian<R, VC, FC>(
     factors: &Factors<R, FC>,
@@ -30,6 +39,7 @@ pub fn linearzation_jacobian<R, VC, FC>(
         // factor dim
         let f_dim = factors.dim_at(f_index).unwrap();
         let keys = factors.keys_at(f_index).unwrap();
+        assert!(has_unique_elements(keys));
         let mut jacobian_col = Vec::<usize>::with_capacity(keys.len());
         for vkey in keys {
             let key_idx = sparsity.base.var_ordering.search_key(*vkey).unwrap();
@@ -93,6 +103,7 @@ fn linearzation_lower_hessian_single_factor<R, VC, FC>(
     FC: FactorsContainer<R>,
 {
     let f_keys = factors.keys_at(f_index).unwrap();
+    assert!(has_unique_elements(f_keys));
     let f_len = f_keys.len();
     //  whiten err and jacobians
     let mut var_idx = Vec::<usize>::new();
@@ -418,7 +429,6 @@ mod tests {
                 let k0 = rnd_key.sample(&mut rng);
                 let k1 = rnd_key.sample(&mut rng);
                 if k0 == k1 {
-                    // println!("k0 == k1");
                     continue;
                 }
                 factors.add(RandomBlockFactor::new(Key(k0), Key(k1)));
