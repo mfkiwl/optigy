@@ -151,14 +151,28 @@ fn linearzation_lower_hessian_single_factor<R, VC, FC>(
         // scan by row
         let nnz_AtA_vars_accum_var = sparsity.nnz_AtA_vars_accum[var_idx[j_idx]];
         let mut value_idx: usize = nnz_AtA_vars_accum_var;
-
+        println!("j_idx: {}", j_idx);
         for j in 0..wht_Js[j_idx].ncols() {
             for i in j..wht_Js[j_idx].ncols() {
                 AtA_values[value_idx] +=
                     stackJtJ[(jacobian_col_local[j_idx] + i, jacobian_col_local[j_idx] + j)];
                 value_idx += 1;
             }
-            value_idx += sparsity.nnz_AtA_cols[jacobian_col[j_idx] + j] - wht_Js[j_idx].ncols() + j;
+            println!("value_idx: {}", value_idx);
+            println!(
+                "sparsity.nnz_AtA_cols[jacobian_col[j_idx] + j]: {}",
+                sparsity.nnz_AtA_cols[jacobian_col[j_idx] + j]
+            );
+            println!("wht_Js[j_idx].ncols() + j: {}", wht_Js[j_idx].ncols() + j);
+            let offset: i64 = sparsity.nnz_AtA_cols[jacobian_col[j_idx] + j] as i64
+                - wht_Js[j_idx].ncols() as i64
+                + j as i64;
+            // value_idx += sparsity.nnz_AtA_cols[jacobian_col[j_idx] + j] - wht_Js[j_idx].ncols() + j;
+            if offset < 0 {
+                value_idx = value_idx.checked_sub((-offset) as usize).unwrap();
+            } else {
+                value_idx += offset as usize;
+            }
         }
     }
 
@@ -322,7 +336,8 @@ mod tests {
         linearzation_jacobian(&factors, &variables, &pattern, &mut A, &mut b);
         println!("A {}", A);
         println!("b {}", b);
-        let minor_indexes = vec![1, 2, 0, 2, 4, 2, 1, 4]; //inner_index
+        println!("J AtA: {}", A.transpose() * A);
+        let minor_indices = vec![1, 2, 0, 2, 4, 2, 1, 4]; //inner_index
         let major_offsets = vec![0, 2, 4, 5, 6, 8]; //outer_index
         let values = vec![22.0, 7.0, 3.0, 5.0, 14.0, 1.0, 17.0, 8.0]; //values
 
@@ -330,7 +345,7 @@ mod tests {
         let dense = Matrix3x4::new(1.0, 2.0, 0.0, 5.0, 0.0, 0.0, 0.0, 0.0, 0.0, 3.0, 4.0, 0.0);
 
         let patt =
-            SparsityPattern::try_from_offsets_and_indices(5, 5, minor_indexes, major_offsets);
+            SparsityPattern::try_from_offsets_and_indices(5, 5, major_offsets, minor_indices);
         println!("patt: {:?}", patt);
         // The constructor validates the raw CSC data and returns an error if it is invalid.
         let csc = CscMatrix::try_from_pattern_and_values(patt.unwrap(), values)
@@ -346,6 +361,20 @@ mod tests {
         linearzation_lower_hessian(&factors, &variables, &sparsity, &mut AtA_values, &mut Atb);
         println!("Atb {}", Atb);
         println!("AtA_values {:?}", AtA_values);
+
+        let minor_indices = sparsity.inner_index;
+        let major_offsets = sparsity.outer_index;
+        let patt = SparsityPattern::try_from_offsets_and_indices(
+            sparsity.base.A_cols,
+            sparsity.base.A_cols,
+            major_offsets,
+            minor_indices,
+        );
+        let csc = CscMatrix::try_from_pattern_and_values(patt.unwrap(), AtA_values)
+            .expect("CSC data must conform to format specifications");
+        let csc_d: DMatrix<f64> = DMatrix::<f64>::from(&csc);
+        // assert_matrix_eq!(csc, dense);
+        println!("csc {}", csc_d);
     }
     #[test]
     fn stack_matrix() {

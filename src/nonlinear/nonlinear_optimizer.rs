@@ -200,13 +200,13 @@ where
             if self.opt.linear_solver().is_normal() {
                 if self.opt.linear_solver().is_normal_lower() {
                     // lower hessian linearization
-                    linearzation_lower_hessian(
-                        factors,
-                        variables,
-                        &self.h_sparsity,
-                        &mut A,
-                        &mut b,
-                    );
+                    // linearzation_lower_hessian(
+                    //     factors,
+                    //     variables,
+                    //     &self.h_sparsity,
+                    //     &mut A,
+                    //     &mut b,
+                    // );
                 } else {
                     // full hessian linearization
                     linearzation_full_hessian(factors, variables, &self.h_sparsity, &mut A, &mut b);
