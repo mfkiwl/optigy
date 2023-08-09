@@ -79,21 +79,21 @@ where
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use core::cell::{Ref, RefCell};
-    use core::{borrow::BorrowMut, cell::RefMut, ops::Deref};
-
     use super::{Factor, Jacobians};
     use crate::core::{
         key::Key,
         loss_function::{GaussianLoss, LossFunction},
         variable::{
-            tests::{VariableA, VariableB},
+            tests::{RandomVariable, VariableA, VariableB},
             Variable,
         },
         variables::Variables,
         variables_container::VariablesContainer,
     };
+    use core::cell::{Ref, RefCell};
+    use core::{borrow::BorrowMut, cell::RefMut, ops::Deref};
     use nalgebra::{DMatrix, DVector, RealField};
+    use rand::Rng;
 
     pub struct FactorA<R>
     where
@@ -215,7 +215,6 @@ pub(crate) mod tests {
             }
             self.error.borrow_mut()
         }
-
         fn jacobians<C>(&self, variables: &Variables<R, C>) -> RefMut<Jacobians<R>>
         where
             C: VariablesContainer<R>,
@@ -227,6 +226,73 @@ pub(crate) mod tests {
                 js[0].column_mut(0).copy_from(&v0.val);
                 js[1].column_mut(1).copy_from(&v1.val);
             }
+            self.jacobians.borrow_mut()
+        }
+
+        fn dim(&self) -> usize {
+            3
+        }
+
+        fn keys(&self) -> &[Key] {
+            &self.keys
+        }
+
+        fn loss_function(&self) -> Option<&Self::L> {
+            self.loss.as_ref()
+        }
+    }
+
+    pub struct RandomBlockFactor<R>
+    where
+        R: RealField,
+    {
+        pub loss: Option<GaussianLoss>,
+        pub error: RefCell<DVector<R>>,
+        pub jacobians: RefCell<Jacobians<R>>,
+        pub keys: Vec<Key>,
+    }
+    impl<R> RandomBlockFactor<R>
+    where
+        R: RealField,
+    {
+        pub fn new(var0: Key, var1: Key) -> Self {
+            let mut rng = rand::thread_rng();
+            let mut jacobians = Vec::<DMatrix<R>>::with_capacity(2);
+            jacobians.resize_with(2, || {
+                DMatrix::from_fn(3, 3, |_i, _j| R::from_f64(rng.gen::<f64>()).unwrap())
+            });
+            let mut keys = Vec::<Key>::new();
+            keys.push(var0);
+            keys.push(var1);
+            RandomBlockFactor {
+                loss: None,
+                error: RefCell::new(DVector::zeros(3)),
+                jacobians: RefCell::new(jacobians),
+                keys,
+            }
+        }
+    }
+    impl<R> Factor<R> for RandomBlockFactor<R>
+    where
+        R: RealField,
+    {
+        type L = GaussianLoss;
+        fn error<C>(&self, variables: &Variables<R, C>) -> RefMut<DVector<R>>
+        where
+            C: VariablesContainer<R>,
+        {
+            let v0: &RandomVariable<R> = variables.at(self.keys()[0]).unwrap();
+            let v1: &RandomVariable<R> = variables.at(self.keys()[1]).unwrap();
+            {
+                *self.error.borrow_mut() = v0.val.clone() - v1.val.clone();
+            }
+            self.error.borrow_mut()
+        }
+
+        fn jacobians<C>(&self, variables: &Variables<R, C>) -> RefMut<Jacobians<R>>
+        where
+            C: VariablesContainer<R>,
+        {
             self.jacobians.borrow_mut()
         }
 

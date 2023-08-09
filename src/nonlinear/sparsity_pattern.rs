@@ -1,8 +1,10 @@
+use std::collections::BTreeSet;
+
 use crate::core::{
     factors::Factors, factors_container::FactorsContainer, variable_ordering::VariableOrdering,
     variables::Variables, variables_container::VariablesContainer,
 };
-use hashbrown::{HashMap, HashSet};
+use hashbrown::HashMap;
 use nalgebra::RealField;
 use num::Float;
 /// base class for A and A'A sparsity pattern, if variable ordering is fixed,
@@ -56,7 +58,7 @@ pub struct LowerHessianSparsityPattern {
 
     /// corl_vars: variable ordering position of all correlated vars of each var
     /// (not include self), set must be ordered
-    pub corl_vars: Vec<HashSet<usize>>,
+    pub corl_vars: Vec<BTreeSet<usize>>,
 
     /// inner index of each coorelated vars, exculde lower triangular part
     /// index: corl var idx, value: inner index
@@ -159,7 +161,7 @@ where
     // does not include itself
     sparsity
         .corl_vars
-        .resize(variable_ordering.len(), HashSet::default());
+        .resize(variable_ordering.len(), BTreeSet::default());
 
     for f_index in 0..factors.len() {
         let mut factor_key_order_idx: Vec<usize> = Vec::new();
@@ -197,7 +199,6 @@ where
         // non-self
         for corl_var_idx in &sparsity.corl_vars[var_idx] {
             last_nnz_AtA_vars_accum += sparsity.base.var_dim[*corl_var_idx] * self_dim;
-            // for (int col = self_col; col < self_col + self_dim; col++) {
             for col in self_col..(self_col + self_dim) {
                 sparsity.nnz_AtA_cols[col] += sparsity.base.var_dim[*corl_var_idx];
             }
@@ -215,6 +216,7 @@ where
         let mut nnzdim_counter: usize = 0;
         // non-self
         for var2_idx in &sparsity.corl_vars[var1_idx] {
+            //TODO: maby here?
             sparsity.inner_insert_map[var1_idx].insert(*var2_idx, nnzdim_counter);
             nnzdim_counter += sparsity.base.var_dim[*var2_idx];
         }

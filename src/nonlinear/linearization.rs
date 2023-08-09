@@ -39,9 +39,8 @@ pub fn linearzation_jacobian<R, VC, FC>(
             .weighted_jacobians_error_at(variables, f_index)
             .unwrap();
         let wht_js = wht_js_err.jacobians.deref();
-        // TODO: do wht_js_err.errror negation
         b.rows_mut(err_row_counter, f_dim)
-            .copy_from(wht_js_err.error.deref());
+            .copy_from(&wht_js_err.error.deref().clone());
 
         for j_idx in 0..wht_js.len() {
             let jacob = &wht_js[j_idx];
@@ -54,6 +53,8 @@ pub fn linearzation_jacobian<R, VC, FC>(
 
         err_row_counter += f_dim;
     }
+    //TODO: do better
+    b.neg_mut();
 }
 
 // data struct for sort key in
@@ -131,15 +132,23 @@ fn linearzation_lower_hessian_single_factor<R, VC, FC>(
         stackJtJ.copy_from(&sTs);
     }
 
-    let mut stackJtb = stackJ.transpose() * wht_err;
-    stackJtb.neg_mut();
+    let mut stackJtb = stackJ.transpose() * wht_err.clone();
+    // stackJtb.neg_mut();
     // #ifdef MINISAM_WITH_MULTI_THREADS
     //   mutex_b.lock();
     // #endif
 
+    // for j_idx in 0..wht_Js.len() {
+    //     Atb.rows_mut(jacobian_col[j_idx], wht_Js[j_idx].ncols())
+    //         .copy_from(&stackJtb.rows(jacobian_col_local[j_idx], wht_Js[j_idx].ncols()))
+    // }
     for j_idx in 0..wht_Js.len() {
+        //TODO: do it shit better
+        let v = Atb.rows_mut(jacobian_col[j_idx], wht_Js[j_idx].ncols());
+        let c = stackJtb.rows(jacobian_col_local[j_idx], wht_Js[j_idx].ncols());
+        let d = v - c;
         Atb.rows_mut(jacobian_col[j_idx], wht_Js[j_idx].ncols())
-            .copy_from(&stackJtb.rows(jacobian_col_local[j_idx], wht_Js[j_idx].ncols()))
+            .copy_from(&d);
     }
 
     // #ifdef MINISAM_WITH_MULTI_THREADS
@@ -151,25 +160,18 @@ fn linearzation_lower_hessian_single_factor<R, VC, FC>(
         // scan by row
         let nnz_AtA_vars_accum_var = sparsity.nnz_AtA_vars_accum[var_idx[j_idx]];
         let mut value_idx: usize = nnz_AtA_vars_accum_var;
-        println!("j_idx: {}", j_idx);
         for j in 0..wht_Js[j_idx].ncols() {
             for i in j..wht_Js[j_idx].ncols() {
                 AtA_values[value_idx] +=
                     stackJtJ[(jacobian_col_local[j_idx] + i, jacobian_col_local[j_idx] + j)];
                 value_idx += 1;
             }
-            println!("value_idx: {}", value_idx);
-            println!(
-                "sparsity.nnz_AtA_cols[jacobian_col[j_idx] + j]: {}",
-                sparsity.nnz_AtA_cols[jacobian_col[j_idx] + j]
-            );
-            println!("wht_Js[j_idx].ncols() + j: {}", wht_Js[j_idx].ncols() + j);
             let offset: i64 = sparsity.nnz_AtA_cols[jacobian_col[j_idx] + j] as i64
                 - wht_Js[j_idx].ncols() as i64
                 + j as i64;
             // value_idx += sparsity.nnz_AtA_cols[jacobian_col[j_idx] + j] - wht_Js[j_idx].ncols() + j;
             if offset < 0 {
-                value_idx = value_idx.checked_sub((-offset) as usize).unwrap();
+                value_idx -= (-offset) as usize;
             } else {
                 value_idx += offset as usize;
             }
@@ -275,20 +277,24 @@ mod tests {
     use matrixcompare::assert_matrix_eq;
     use nalgebra::{dmatrix, DMatrix, DVector, Matrix3x4};
     use nalgebra_sparse::{pattern::SparsityPattern, CscMatrix};
+    use rand::{distributions::Uniform, prelude::Distribution};
 
     use crate::{
         core::{
-            factor::tests::{FactorA, FactorB},
+            factor::tests::{FactorA, FactorB, RandomBlockFactor},
             factors::Factors,
             factors_container::FactorsContainer,
             key::Key,
-            variable::tests::{VariableA, VariableB},
+            variable::tests::{RandomVariable, VariableA, VariableB},
+            variable_ordering::VariableOrdering,
             variables::Variables,
             variables_container::VariablesContainer,
         },
         nonlinear::{
             linearization::{linearzation_jacobian, linearzation_lower_hessian, stack_matrix_col},
-            sparsity_pattern::{construct_jacobian_sparsity, construct_lower_hessian_sparsity},
+            sparsity_pattern::{
+                self, construct_jacobian_sparsity, construct_lower_hessian_sparsity,
+            },
         },
     };
 
@@ -319,24 +325,34 @@ mod tests {
     #[allow(non_snake_case)]
     fn linearize_hessian() {
         type Real = f64;
-        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
+        let container = ().and_variable::<RandomVariable<Real>>();
         let mut variables = Variables::new(container);
-        variables.add(Key(0), VariableA::<Real>::new(1.0));
-        variables.add(Key(1), VariableB::<Real>::new(5.0));
-        variables.add(Key(2), VariableB::<Real>::new(10.0));
+        variables.add(Key(0), RandomVariable::<Real>::default());
+        variables.add(Key(1), RandomVariable::<Real>::default());
+        variables.add(Key(2), RandomVariable::<Real>::default());
 
-        let container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
+        let container =
+            ().and_factor::<FactorA<Real>>()
+                .and_factor::<FactorB<Real>>()
+                .and_factor::<RandomBlockFactor<Real>>();
         let mut factors = Factors::new(container);
-        factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
-        factors.add(FactorB::new(2.0, None, Key(1), Key(2)));
-        let variable_ordering = variables.default_variable_ordering();
+        factors.add(RandomBlockFactor::new(Key(0), Key(1)));
+        // factors.add(RandomBlockFactor::new(Key(1), Key(0)));
+        factors.add(RandomBlockFactor::new(Key(0), Key(2)));
+        // let variable_ordering = variables.default_variable_ordering();
+        let variable_ordering = VariableOrdering::new(vec![Key(0), Key(1), Key(2)].as_slice());
+        println!("ordering {:?}", variable_ordering);
+        for f_idx in 0..factors.len() {
+            println!("keys {:?}", factors.keys_at(f_idx));
+        }
         let pattern = construct_jacobian_sparsity(&factors, &variables, &variable_ordering);
         let mut A = DMatrix::<Real>::zeros(pattern.base.A_rows, pattern.base.A_cols);
         let mut b = DVector::<Real>::zeros(pattern.base.A_rows);
         linearzation_jacobian(&factors, &variables, &pattern, &mut A, &mut b);
-        println!("A {}", A);
-        println!("b {}", b);
-        println!("J AtA: {}", A.transpose() * A);
+        // println!("A {}", A);
+        // println!("b {}", b);
+        // println!("J AtA: {}", A.transpose() * A.clone());
+        // println!("J Atb: {}", A.transpose() * b.clone());
         let minor_indices = vec![1, 2, 0, 2, 4, 2, 1, 4]; //inner_index
         let major_offsets = vec![0, 2, 4, 5, 6, 8]; //outer_index
         let values = vec![22.0, 7.0, 3.0, 5.0, 14.0, 1.0, 17.0, 8.0]; //values
@@ -346,35 +362,97 @@ mod tests {
 
         let patt =
             SparsityPattern::try_from_offsets_and_indices(5, 5, major_offsets, minor_indices);
-        println!("patt: {:?}", patt);
+        // println!("patt: {:?}", patt);
         // The constructor validates the raw CSC data and returns an error if it is invalid.
         let csc = CscMatrix::try_from_pattern_and_values(patt.unwrap(), values)
             .expect("CSC data must conform to format specifications");
         let csc_d: DMatrix<f64> = DMatrix::<f64>::from(&csc);
         // assert_matrix_eq!(csc, dense);
-        println!("csc {}", csc_d);
+        // println!("csc {}", csc_d);
 
         let sparsity = construct_lower_hessian_sparsity(&factors, &variables, &variable_ordering);
+        println!("corl vars {:?}", sparsity.corl_vars);
+        println!("inner map {:?}", sparsity.inner_insert_map);
         let mut AtA_values = Vec::<f64>::with_capacity(sparsity.total_nnz_AtA_cols);
         AtA_values.resize(sparsity.total_nnz_AtA_cols, 0.0);
         let mut Atb = DVector::<f64>::zeros(sparsity.base.A_cols);
         linearzation_lower_hessian(&factors, &variables, &sparsity, &mut AtA_values, &mut Atb);
-        println!("Atb {}", Atb);
-        println!("AtA_values {:?}", AtA_values);
+        // println!("Atb {}", Atb);
+        // println!("AtA_values {:?}", AtA_values);
 
         let minor_indices = sparsity.inner_index;
         let major_offsets = sparsity.outer_index;
+        println!("minor_indeces: {:?}", minor_indices);
+        println!("major_ossets: {:?}", major_offsets);
         let patt = SparsityPattern::try_from_offsets_and_indices(
             sparsity.base.A_cols,
             sparsity.base.A_cols,
             major_offsets,
             minor_indices,
         );
-        let csc = CscMatrix::try_from_pattern_and_values(patt.unwrap(), AtA_values)
+        let AtA = CscMatrix::try_from_pattern_and_values(patt.unwrap(), AtA_values)
             .expect("CSC data must conform to format specifications");
-        let csc_d: DMatrix<f64> = DMatrix::<f64>::from(&csc);
+        let AtA: DMatrix<f64> = DMatrix::<f64>::from(&AtA);
         // assert_matrix_eq!(csc, dense);
-        println!("csc {}", csc_d);
+        // println!("AtA {}", AtA);
+        // println!("Atb {}", Atb);
+    }
+    #[test]
+    #[allow(non_snake_case)]
+    fn linearize_hessian_random() {
+        type Real = f64;
+        for _ in 0..100 {
+            let container = ().and_variable::<RandomVariable<Real>>();
+            let mut variables = Variables::new(container);
+            let variables_cnt = 100;
+            for k in 0..variables_cnt {
+                variables.add(Key(k), RandomVariable::<Real>::default());
+            }
+
+            let container = ().and_factor::<RandomBlockFactor<Real>>();
+            let mut factors = Factors::new(container);
+            let factors_cnt = 1000;
+            let mut rng = rand::thread_rng();
+            let rnd_key = Uniform::from(0..variables_cnt);
+            for _ in 0..factors_cnt {
+                let k0 = rnd_key.sample(&mut rng);
+                let k1 = rnd_key.sample(&mut rng);
+                if k0 == k1 {
+                    // println!("k0 == k1");
+                    continue;
+                }
+                factors.add(RandomBlockFactor::new(Key(k0), Key(k1)));
+            }
+            let variable_ordering = variables.default_variable_ordering();
+            let pattern = construct_jacobian_sparsity(&factors, &variables, &variable_ordering);
+            let mut A = DMatrix::<Real>::zeros(pattern.base.A_rows, pattern.base.A_cols);
+            let mut b = DVector::<Real>::zeros(pattern.base.A_rows);
+            linearzation_jacobian(&factors, &variables, &pattern, &mut A, &mut b);
+            let JAtA = A.transpose() * A.clone();
+            let JAtb = A.transpose() * b.clone();
+
+            let sparsity =
+                construct_lower_hessian_sparsity(&factors, &variables, &variable_ordering);
+            let mut AtA_values = Vec::<f64>::with_capacity(sparsity.total_nnz_AtA_cols);
+            AtA_values.resize(sparsity.total_nnz_AtA_cols, 0.0);
+            let mut Atb = DVector::<f64>::zeros(sparsity.base.A_cols);
+            linearzation_lower_hessian(&factors, &variables, &sparsity, &mut AtA_values, &mut Atb);
+
+            let minor_indices = sparsity.inner_index;
+            let major_offsets = sparsity.outer_index;
+            let patt = SparsityPattern::try_from_offsets_and_indices(
+                sparsity.base.A_cols,
+                sparsity.base.A_cols,
+                major_offsets,
+                minor_indices,
+            );
+            let AtA = CscMatrix::try_from_pattern_and_values(patt.unwrap(), AtA_values)
+                .expect("CSC data must conform to format specifications");
+            let AtA: DMatrix<f64> = DMatrix::<f64>::from(&AtA);
+
+            assert_matrix_eq!(AtA, JAtA.lower_triangle(), comp = abs, tol = 1e-9);
+            assert_matrix_eq!(Atb, JAtb, comp = abs, tol = 1e-9);
+        }
     }
     #[test]
     fn stack_matrix() {
