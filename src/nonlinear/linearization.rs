@@ -4,7 +4,7 @@ use nalgebra::{DMatrix, DVector, RealField};
 use num::Float;
 
 use crate::core::{
-    factors::Factors, factors_container::FactorsContainer, variables::Variables,
+    factor::Jacobians, factors::Factors, factors_container::FactorsContainer, variables::Variables,
     variables_container::VariablesContainer,
 };
 
@@ -56,7 +56,31 @@ pub fn linearzation_jacobian<R, VC, FC>(
     }
 }
 
+// data struct for sort key in
+#[allow(non_snake_case)]
+pub(crate) fn stack_matrix_col<R>(mats: &Jacobians<R>) -> DMatrix<R>
+where
+    R: RealField,
+{
+    assert!(mats.len() > 0);
+    let mut H_stack_cols: usize = 0;
+    for H in mats {
+        H_stack_cols += H.ncols();
+    }
+    let rows = mats[0].nrows();
+    let mut H_stack = DMatrix::<R>::zeros(rows, H_stack_cols);
+    H_stack_cols = 0;
+    for H in mats {
+        assert_eq!(H.nrows(), rows);
+        H_stack.columns_mut(H_stack_cols, H.ncols()).copy_from(H);
+        H_stack_cols += H.ncols();
+    }
+    H_stack
+}
+
+#[allow(non_snake_case)]
 fn linearzation_lower_hessian_single_factor<R, VC, FC>(
+    f_index: usize,
     factors: &Factors<R, FC>,
     variables: &Variables<R, VC>,
     sparsity: &LowerHessianSparsityPattern,
@@ -67,42 +91,47 @@ fn linearzation_lower_hessian_single_factor<R, VC, FC>(
     VC: VariablesContainer<R>,
     FC: FactorsContainer<R>,
 {
+    let f_keys = factors.keys_at(f_index).unwrap();
+    let f_len = f_keys.len();
+    //  whiten err and jacobians
+    let mut var_idx = Vec::<usize>::new();
+    let mut jacobian_col = Vec::<usize>::new();
+    let mut jacobian_col_local = Vec::<usize>::new();
+    var_idx.reserve(f_len);
+    jacobian_col.reserve(f_len);
+    jacobian_col_local.reserve(f_len);
+    let mut local_col: usize = 0;
+    for key in f_keys {
+        // A col start index
+        let key_idx = sparsity.base.var_ordering.search_key(*key).unwrap();
+        var_idx.push(key_idx);
+        jacobian_col.push(sparsity.base.var_col[key_idx]);
+        jacobian_col_local.push(local_col);
+        local_col += sparsity.base.var_dim[key_idx];
+    }
 
-    // // whiten err and jacobians
-    // vector<size_t> var_idx, jacobian_col, jacobian_col_local;
-    // var_idx.reserve(f->size());
-    // jacobian_col.reserve(f->size());
-    // jacobian_col_local.reserve(f->size());
-    // size_t local_col = 0;
-    // for (Key vkey : f->keys()) {
-    //   // A col start index
-    //   size_t key_idx = sparsity.var_ordering.searchKeyUnsafe(vkey);
-    //   var_idx.push_back(key_idx);
-    //   jacobian_col.push_back(sparsity.var_col[key_idx]);
-    //   jacobian_col_local.push_back(local_col);
-    //   local_col += sparsity.var_dim[key_idx];
-    // }
+    let wht_Js_err = factors
+        .weighted_jacobians_error_at(variables, f_index)
+        .unwrap();
+    let wht_Js = wht_Js_err.jacobians.deref();
+    let wht_err = wht_Js_err.error.deref();
 
-    // const pair<vector<Eigen::MatrixXd>, Eigen::VectorXd> wht_Js_err =
-    //     f->weightedJacobiansError(values);
+    let stackJ = stack_matrix_col(wht_Js);
 
-    // const vector<Eigen::MatrixXd>& wht_Js = wht_Js_err.first;
-    // const Eigen::VectorXd& wht_err = wht_Js_err.second;
+    let mut stackJtJ = DMatrix::<R>::zeros(stackJ.ncols(), stackJ.ncols());
 
-    // Eigen::MatrixXd stackJ = stackMatrixCol_(wht_Js);
+    // adaptive multiply for better speed
+    if stackJ.ncols() > 12 {
+        // memset(stackJtJ.data(), 0, stackJ.cols() * stackJ.cols() * sizeof(double));
+        // stackJtJ.selfadjointView<Eigen::Lower>().rankUpdate(stackJ.transpose());
+        let sTs = stackJ.transpose() * stackJ.clone();
+        stackJtJ.copy_from(&sTs);
+    } else {
+        let sTs = stackJ.transpose() * stackJ.clone();
+        stackJtJ.copy_from(&sTs);
+    }
 
-    // Eigen::MatrixXd stackJtJ(stackJ.cols(), stackJ.cols());
-
-    // // adaptive multiply for better speed
-    // if (stackJ.cols() > 12) {
-    //   // stackJtJ.setZero();
-    //   memset(stackJtJ.data(), 0, stackJ.cols() * stackJ.cols() * sizeof(double));
-    //   stackJtJ.selfadjointView<Eigen::Lower>().rankUpdate(stackJ.transpose());
-    // } else {
-    //   stackJtJ.noalias() = stackJ.transpose() * stackJ;
-    // }
-
-    // const Eigen::VectorXd stackJtb = stackJ.transpose() * wht_err;
+    let stackJtb = stackJ.transpose() * wht_err;
 
     // #ifdef MINISAM_WITH_MULTI_THREADS
     //   mutex_b.lock();
@@ -218,7 +247,9 @@ pub fn linearzation_full_hessian<R, VC, FC>(
 #[cfg(test)]
 mod tests {
 
-    use nalgebra::{DMatrix, DVector};
+    use matrixcompare::assert_matrix_eq;
+    use nalgebra::{dmatrix, DMatrix, DVector, Matrix3x4};
+    use nalgebra_sparse::{pattern::SparsityPattern, CscMatrix};
 
     use crate::{
         core::{
@@ -231,7 +262,8 @@ mod tests {
             variables_container::VariablesContainer,
         },
         nonlinear::{
-            linearization::linearzation_jacobian, sparsity_pattern::construct_jacobian_sparsity,
+            linearization::{linearzation_jacobian, stack_matrix_col},
+            sparsity_pattern::construct_jacobian_sparsity,
         },
     };
 
@@ -256,5 +288,56 @@ mod tests {
         linearzation_jacobian(&factors, &variables, &pattern, &mut A, &mut b);
         println!("A {:?}", A);
         println!("b {:?}", b);
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn linearize_hessian() {
+        type Real = f64;
+        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
+        let mut variables = Variables::new(container);
+        variables.add(Key(0), VariableA::<Real>::new(1.0));
+        variables.add(Key(1), VariableB::<Real>::new(5.0));
+        variables.add(Key(2), VariableB::<Real>::new(10.0));
+
+        let container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
+        let mut factors = Factors::new(container);
+        factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
+        factors.add(FactorB::new(2.0, None, Key(1), Key(2)));
+        let variable_ordering = variables.default_variable_ordering();
+        let pattern = construct_jacobian_sparsity(&factors, &variables, &variable_ordering);
+        let mut A = DMatrix::<Real>::zeros(pattern.base.A_rows, pattern.base.A_cols);
+        let mut b = DVector::<Real>::zeros(pattern.base.A_rows);
+        linearzation_jacobian(&factors, &variables, &pattern, &mut A, &mut b);
+        println!("A {}", A);
+        println!("b {}", b);
+        let minor_indexes = vec![1, 2, 0, 2, 4, 2, 1, 4]; //inner_index
+        let major_offsets = vec![0, 2, 4, 5, 6, 8]; //outer_index
+        let values = vec![22.0, 7.0, 3.0, 5.0, 14.0, 1.0, 17.0, 8.0]; //values
+
+        // The dense representation of the CSC data, for comparison
+        let dense = Matrix3x4::new(1.0, 2.0, 0.0, 5.0, 0.0, 0.0, 0.0, 0.0, 0.0, 3.0, 4.0, 0.0);
+
+        let patt =
+            SparsityPattern::try_from_offsets_and_indices(5, 5, minor_indexes, major_offsets);
+        println!("patt: {:?}", patt);
+        // The constructor validates the raw CSC data and returns an error if it is invalid.
+        let csc = CscMatrix::try_from_pattern_and_values(patt.unwrap(), values)
+            .expect("CSC data must conform to format specifications");
+        let csc_d: DMatrix<f64> = DMatrix::<f64>::from(&csc);
+        // assert_matrix_eq!(csc, dense);
+        println!("csc {}", csc_d);
+    }
+    #[test]
+    fn stack_matrix() {
+        let mats = vec![
+            dmatrix![1.0, 2.0; 2.0, 3.0],
+            dmatrix![3.0, 4.0, 5.0; 6.0, 7.0, 8.0],
+        ];
+        let stack = stack_matrix_col(&mats);
+        assert_matrix_eq!(
+            stack,
+            dmatrix![1.0, 2.0, 3.0, 4.0, 5.0;2.0, 3.0, 6.0, 7.0, 8.0]
+        );
     }
 }
