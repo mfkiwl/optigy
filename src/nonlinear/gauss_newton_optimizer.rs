@@ -33,14 +33,14 @@ where
     #[allow(non_snake_case)]
     fn iterate<VC, FC>(
         &self,
-        factors: &Factors<R, FC>,
+        _factors: &Factors<R, FC>,
         variables: &mut Variables<R, VC>,
         h_sparsity: &LowerHessianSparsityPattern,
         j_sparsity: &JacobianSparsityPattern,
         A: &DMatrix<R>,
         b: &DVector<R>,
-        err_uptodate: &mut bool,
-        err_squared_norm: &mut f64,
+        _err_uptodate: &mut bool,
+        _err_squared_norm: &mut f64,
     ) -> NonlinearOptimizationStatus
     where
         R: RealField,
@@ -87,12 +87,13 @@ mod tests {
         linear::sparse_cholesky_solver::SparseCholeskySolver,
         nonlinear::{
             gauss_newton_optimizer::GaussNewtonOptimizer,
-            nonlinear_optimizer::OptIterate,
+            nonlinear_optimizer::{NonlinearOptimizationStatus, OptIterate},
             sparsity_pattern::{construct_jacobian_sparsity, construct_lower_hessian_sparsity},
         },
     };
 
     #[test]
+    #[allow(non_snake_case)]
     fn iterate() {
         type Real = f64;
         let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
@@ -125,5 +126,6 @@ mod tests {
             &mut err_uptodate,
             &mut err_squared_norm,
         );
+        assert_eq!(opt_res, NonlinearOptimizationStatus::Success);
     }
 }

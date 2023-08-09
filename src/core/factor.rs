@@ -150,8 +150,8 @@ pub(crate) mod tests {
             let v1: &VariableB<R> = variables.at(Key(1)).unwrap();
             {
                 let mut js = self.jacobians.borrow_mut();
-                // js[0].column(0) = &v0.val;
-                // js[1].column(1).clone_from(&v1.val);
+                js[0].column_mut(0).copy_from(&v0.val);
+                js[1].column_mut(1).copy_from(&v1.val);
             }
             self.jacobians.borrow_mut()
         }
@@ -224,8 +224,8 @@ pub(crate) mod tests {
             let v1: &VariableB<R> = variables.at(Key(1)).unwrap();
             {
                 let mut js = self.jacobians.borrow_mut();
-                // js[0].as_mut().col(0).clone_from(v0.val.as_ref());
-                // js[1].as_mut().col(1).clone_from(v1.val.as_ref());
+                js[0].column_mut(0).copy_from(&v0.val);
+                js[1].column_mut(1).copy_from(&v1.val);
             }
             self.jacobians.borrow_mut()
         }

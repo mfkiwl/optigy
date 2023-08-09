@@ -435,8 +435,8 @@ pub(crate) mod tests {
         }
         let mut jacobians = Vec::<DMatrix<Real>>::with_capacity(2);
         jacobians.resize_with(2, || DMatrix::zeros(3, 3));
-        // jacobians[0].as_mut().col(0).set_constant(1.0);
-        // jacobians[1].as_mut().col(1).set_constant(2.0);
+        jacobians[0].column_mut(0).fill(1.0);
+        jacobians[1].column_mut(1).fill(2.0);
         assert_eq!(
             container
                 .weighted_jacobians_error_at(&variables, 0, 0)
@@ -489,8 +489,8 @@ pub(crate) mod tests {
         }
         let mut jacobians = Vec::<DMatrix<Real>>::with_capacity(2);
         jacobians.resize_with(2, || DMatrix::zeros(3, 3));
-        // jacobians[0].as_mut().col(0).set_constant(1.0);
-        // jacobians[1].as_mut().col(1).set_constant(2.0);
+        jacobians[0].column_mut(0).fill(1.0);
+        jacobians[1].column_mut(1).fill(2.0);
         assert_eq!(
             container
                 .weighted_error_at(&variables, 0, 0)

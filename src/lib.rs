@@ -1,11 +1,10 @@
-mod core;
-mod linear;
-mod nonlinear;
+pub mod core;
+pub mod linear;
+pub mod nonlinear;
 
-mod prelude;
+pub mod prelude;
 #[cfg(test)]
 mod tests {
     use super::prelude::{Factor, Key, LossFunction, Variable, Variables};
     use super::*;
-    use faer_core::Mat;
 }

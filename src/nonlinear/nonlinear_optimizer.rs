@@ -19,7 +19,7 @@ use super::{
     },
 };
 /// return status of nonlinear optimization
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum NonlinearOptimizationStatus {
     /// nonlinear optimization meets converge requirement
     Success = 0,
