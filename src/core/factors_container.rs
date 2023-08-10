@@ -416,9 +416,7 @@ pub(crate) mod tests {
             let fc1 = container.get_mut::<FactorB<Real>>().unwrap();
             fc1.push(FactorB::new(2.0, None, Key(0), Key(1)));
         }
-        let mut keys = Vec::<Key>::new();
-        keys.push(Key(0));
-        keys.push(Key(1));
+        let keys = vec![Key(0), Key(1)];
         assert_eq!(container.keys_at(0, 0).unwrap(), keys);
         assert_eq!(container.keys_at(1, 0).unwrap(), keys);
         assert_eq!(container.keys_at(2, 0).unwrap(), keys);
