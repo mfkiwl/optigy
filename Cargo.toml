@@ -6,11 +6,14 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-faer-core = { git = "https://github.com/sarah-ek/faer-rs", rev="663f2e18aa4e6baf50667343f2cc519bc7043b40"}
-dyn-stack = "0.9.0"
 hashbrown = "0.11.2"
 nalgebra = {version="0.32.3", features=["compare"]}
 nalgebra-sparse = {version="0.9.0", features=["compare"]}
 num = "0.4.1"
-matrixcompare = "0.3.0"
 rand = "0.8.5"
+[dev-dependencies]
+matrixcompare = "0.3.0"
+criterion = { version = "0.4", features = ["html_reports"] }
+[[bench]]
+name = "sparsity_pattern"
+harness = false

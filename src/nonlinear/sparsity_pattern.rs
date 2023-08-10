@@ -259,7 +259,6 @@ where
 }
 #[cfg(test)]
 mod tests {
-
     use crate::{
         core::{
             factor::tests::{FactorA, FactorB},

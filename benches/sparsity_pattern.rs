@@ -1,21 +1,16 @@
-use core::cell::RefCell;
-use core::cell::RefMut;
+use std::cell::{RefCell, RefMut};
 
-use nalgebra::DVectorView;
-
-use nalgebra::Vector2;
-use nalgebra::{DMatrix, DVector, RealField};
-use optigy::prelude::Factors;
-use optigy::prelude::FactorsContainer;
-use optigy::prelude::GaussNewtonOptimizer;
-use optigy::prelude::NonlinearOptimizer;
-use optigy::prelude::Variable;
-use optigy::prelude::VariablesContainer;
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use nalgebra::{DMatrix, DVector, DVectorView, RealField, Vector2};
 use optigy::{
-    core::{factor::Jacobians, loss_function::GaussianLoss},
-    prelude::{Factor, Key, Variables},
+    core::{
+        factor::Jacobians, factors::Factors, factors_container::FactorsContainer,
+        loss_function::GaussianLoss, variables_container::VariablesContainer,
+    },
+    nonlinear::sparsity_pattern::construct_lower_hessian_sparsity,
+    prelude::{Factor, Key, Variable, Variables},
 };
-#[derive(Debug, Clone)]
+
 pub struct E2<R = f64>
 where
     R: RealField,
@@ -118,51 +113,26 @@ where
         None
     }
 }
-/**
- * A simple 2D pose-graph SLAM with 'GPS' measurement
- * The robot moves from x1 to x3, with odometry information between each pair.
- * each step has an associated 'GPS' measurement by GPSPose2Factor
- * The graph strcuture is shown:
- *
- *  g1   g2   g3
- *  |    |    |
- *  x1 - x2 - x3
- *
- * The GPS factor has error function
- *     e = pose.translation() - measurement
- */
-fn main() {
+fn lower_hessian_sparsity(c: &mut Criterion) {
     let container = ().and_variable::<E2>();
     let mut variables = Variables::new(container);
+    let vcnt = 5000;
+
+    for i in 0..vcnt {
+        variables.add(Key(i), E2::new(Vector2::new(0.0, 0.0)));
+    }
 
     let container = ().and_factor::<GPSPositionFactor>();
     let mut factors = Factors::new(container);
 
-    factors.add(GPSPositionFactor::new(Key(1), Vector2::new(0.0, 0.0)));
-    factors.add(GPSPositionFactor::new(Key(2), Vector2::new(5.0, 0.0)));
-    factors.add(GPSPositionFactor::new(Key(3), Vector2::new(10.0, 0.0)));
-
-    variables.add(Key(1), E2::new(Vector2::new(0.2, -0.3)));
-    variables.add(Key(2), E2::new(Vector2::new(5.1, 0.3)));
-    variables.add(Key(3), E2::new(Vector2::new(9.9, -0.1)));
-
-    let mut optimizer = NonlinearOptimizer::<GaussNewtonOptimizer>::default();
-
-    println!("before optimization");
-    let var1: &E2 = variables.at(Key(1)).unwrap();
-    let var2: &E2 = variables.at(Key(2)).unwrap();
-    let var3: &E2 = variables.at(Key(3)).unwrap();
-    println!("var 1 {}", var1.pose);
-    println!("var 2 {}", var2.pose);
-    println!("var 3 {}", var3.pose);
-    let opt_res = optimizer.optimize(&factors, &mut variables);
-    println!("opt_res {:?}", opt_res);
-    let var1: &E2 = variables.at(Key(1)).unwrap();
-    let var2: &E2 = variables.at(Key(2)).unwrap();
-    let var3: &E2 = variables.at(Key(3)).unwrap();
-    println!("after optimization");
-    println!("var 1 {}", var1.pose);
-    println!("var 2 {}", var2.pose);
-    println!("var 3 {}", var3.pose);
-    println!("final error {}", factors.error_squared_norm(&variables));
+    for i in 0..vcnt {
+        factors.add(GPSPositionFactor::new(Key(i), Vector2::new(0.0, 0.0)));
+    }
+    let variable_ordering = variables.default_variable_ordering();
+    c.bench_function("lower_hessian_sparsity", |b| {
+        b.iter(|| construct_lower_hessian_sparsity(&factors, &variables, &variable_ordering))
+    });
 }
+
+criterion_group!(benches, lower_hessian_sparsity);
+criterion_main!(benches);
