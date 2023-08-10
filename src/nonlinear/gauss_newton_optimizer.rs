@@ -8,14 +8,17 @@ use crate::{
         factors::Factors, factors_container::FactorsContainer, variable_ordering::VariableOrdering,
         variables::Variables, variables_container::VariablesContainer,
     },
-    linear::linear_solver::{LinearSolverStatus, SparseLinearSolver},
+    linear::{
+        linear_solver::{LinearSolverStatus, SparseLinearSolver},
+        sparse_cholesky_solver::SparseCholeskySolver,
+    },
 };
 
 use super::nonlinear_optimizer::{
     IterationData, LinSysWrapper, NonlinearOptimizationError, OptIterate,
 };
 #[derive(Default)]
-pub struct GaussNewtonOptimizer<S, R = f64>
+pub struct GaussNewtonOptimizer<S = SparseCholeskySolver, R = f64>
 where
     R: RealField + Float,
     S: SparseLinearSolver<R>,

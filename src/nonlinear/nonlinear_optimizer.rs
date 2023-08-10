@@ -9,7 +9,7 @@ use crate::{
         factors::Factors, factors_container::FactorsContainer, variable_ordering::VariableOrdering,
         variables::Variables, variables_container::VariablesContainer,
     },
-    linear::linear_solver::SparseLinearSolver,
+    linear::{linear_solver::SparseLinearSolver, sparse_cholesky_solver::SparseCholeskySolver},
 };
 
 use super::{
@@ -153,7 +153,7 @@ where
 }
 
 #[derive(Default)]
-pub struct NonlinearOptimizer<O, S, R = f64>
+pub struct NonlinearOptimizer<O, S = SparseCholeskySolver, R = f64>
 where
     R: RealField + Float,
     S: SparseLinearSolver<R>,

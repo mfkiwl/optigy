@@ -148,8 +148,7 @@ fn main() {
     variables.add(Key(2), E2::new(Vector2::new(5.1, 0.3)));
     variables.add(Key(3), E2::new(Vector2::new(9.9, -0.1)));
 
-    let mut optimizer =
-        NonlinearOptimizer::<GaussNewtonOptimizer<SparseCholeskySolver>, _>::default();
+    let mut optimizer = NonlinearOptimizer::<GaussNewtonOptimizer>::default();
 
     println!("before optimization");
     let var1: &E2 = variables.at(Key(1)).unwrap();
