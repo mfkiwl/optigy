@@ -229,9 +229,9 @@ mod tests {
         type Real = f64;
         let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
         let mut variables = Variables::new(container);
-        assert_eq!(variables.is_empty(), true);
+        assert!(variables.is_empty());
         variables.add(Key(0), VariableA::<Real>::new(0.0));
         variables.add(Key(1), VariableB::<Real>::new(0.0));
-        assert_eq!(variables.is_empty(), false);
+        assert!(!variables.is_empty());
     }
 }

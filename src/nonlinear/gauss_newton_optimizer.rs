@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use nalgebra::{DMatrix, DVector, RealField};
+use nalgebra::{DVector, RealField};
 use num::Float;
 
 use crate::{
@@ -14,9 +14,7 @@ use crate::{
 use super::{
     nonlinear_optimizer::{
         IterationData, LinSysWrapper, NonlinearOptimizationError, OptIterate,
-        OptimizerSpasityPattern,
     },
-    sparsity_pattern::{JacobianSparsityPattern, LowerHessianSparsityPattern},
 };
 #[derive(Default)]
 pub struct GaussNewtonOptimizer<R, S>
@@ -36,7 +34,7 @@ where
     #[allow(non_snake_case)]
     fn iterate<VC, FC>(
         &self,
-        factors: &Factors<R, FC>,
+        _factors: &Factors<R, FC>,
         variables: &mut Variables<R, VC>,
         variable_ordering: &VariableOrdering,
         lin_sys: LinSysWrapper<'_, R>,
@@ -66,7 +64,7 @@ where
 }
 #[cfg(test)]
 mod tests {
-    use nalgebra::{DMatrix, DVector};
+    use nalgebra::{DVector};
     use nalgebra_sparse::{pattern::SparsityPattern, CscMatrix};
 
     use crate::{
@@ -84,9 +82,9 @@ mod tests {
             gauss_newton_optimizer::GaussNewtonOptimizer,
             linearization::linearzation_lower_hessian,
             nonlinear_optimizer::{
-                LinSysWrapper, NonlinearOptimizationError, OptIterate, OptimizerSpasityPattern,
+                LinSysWrapper, OptIterate,
             },
-            sparsity_pattern::{construct_jacobian_sparsity, construct_lower_hessian_sparsity},
+            sparsity_pattern::{construct_lower_hessian_sparsity},
         },
     };
 
@@ -119,7 +117,7 @@ mod tests {
             sparsity.inner_index.clone(),
         )
         .unwrap();
-        let A = CscMatrix::try_from_pattern_and_values(csc_pattern.clone(), A_values.clone())
+        let A = CscMatrix::try_from_pattern_and_values(csc_pattern, A_values.clone())
             .expect("CSC data must conform to format specifications");
         let opt_res = optimizer.iterate(
             &factors,

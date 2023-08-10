@@ -13,9 +13,9 @@ use crate::{
 };
 
 use super::{
-    linearization::{linearzation_full_hessian, linearzation_jacobian, linearzation_lower_hessian},
+    linearization::{linearzation_lower_hessian},
     sparsity_pattern::{
-        construct_jacobian_sparsity, construct_lower_hessian_sparsity, JacobianSparsityPattern,
+        construct_lower_hessian_sparsity, JacobianSparsityPattern,
         LowerHessianSparsityPattern,
     },
 };
@@ -245,7 +245,7 @@ where
         let mut b: DVector<R> = DVector::zeros(A_rows);
         while self.iterations < self.params.max_iterations {
             match &self.sparsity {
-                OptimizerSpasityPattern::Jacobian(sparsity) => {
+                OptimizerSpasityPattern::Jacobian(_sparsity) => {
                     // jacobian linearization
                     // linearzation_jacobian(factors, variables, &self.j_sparsity, &mut A, &mut b);
                     todo!()

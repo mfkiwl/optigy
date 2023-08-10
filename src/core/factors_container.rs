@@ -520,10 +520,10 @@ pub(crate) mod tests {
     fn is_empty() {
         type Real = f64;
         let mut container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
-        assert_eq!(container.is_empty(), true);
+        assert!(container.is_empty());
         let fc0 = container.get_mut::<FactorA<Real>>().unwrap();
         fc0.push(FactorA::new(2.0, None, Key(0), Key(1)));
         fc0.push(FactorA::new(1.0, None, Key(0), Key(1)));
-        assert_eq!(container.is_empty(), false);
+        assert!(!container.is_empty());
     }
 }

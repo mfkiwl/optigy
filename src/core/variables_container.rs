@@ -293,7 +293,7 @@ mod tests {
     fn is_empty() {
         type Real = f64;
         let mut container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
-        assert_eq!(container.is_empty(), true);
+        assert!(container.is_empty());
         {
             let a = container.get::<VariableA<Real>>();
             assert!(a.is_some());
@@ -323,6 +323,6 @@ mod tests {
                 DVector::from_element(3, 7.0)
             );
         }
-        assert_eq!(container.is_empty(), false);
+        assert!(!container.is_empty());
     }
 }

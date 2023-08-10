@@ -190,9 +190,9 @@ mod tests {
         type Real = f64;
         let container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
         let mut factors = Factors::new(container);
-        assert_eq!(factors.is_empty(), true);
+        assert!(factors.is_empty());
         factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
         factors.add(FactorB::new(2.0, None, Key(0), Key(1)));
-        assert_eq!(factors.is_empty(), false);
+        assert!(!factors.is_empty());
     }
 }
