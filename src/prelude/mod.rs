@@ -1,4 +1,5 @@
 pub use crate::core::factor::Factor;
+pub use crate::core::factor::Jacobians;
 pub use crate::core::factors::Factors;
 pub use crate::core::factors_container::FactorsContainer;
 pub use crate::core::key::Key;

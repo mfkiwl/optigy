@@ -8,13 +8,12 @@ use nalgebra::{DMatrix, DVector, RealField};
 use optigy::prelude::Factors;
 use optigy::prelude::FactorsContainer;
 use optigy::prelude::GaussNewtonOptimizer;
+use optigy::prelude::GaussianLoss;
+use optigy::prelude::Jacobians;
 use optigy::prelude::NonlinearOptimizer;
 use optigy::prelude::Variable;
 use optigy::prelude::VariablesContainer;
-use optigy::{
-    core::{factor::Jacobians, loss_function::GaussianLoss},
-    prelude::{Factor, Key, Variables},
-};
+use optigy::prelude::{Factor, Key, Variables};
 #[derive(Debug, Clone)]
 pub struct E2<R = f64>
 where
