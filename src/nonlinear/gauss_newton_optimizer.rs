@@ -5,14 +5,17 @@ use num::Float;
 
 use crate::{
     core::{
-        factors::Factors, factors_container::FactorsContainer, variables::Variables,
-        variables_container::VariablesContainer,
+        factors::Factors, factors_container::FactorsContainer, variable_ordering::VariableOrdering,
+        variables::Variables, variables_container::VariablesContainer,
     },
     linear::linear_solver::{LinearSolverStatus, SparseLinearSolver},
 };
 
 use super::{
-    nonlinear_optimizer::{NonlinearOptimizationStatus, OptIterate},
+    nonlinear_optimizer::{
+        IterationData, LinSysWrapper, NonlinearOptimizationError, OptIterate,
+        OptimizerSpasityPattern,
+    },
     sparsity_pattern::{JacobianSparsityPattern, LowerHessianSparsityPattern},
 };
 #[derive(Default)]
@@ -33,36 +36,27 @@ where
     #[allow(non_snake_case)]
     fn iterate<VC, FC>(
         &self,
-        _factors: &Factors<R, FC>,
+        factors: &Factors<R, FC>,
         variables: &mut Variables<R, VC>,
-        h_sparsity: &LowerHessianSparsityPattern,
-        j_sparsity: &JacobianSparsityPattern,
-        A: &DMatrix<R>,
-        b: &DVector<R>,
-        _err_uptodate: &mut bool,
-        _err_squared_norm: &mut f64,
-    ) -> NonlinearOptimizationStatus
+        variable_ordering: &VariableOrdering,
+        lin_sys: LinSysWrapper<'_, R>,
+    ) -> Result<IterationData, NonlinearOptimizationError>
     where
         R: RealField,
         VC: VariablesContainer<R>,
         FC: FactorsContainer<R>,
     {
-        let var_ordering = if self.linear_solver.is_normal() {
-            &h_sparsity.base.var_ordering
-        } else {
-            &j_sparsity.base.var_ordering
-        };
         let mut dx: DVector<R> = DVector::zeros(variables.dim());
-        let linear_solver_status = self.linear_solver.solve(A, b, &mut dx);
+        let linear_solver_status = self.linear_solver.solve(lin_sys.A, lin_sys.b, &mut dx);
         if linear_solver_status == LinearSolverStatus::Success {
-            variables.retract(dx.as_view(), var_ordering);
-            NonlinearOptimizationStatus::Success
+            variables.retract(dx.as_view(), variable_ordering);
+            Ok(IterationData::new(false, 0.0))
         } else if linear_solver_status == LinearSolverStatus::RankDeficiency {
             println!("Warning: linear system has rank deficiency");
-            return NonlinearOptimizationStatus::RankDeficiency;
+            return Err(NonlinearOptimizationError::RankDeficiency);
         } else {
             println!("Warning: linear solver returns invalid state");
-            return NonlinearOptimizationStatus::Invalid;
+            return Err(NonlinearOptimizationError::Invalid);
         }
     }
 
@@ -73,6 +67,7 @@ where
 #[cfg(test)]
 mod tests {
     use nalgebra::{DMatrix, DVector};
+    use nalgebra_sparse::{pattern::SparsityPattern, CscMatrix};
 
     use crate::{
         core::{
@@ -87,7 +82,10 @@ mod tests {
         linear::sparse_cholesky_solver::SparseCholeskySolver,
         nonlinear::{
             gauss_newton_optimizer::GaussNewtonOptimizer,
-            nonlinear_optimizer::{NonlinearOptimizationStatus, OptIterate},
+            linearization::linearzation_lower_hessian,
+            nonlinear_optimizer::{
+                LinSysWrapper, NonlinearOptimizationError, OptIterate, OptimizerSpasityPattern,
+            },
             sparsity_pattern::{construct_jacobian_sparsity, construct_lower_hessian_sparsity},
         },
     };
@@ -108,24 +106,27 @@ mod tests {
         factors.add(FactorB::new(2.0, None, Key(1), Key(2)));
         let variable_ordering = variables.default_variable_ordering();
         let optimizer = GaussNewtonOptimizer::<Real, SparseCholeskySolver<Real>>::default();
-        let j_sparsity = construct_jacobian_sparsity(&factors, &variables, &variable_ordering);
-        let h_sparsity = construct_lower_hessian_sparsity(&factors, &variables, &variable_ordering);
-        let mut err_uptodate = false;
-        let mut err_squared_norm = 0.0;
-        let A_rows: usize = h_sparsity.base.A_cols;
-        let A_cols: usize = h_sparsity.base.A_cols;
-        let A: DMatrix<Real> = DMatrix::zeros(A_rows, A_cols);
-        let b: DVector<Real> = DVector::zeros(A_rows);
+        let sparsity = construct_lower_hessian_sparsity(&factors, &variables, &variable_ordering);
+        let A_rows: usize = sparsity.base.A_cols;
+        let mut A_values = Vec::<Real>::new();
+        A_values.resize(sparsity.total_nnz_AtA_cols, 0.0);
+        let mut b: DVector<Real> = DVector::zeros(A_rows);
+        linearzation_lower_hessian(&factors, &variables, &sparsity, &mut A_values, &mut b);
+        let csc_pattern = SparsityPattern::try_from_offsets_and_indices(
+            sparsity.base.A_cols,
+            sparsity.base.A_cols,
+            sparsity.outer_index.clone(),
+            sparsity.inner_index.clone(),
+        )
+        .unwrap();
+        let A = CscMatrix::try_from_pattern_and_values(csc_pattern.clone(), A_values.clone())
+            .expect("CSC data must conform to format specifications");
         let opt_res = optimizer.iterate(
             &factors,
             &mut variables,
-            &h_sparsity,
-            &j_sparsity,
-            &A,
-            &b,
-            &mut err_uptodate,
-            &mut err_squared_norm,
+            &variable_ordering,
+            LinSysWrapper::new(&A, &b),
         );
-        assert_eq!(opt_res, NonlinearOptimizationStatus::Success);
+        assert!(opt_res.is_ok());
     }
 }

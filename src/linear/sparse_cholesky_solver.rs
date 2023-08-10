@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use nalgebra::{DMatrix, DVector, RealField};
+use nalgebra_sparse::{factorization::CscCholesky, CscMatrix};
 use num::Float;
 
 use super::linear_solver::{LinearSolverStatus, SparseLinearSolver};
@@ -16,13 +17,26 @@ where
     R: RealField + Float,
 {
     #[allow(non_snake_case)]
-    fn solve(&self, A: &DMatrix<R>, b: &DVector<R>, x: &mut DVector<R>) -> LinearSolverStatus {
-        match A.clone().cholesky() {
-            Some(llt) => {
-                x.copy_from(&llt.solve(b));
+    fn solve(&self, A: &CscMatrix<R>, b: &DVector<R>, x: &mut DVector<R>) -> LinearSolverStatus {
+        // match A.clone().cholesky() {
+        //     Some(llt) => {
+        //         x.copy_from(&llt.solve(b));
+        //         LinearSolverStatus::Success
+        //     }
+        //     None => LinearSolverStatus::RankDeficiency,
+        // }
+        let chol = CscCholesky::factor(A);
+        match chol {
+            Ok(chol) => {
+                let mut B = DMatrix::<R>::zeros(b.nrows(), b.nrows());
+                for i in 0..B.nrows() {
+                    B.column_mut(i).copy_from(b);
+                }
+                chol.solve_mut(&mut B);
+                x.copy_from(&B.column(0));
                 LinearSolverStatus::Success
             }
-            None => LinearSolverStatus::RankDeficiency,
+            Err(_) => LinearSolverStatus::RankDeficiency,
         }
     }
 
@@ -37,6 +51,7 @@ where
 #[cfg(test)]
 mod tests {
     use nalgebra::{dmatrix, dvector, DVector};
+    use nalgebra_sparse::{CooMatrix, CscMatrix};
 
     use crate::linear::linear_solver::{LinearSolverStatus, SparseLinearSolver};
 
@@ -45,7 +60,15 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn lin_solve() {
-        let A = dmatrix![11.0, 5.0, 0.0; 5.0, 5.0, 4.0; 0.0, 4.0, 6.0];
+        let a = dmatrix![11.0, 5.0, 0.0; 5.0, 5.0, 4.0; 0.0, 4.0, 6.0];
+        let mut coo = CooMatrix::new(3, 3);
+        for i in 0..a.nrows() {
+            for j in 0..a.ncols() {
+                coo.push(i, j, a[(i, j)]);
+            }
+        }
+        let A: CscMatrix<f64> = CscMatrix::from(&coo);
+
         let b = dvector![21.0, 27.0, 26.0];
         let solver = SparseCholeskySolver::<f64>::default();
         let mut x = DVector::zeros(3);

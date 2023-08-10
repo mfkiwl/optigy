@@ -1,4 +1,5 @@
 use nalgebra::{DMatrix, DVector, RealField};
+use nalgebra_sparse::CscMatrix;
 use num::Float;
 
 /// return status of solving linear system
@@ -19,14 +20,14 @@ where
     /// call once before solving Ax = b share the same sparsity structure
     /// needs an actual implementation, if the empty one if not used
     #[allow(non_snake_case)]
-    fn initialize(&self, _A: &DMatrix<R>) -> LinearSolverStatus {
+    fn initialize(&self, _A: &CscMatrix<R>) -> LinearSolverStatus {
         LinearSolverStatus::Success
     }
     /// solve Ax = b, return solving status
     /// request A's sparsity pattern is setup by initialize();
     /// needs an actual implementation
     #[allow(non_snake_case)]
-    fn solve(&self, A: &DMatrix<R>, b: &DVector<R>, x: &mut DVector<R>) -> LinearSolverStatus;
+    fn solve(&self, A: &CscMatrix<R>, b: &DVector<R>, x: &mut DVector<R>) -> LinearSolverStatus;
 
     /// is it a normal equation solver
     /// if ture, the solver solves A'Ax = A'b, request input A is SPD

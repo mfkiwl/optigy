@@ -1,18 +1,19 @@
 use std::marker::PhantomData;
 
-use nalgebra::{DMatrix, DVector, RealField};
+use nalgebra::{DVector, RealField};
+use nalgebra_sparse::{pattern::SparsityPattern, CscMatrix};
 use num::Float;
 
 use crate::{
     core::{
-        factors::Factors, factors_container::FactorsContainer, variables::Variables,
-        variables_container::VariablesContainer,
+        factors::Factors, factors_container::FactorsContainer, variable_ordering::VariableOrdering,
+        variables::Variables, variables_container::VariablesContainer,
     },
     linear::linear_solver::SparseLinearSolver,
 };
 
 use super::{
-    linearization::{linearzation_full_hessian, linearzation_jacobian},
+    linearization::{linearzation_full_hessian, linearzation_jacobian, linearzation_lower_hessian},
     sparsity_pattern::{
         construct_jacobian_sparsity, construct_lower_hessian_sparsity, JacobianSparsityPattern,
         LowerHessianSparsityPattern,
@@ -20,9 +21,7 @@ use super::{
 };
 /// return status of nonlinear optimization
 #[derive(PartialEq, Eq, Debug)]
-pub enum NonlinearOptimizationStatus {
-    /// nonlinear optimization meets converge requirement
-    Success = 0,
+pub enum NonlinearOptimizationError {
     /// reach max iterations but not reach converge requirement
     MaxIteration,
     /// optimizer cannot decrease error and give up
@@ -88,9 +87,42 @@ impl Default for NonlinearOptimizerParams {
     }
 }
 
-impl Default for NonlinearOptimizationStatus {
+impl Default for NonlinearOptimizationError {
     fn default() -> Self {
         Self::Invalid
+    }
+}
+#[allow(non_snake_case)]
+pub struct LinSysWrapper<'a, R>
+where
+    R: RealField,
+{
+    pub A: &'a CscMatrix<R>,
+    pub b: &'a DVector<R>,
+}
+impl<'a, R> LinSysWrapper<'a, R>
+where
+    R: RealField,
+{
+    #[allow(non_snake_case)]
+    pub fn new(A: &'a CscMatrix<R>, b: &'a DVector<R>) -> Self {
+        LinSysWrapper { A, b }
+    }
+}
+pub enum OptimizerSpasityPattern {
+    Jacobian(JacobianSparsityPattern),
+    LowerHessian(LowerHessianSparsityPattern),
+}
+pub struct IterationData {
+    pub err_uptodate: bool,
+    pub err_squared_norm: f64,
+}
+impl IterationData {
+    pub fn new(err_uptodate: bool, err_squared_norm: f64) -> Self {
+        IterationData {
+            err_uptodate,
+            err_squared_norm,
+        }
     }
 }
 pub trait OptIterate<R, S>
@@ -102,18 +134,13 @@ where
     /// use to implement your own optimization iterate procedure
     /// need a implementation
     /// - if the iteration is successful return SUCCESS
-    #[allow(non_snake_case)]
     fn iterate<VC, FC>(
         &self,
         factors: &Factors<R, FC>,
         variables: &mut Variables<R, VC>,
-        h_sparsity: &LowerHessianSparsityPattern,
-        j_sparsity: &JacobianSparsityPattern,
-        A: &DMatrix<R>,
-        b: &DVector<R>,
-        err_uptodate: &mut bool,
-        err_squared_norm: &mut f64,
-    ) -> NonlinearOptimizationStatus
+        variable_ordering: &VariableOrdering,
+        lin_sys: LinSysWrapper<'_, R>,
+    ) -> Result<IterationData, NonlinearOptimizationError>
     where
         R: RealField,
         VC: VariablesContainer<R>,
@@ -132,9 +159,7 @@ where
     /// settings
     pub params: NonlinearOptimizerParams,
     /// linearization sparsity pattern
-    pub h_sparsity: LowerHessianSparsityPattern,
-    /// linearization sparsity pattern
-    pub j_sparsity: JacobianSparsityPattern,
+    pub sparsity: OptimizerSpasityPattern,
     /// cached internal optimization status, used by iterate() method
     pub iterations: usize,
     /// error norm of values pass in iterate(), can be used by iterate
@@ -167,7 +192,7 @@ where
         &mut self,
         factors: &Factors<R, FC>,
         variables: &mut Variables<R, VC>,
-    ) -> NonlinearOptimizationStatus
+    ) -> Result<(), NonlinearOptimizationError>
     where
         R: RealField,
         VC: VariablesContainer<R>,
@@ -176,16 +201,39 @@ where
         // linearization sparsity pattern
         let variable_ordering = variables.default_variable_ordering();
         let A_rows: usize;
-        let A_cols: usize;
+        // let A_cols: usize;
+        let mut A_values = Vec::<R>::new();
         if self.opt.linear_solver().is_normal() {
-            self.h_sparsity =
-                construct_lower_hessian_sparsity(factors, variables, &variable_ordering);
-            A_rows = self.h_sparsity.base.A_cols;
-            A_cols = self.h_sparsity.base.A_cols;
+            self.sparsity = OptimizerSpasityPattern::LowerHessian(
+                construct_lower_hessian_sparsity(factors, variables, &variable_ordering),
+            );
         } else {
-            self.j_sparsity = construct_jacobian_sparsity(factors, variables, &variable_ordering);
-            A_rows = self.j_sparsity.base.A_rows;
-            A_cols = self.j_sparsity.base.A_cols;
+            // self.j_sparsity = construct_jacobian_sparsity(factors, variables, &variable_ordering);
+            // A_rows = self.j_sparsity.base.A_rows;
+            // A_cols = self.j_sparsity.base.A_cols;
+            todo!()
+        }
+        let csc_pattern = match &self.sparsity {
+            OptimizerSpasityPattern::Jacobian(_sparsity) => {
+                todo!()
+            }
+            OptimizerSpasityPattern::LowerHessian(sparsity) => {
+                SparsityPattern::try_from_offsets_and_indices(
+                    sparsity.base.A_cols,
+                    sparsity.base.A_cols,
+                    sparsity.outer_index.clone(),
+                    sparsity.inner_index.clone(),
+                )
+                .unwrap()
+            }
+        };
+        match &self.sparsity {
+            OptimizerSpasityPattern::Jacobian(_) => todo!(),
+            OptimizerSpasityPattern::LowerHessian(sparsity) => {
+                A_rows = sparsity.base.A_cols;
+                // A_cols = sparsity.base.A_cols;
+                A_values.resize(sparsity.total_nnz_AtA_cols, R::from_f64(0.0).unwrap());
+            }
         }
         // init vars and errors
         self.iterations = 0;
@@ -194,47 +242,50 @@ where
         if self.params.verbosity_level >= NonlinearOptimizerVerbosityLevel::Iteration {
             println!("initial error: {}", self.last_err_squared_norm);
         }
-        let mut A: DMatrix<R> = DMatrix::zeros(A_rows, A_cols);
         let mut b: DVector<R> = DVector::zeros(A_rows);
         while self.iterations < self.params.max_iterations {
-            if self.opt.linear_solver().is_normal() {
-                if self.opt.linear_solver().is_normal_lower() {
-                    // lower hessian linearization
-                    // linearzation_lower_hessian(
-                    //     factors,
-                    //     variables,
-                    //     &self.h_sparsity,
-                    //     &mut A,
-                    //     &mut b,
-                    // );
-                } else {
-                    // full hessian linearization
-                    linearzation_full_hessian(factors, variables, &self.h_sparsity, &mut A, &mut b);
+            match &self.sparsity {
+                OptimizerSpasityPattern::Jacobian(sparsity) => {
+                    // jacobian linearization
+                    // linearzation_jacobian(factors, variables, &self.j_sparsity, &mut A, &mut b);
+                    todo!()
                 }
-            } else {
-                // jacobian linearization
-                linearzation_jacobian(factors, variables, &self.j_sparsity, &mut A, &mut b);
+                OptimizerSpasityPattern::LowerHessian(sparsity) => {
+                    if self.opt.linear_solver().is_normal_lower() {
+                        // lower hessian linearization
+                        linearzation_lower_hessian(
+                            factors,
+                            variables,
+                            sparsity,
+                            &mut A_values,
+                            &mut b,
+                        );
+                    } else {
+                        // full hessian linearization
+                        // linearzation_full_hessian(factors, variables, &self.h_sparsity, &mut A, &mut b);
+                        todo!()
+                    }
+                }
             }
+            let A = CscMatrix::try_from_pattern_and_values(csc_pattern.clone(), A_values.clone())
+                .expect("CSC data must conform to format specifications");
             // initiailize the linear solver if needed at first iteration
             if self.iterations == 0 {
                 self.opt.linear_solver().initialize(&A);
             }
             // iterate through
-            let iterate_status = self.opt.iterate(
+            let iterate_result = self.opt.iterate(
                 factors,
                 variables,
-                &self.h_sparsity,
-                &self.j_sparsity,
-                &A,
-                &b,
-                &mut self.err_uptodate,
-                &mut self.err_squared_norm,
+                &variable_ordering,
+                LinSysWrapper::new(&A, &b),
             );
             self.iterations += 1;
 
+            //TODO: do better
             // check linear solver status and return if not success
-            if iterate_status != NonlinearOptimizationStatus::Success {
-                return iterate_status;
+            if iterate_result.is_err() {
+                return Err(iterate_result.err().unwrap());
             }
 
             // check error for stop condition
@@ -253,19 +304,19 @@ where
 
             if curr_err - self.last_err_squared_norm > 1e-20 {
                 eprintln!("Warning: optimizer cannot decrease error");
-                return NonlinearOptimizationStatus::ErrorIncrease;
+                return Err(NonlinearOptimizationError::ErrorIncrease);
             }
 
             if self.error_stop_condition(self.last_err_squared_norm, curr_err) {
                 if self.params.verbosity_level >= NonlinearOptimizerVerbosityLevel::Iteration {
                     println!("reach stop condition, optimization success");
                 }
-                return NonlinearOptimizationStatus::Success;
+                return Ok(());
             }
 
             self.last_err_squared_norm = curr_err;
         }
-        NonlinearOptimizationStatus::MaxIteration
+        Err(NonlinearOptimizationError::MaxIteration)
     }
     /// default stop condition using error threshold
     /// return true if stop condition meets
