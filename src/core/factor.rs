@@ -1,4 +1,3 @@
-
 use core::cell::RefMut;
 
 use crate::core::key::Key;
@@ -64,10 +63,12 @@ where
 
     /// error dimension is dim of noisemodel
     fn dim(&self) -> usize;
-
     /// size (number of variables connected)
     fn len(&self) -> usize {
         self.keys().len()
+    }
+    fn is_empty(&self) -> bool {
+        self.keys().is_empty()
     }
 
     /// access of keys
@@ -82,15 +83,13 @@ pub(crate) mod tests {
     use super::{Factor, Jacobians};
     use crate::core::{
         key::Key,
-        loss_function::{GaussianLoss},
-        variable::{
-            tests::{RandomVariable, VariableA, VariableB},
-        },
+        loss_function::GaussianLoss,
+        variable::tests::{RandomVariable, VariableA, VariableB},
         variables::Variables,
         variables_container::VariablesContainer,
     };
-    use core::cell::{RefCell};
-    use core::{borrow::BorrowMut, cell::RefMut};
+    use core::cell::RefCell;
+    use core::cell::RefMut;
     use nalgebra::{DMatrix, DVector, RealField};
     use rand::Rng;
 

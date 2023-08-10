@@ -5,10 +5,10 @@ use num::Float;
 
 use crate::{
     core::{
-        factors::Factors, factors_container::FactorsContainer,
-        variables::Variables, variables_container::VariablesContainer,
+        factors::Factors, factors_container::FactorsContainer, variables::Variables,
+        variables_container::VariablesContainer,
     },
-    linear::linear_solver::{DenseLinearSolver, SparseLinearSolver},
+    linear::linear_solver::SparseLinearSolver,
 };
 
 use super::{

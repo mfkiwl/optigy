@@ -44,6 +44,7 @@ where
     fn dim(&self, init: usize) -> usize;
     /// sum of variables maps len
     fn len(&self, init: usize) -> usize;
+    fn is_empty(&self) -> bool;
     /// join keys of variables
     fn keys(&self, init: Vec<Key>) -> Vec<Key>;
     /// retact variable by key and delta offset
@@ -81,7 +82,9 @@ where
     fn keys(&self, init: Vec<Key>) -> Vec<Key> {
         init
     }
-
+    fn is_empty(&self) -> bool {
+        true
+    }
     fn retract(&mut self, _delta: DVectorView<R>, _key: Key, offset: usize) -> usize {
         offset
     }
@@ -137,6 +140,13 @@ impl<T: VariablesKey<R>, P: VariablesContainer<R>, R: RealField> VariablesContai
     fn len(&self, init: usize) -> usize {
         let l = init + self.data.len();
         self.parent.len(l)
+    }
+    fn is_empty(&self) -> bool {
+        if self.data.is_empty() {
+            self.parent.is_empty()
+        } else {
+            false
+        }
     }
     fn keys(&self, init: Vec<Key>) -> Vec<Key> {
         let mut keys = init;
@@ -278,5 +288,41 @@ mod tests {
         }
         assert_eq!(thing.dim(0), 9);
         assert_eq!(thing.len(0), 3);
+    }
+    #[test]
+    fn is_empty() {
+        type Real = f64;
+        let mut container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
+        assert_eq!(container.is_empty(), true);
+        {
+            let a = container.get::<VariableA<Real>>();
+            assert!(a.is_some());
+
+            let a = container.get_mut::<VariableA<Real>>();
+            a.unwrap().insert(Key(3), VariableA::new(4.0));
+            let a = container.get_mut::<VariableA<Real>>();
+            a.unwrap().insert(Key(4), VariableA::new(4.0));
+            let a = container.get::<VariableA<Real>>();
+            assert_eq!(
+                a.unwrap().get(&Key(3)).unwrap().val,
+                DVector::<Real>::from_element(3, 4.0)
+            );
+
+            assert_eq!(
+                a.unwrap().get(&Key(4)).unwrap().val,
+                DVector::<Real>::from_element(3, 4.0)
+            );
+
+            let a = container.get_mut::<VariableB<Real>>();
+            a.unwrap().insert(Key(7), VariableB::new(7.0));
+
+            assert_eq!(
+                get_variable::<_, _, VariableB<Real>>(&container, Key(7))
+                    .unwrap()
+                    .val,
+                DVector::from_element(3, 7.0)
+            );
+        }
+        assert_eq!(container.is_empty(), false);
     }
 }

@@ -95,7 +95,7 @@ fn linearzation_lower_hessian_single_factor<R, VC, FC>(
     factors: &Factors<R, FC>,
     variables: &Variables<R, VC>,
     sparsity: &LowerHessianSparsityPattern,
-    AtA_values: &mut Vec<R>,
+    AtA_values: &mut [R],
     Atb: &mut DVector<R>,
 ) where
     R: RealField + Float,
@@ -133,15 +133,17 @@ fn linearzation_lower_hessian_single_factor<R, VC, FC>(
     let mut stackJtJ = DMatrix::<R>::zeros(stackJ.ncols(), stackJ.ncols());
 
     // adaptive multiply for better speed
-    if stackJ.ncols() > 12 {
-        // memset(stackJtJ.data(), 0, stackJ.cols() * stackJ.cols() * sizeof(double));
-        // stackJtJ.selfadjointView<Eigen::Lower>().rankUpdate(stackJ.transpose());
-        let sTs = stackJ.transpose() * stackJ.clone();
-        stackJtJ.copy_from(&sTs);
-    } else {
-        let sTs = stackJ.transpose() * stackJ.clone();
-        stackJtJ.copy_from(&sTs);
-    }
+    // if stackJ.ncols() > 12 {
+    //     // memset(stackJtJ.data(), 0, stackJ.cols() * stackJ.cols() * sizeof(double));
+    //     // stackJtJ.selfadjointView<Eigen::Lower>().rankUpdate(stackJ.transpose());
+    //     let sTs = stackJ.transpose() * stackJ.clone();
+    //     stackJtJ.copy_from(&sTs);
+    // } else {
+    //     let sTs = stackJ.transpose() * stackJ.clone();
+    //     stackJtJ.copy_from(&sTs);
+    // }
+    let sts = stackJ.transpose() * stackJ.clone();
+    stackJtJ.copy_from(&sts);
 
     let stackJtb = stackJ.transpose() * wht_err.clone();
     // stackJtb.neg_mut();
@@ -246,7 +248,7 @@ pub fn linearzation_lower_hessian<R, VC, FC>(
     factors: &Factors<R, FC>,
     variables: &Variables<R, VC>,
     sparsity: &LowerHessianSparsityPattern,
-    AtA_values: &mut Vec<R>,
+    AtA_values: &mut [R],
     Atb: &mut DVector<R>,
 ) where
     R: RealField + Float,
@@ -295,9 +297,7 @@ mod tests {
         },
         nonlinear::{
             linearization::{linearzation_jacobian, linearzation_lower_hessian, stack_matrix_col},
-            sparsity_pattern::{
-                construct_jacobian_sparsity, construct_lower_hessian_sparsity,
-            },
+            sparsity_pattern::{construct_jacobian_sparsity, construct_lower_hessian_sparsity},
         },
     };
 

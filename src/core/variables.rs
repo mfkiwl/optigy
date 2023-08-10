@@ -33,6 +33,9 @@ where
     pub fn len(&self) -> usize {
         self.container.len(0)
     }
+    pub fn is_empty(&self) -> bool {
+        self.container.is_empty()
+    }
 
     pub fn retract(&mut self, delta: DVectorView<R>, variable_ordering: &VariableOrdering) {
         assert_eq!(delta.nrows(), self.dim());
@@ -212,7 +215,6 @@ mod tests {
         variables.add(Key(1), VariableB::<Real>::new(0.0));
         assert_eq!(variables.dim(), 6);
     }
-
     #[test]
     fn len() {
         type Real = f64;
@@ -221,5 +223,15 @@ mod tests {
         variables.add(Key(0), VariableA::<Real>::new(0.0));
         variables.add(Key(1), VariableB::<Real>::new(0.0));
         assert_eq!(variables.len(), 2);
+    }
+    #[test]
+    fn is_empty() {
+        type Real = f64;
+        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
+        let mut variables = Variables::new(container);
+        assert_eq!(variables.is_empty(), true);
+        variables.add(Key(0), VariableA::<Real>::new(0.0));
+        variables.add(Key(1), VariableB::<Real>::new(0.0));
+        assert_eq!(variables.is_empty(), false);
     }
 }

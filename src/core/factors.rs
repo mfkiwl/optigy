@@ -32,6 +32,9 @@ where
     pub fn len(&self) -> usize {
         self.container.len(0)
     }
+    pub fn is_empty(&self) -> bool {
+        self.container.is_empty()
+    }
     pub fn dim(&self) -> usize {
         self.container.dim(0)
     }
@@ -181,5 +184,15 @@ mod tests {
             3.0
         );
         assert_eq!(factors.error_squared_norm(&variables), 15.0);
+    }
+    #[test]
+    fn is_empty() {
+        type Real = f64;
+        let container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
+        let mut factors = Factors::new(container);
+        assert_eq!(factors.is_empty(), true);
+        factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
+        factors.add(FactorB::new(2.0, None, Key(0), Key(1)));
+        assert_eq!(factors.is_empty(), false);
     }
 }

@@ -46,6 +46,7 @@ where
     fn dim(&self, init: usize) -> usize;
     /// sum of factors vecs len
     fn len(&self, init: usize) -> usize;
+    fn is_empty(&self) -> bool;
     /// factor dim by index
     fn dim_at(&self, index: usize, init: usize) -> Option<usize>;
     /// factor keys by index
@@ -87,6 +88,9 @@ where
     }
     fn len(&self, init: usize) -> usize {
         init
+    }
+    fn is_empty(&self) -> bool {
+        true
     }
     fn dim_at(&self, _index: usize, _init: usize) -> Option<usize> {
         None
@@ -160,6 +164,13 @@ where
     fn len(&self, init: usize) -> usize {
         let l = init + self.data.len();
         self.parent.len(l)
+    }
+    fn is_empty(&self) -> bool {
+        if self.data.is_empty() {
+            self.parent.is_empty()
+        } else {
+            false
+        }
     }
     fn dim_at(&self, index: usize, init: usize) -> Option<usize> {
         if (init..(init + self.data.len())).contains(&index) {
@@ -504,5 +515,15 @@ pub(crate) mod tests {
                 .weighted_error(&variables)
                 .deref()
         );
+    }
+    #[test]
+    fn is_empty() {
+        type Real = f64;
+        let mut container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
+        assert_eq!(container.is_empty(), true);
+        let fc0 = container.get_mut::<FactorA<Real>>().unwrap();
+        fc0.push(FactorA::new(2.0, None, Key(0), Key(1)));
+        fc0.push(FactorA::new(1.0, None, Key(0), Key(1)));
+        assert_eq!(container.is_empty(), false);
     }
 }

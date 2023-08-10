@@ -12,11 +12,12 @@ impl VariableOrdering {
     pub fn key(&self, index: usize) -> Option<Key> {
         self.keylist.get(index).copied()
     }
-
     pub fn len(&self) -> usize {
         self.keylist.len()
     }
-
+    pub fn is_empty(&self) -> bool {
+        self.keylist.is_empty()
+    }
     pub fn keys(&self) -> &[Key] {
         &self.keylist
     }
