@@ -62,9 +62,7 @@ mod tests {
 
     #[test]
     fn key() {
-        let mut keys: Vec<Key> = Vec::new();
-        keys.push(Key(0));
-        keys.push(Key(1));
+        let keys = vec![Key(0), Key(1)];
         let var_ord = VariableOrdering::new(&keys);
         assert_eq!(var_ord.key(0).unwrap(), Key(0));
         assert_eq!(var_ord.key(1).unwrap(), Key(1));
@@ -72,17 +70,13 @@ mod tests {
     }
     #[test]
     fn len() {
-        let mut keys: Vec<Key> = Vec::new();
-        keys.push(Key(0));
-        keys.push(Key(1));
+        let keys = vec![Key(0), Key(1)];
         let var_ord = VariableOrdering::new(&keys);
         assert_eq!(var_ord.len(), 2);
     }
     #[test]
     fn search_key() {
-        let mut keys: Vec<Key> = Vec::new();
-        keys.push(Key(0));
-        keys.push(Key(1));
+        let keys = vec![Key(0), Key(1)];
         let var_ord = VariableOrdering::new(&keys);
         assert_eq!(var_ord.search_key(Key(0)).unwrap(), 0);
         assert_eq!(var_ord.search_key(Key(1)).unwrap(), 1);
@@ -90,10 +84,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn new_with_duplicate_keys() {
-        let mut keys: Vec<Key> = Vec::new();
-        keys.push(Key(0));
-        keys.push(Key(1));
-        keys.push(Key(1));
+        let keys = vec![Key(0), Key(1), Key(1)];
         let _var_ord = VariableOrdering::new(&keys);
     }
 }
