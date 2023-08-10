@@ -158,9 +158,7 @@ mod tests {
         let mut factors = Factors::new(container);
         factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
         factors.add(FactorB::new(2.0, None, Key(0), Key(1)));
-        let mut keys = Vec::<Key>::new();
-        keys.push(Key(0));
-        keys.push(Key(1));
+        let keys = vec![Key(0), Key(1)];
         assert_eq!(factors.keys_at(0).unwrap(), keys);
         assert_eq!(factors.keys_at(1).unwrap(), keys);
         assert!(factors.keys_at(4).is_none());
