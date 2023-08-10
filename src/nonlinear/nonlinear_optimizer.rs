@@ -13,10 +13,9 @@ use crate::{
 };
 
 use super::{
-    linearization::{linearzation_lower_hessian},
+    linearization::linearzation_lower_hessian,
     sparsity_pattern::{
-        construct_lower_hessian_sparsity, JacobianSparsityPattern,
-        LowerHessianSparsityPattern,
+        construct_lower_hessian_sparsity, JacobianSparsityPattern, LowerHessianSparsityPattern,
     },
 };
 /// return status of nonlinear optimization
@@ -82,7 +81,7 @@ impl Default for NonlinearOptimizerParams {
             min_rel_err_decrease: 1e-5,
             min_abs_err_decrease: 1e-5,
             linear_solver_type: LinearSolverType::Cholesky,
-            verbosity_level: NonlinearOptimizerVerbosityLevel::Warning,
+            verbosity_level: NonlinearOptimizerVerbosityLevel::Iteration,
         }
     }
 }
@@ -112,6 +111,11 @@ where
 pub enum OptimizerSpasityPattern {
     Jacobian(JacobianSparsityPattern),
     LowerHessian(LowerHessianSparsityPattern),
+}
+impl Default for OptimizerSpasityPattern {
+    fn default() -> Self {
+        OptimizerSpasityPattern::LowerHessian(LowerHessianSparsityPattern::default())
+    }
 }
 pub struct IterationData {
     pub err_uptodate: bool,
@@ -148,6 +152,7 @@ where
     fn linear_solver(&self) -> &S;
 }
 
+#[derive(Default)]
 pub struct NonlinearOptimizer<R, S, O>
 where
     R: RealField + Float,
