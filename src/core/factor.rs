@@ -110,9 +110,7 @@ pub(crate) mod tests {
         pub fn new(v: R, loss: Option<GaussianLoss>, var0: Key, var1: Key) -> Self {
             let mut jacobians = Vec::<DMatrix<R>>::with_capacity(2);
             jacobians.resize_with(2, || DMatrix::zeros(3, 3));
-            let mut keys = Vec::<Key>::new();
-            keys.push(var0);
-            keys.push(var1);
+            let keys = vec![var0, var1];
             FactorA {
                 orig: DVector::from_element(3, v),
                 loss,
@@ -185,9 +183,7 @@ pub(crate) mod tests {
         pub fn new(v: R, loss: Option<GaussianLoss>, var0: Key, var1: Key) -> Self {
             let mut jacobians = Vec::<DMatrix<R>>::with_capacity(2);
             jacobians.resize_with(2, || DMatrix::zeros(3, 3));
-            let mut keys = Vec::<Key>::new();
-            keys.push(var0);
-            keys.push(var1);
+            let keys = vec![var0, var1];
             FactorB {
                 orig: DVector::from_element(3, v),
                 loss,
@@ -259,9 +255,7 @@ pub(crate) mod tests {
             jacobians.resize_with(2, || {
                 DMatrix::from_fn(3, 3, |_i, _j| R::from_f64(rng.gen::<f64>()).unwrap())
             });
-            let mut keys = Vec::<Key>::new();
-            keys.push(var0);
-            keys.push(var1);
+            let keys = vec![var0, var1];
             RandomBlockFactor {
                 loss: None,
                 error: RefCell::new(DVector::zeros(3)),
