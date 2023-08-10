@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::ops::{Deref, SubAssign};
 
 use hashbrown::HashSet;
 use nalgebra::{DMatrix, DVector, RealField};
@@ -149,17 +149,9 @@ fn linearzation_lower_hessian_single_factor<R, VC, FC>(
     //   mutex_b.lock();
     // #endif
 
-    // for j_idx in 0..wht_Js.len() {
-    //     Atb.rows_mut(jacobian_col[j_idx], wht_Js[j_idx].ncols())
-    //         .copy_from(&stackJtb.rows(jacobian_col_local[j_idx], wht_Js[j_idx].ncols()))
-    // }
     for j_idx in 0..wht_Js.len() {
-        //TODO: do it shit better
-        let v = Atb.rows_mut(jacobian_col[j_idx], wht_Js[j_idx].ncols());
-        let c = stackJtb.rows(jacobian_col_local[j_idx], wht_Js[j_idx].ncols());
-        let d = v - c;
         Atb.rows_mut(jacobian_col[j_idx], wht_Js[j_idx].ncols())
-            .copy_from(&d);
+            .sub_assign(&stackJtb.rows(jacobian_col_local[j_idx], wht_Js[j_idx].ncols()));
     }
 
     // #ifdef MINISAM_WITH_MULTI_THREADS
@@ -352,10 +344,6 @@ mod tests {
         factors.add(RandomBlockFactor::new(Key(0), Key(2)));
         // let variable_ordering = variables.default_variable_ordering();
         let variable_ordering = VariableOrdering::new(vec![Key(0), Key(1), Key(2)].as_slice());
-        println!("ordering {:?}", variable_ordering);
-        for f_idx in 0..factors.len() {
-            println!("keys {:?}", factors.keys_at(f_idx));
-        }
         let pattern = construct_jacobian_sparsity(&factors, &variables, &variable_ordering);
         let mut A = DMatrix::<Real>::zeros(pattern.base.A_rows, pattern.base.A_cols);
         let mut b = DVector::<Real>::zeros(pattern.base.A_rows);

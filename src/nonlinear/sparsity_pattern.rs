@@ -216,7 +216,6 @@ where
         let mut nnzdim_counter: usize = 0;
         // non-self
         for var2_idx in &sparsity.corl_vars[var1_idx] {
-            //TODO: maby here?
             sparsity.inner_insert_map[var1_idx].insert(*var2_idx, nnzdim_counter);
             nnzdim_counter += sparsity.base.var_dim[*var2_idx];
         }
