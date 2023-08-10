@@ -128,6 +128,7 @@ where
 
 /// construct A'Ax = A'b sparsity pattern cache from a factor graph and a set of
 /// variables
+#[allow(non_snake_case)]
 pub fn construct_lower_hessian_sparsity<R, VC, FC>(
     factors: &Factors<R, FC>,
     variables: &Variables<R, VC>,

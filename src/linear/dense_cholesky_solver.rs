@@ -15,23 +15,15 @@ impl<R> DenseLinearSolver<R> for DenseCholeskySolver<R>
 where
     R: RealField + Float,
 {
+    #[allow(non_snake_case)]
     fn solve(&self, A: &DMatrix<R>, b: &DVector<R>, x: &mut DVector<R>) -> LinearSolverStatus {
-        // // allocate a workspace with the size and alignment needed for the operations
-        // let mut mem = GlobalMemBuffer::new(StackReq::any_of([
-        //     ldl::compute::raw_cholesky_in_place_req::<f64>(
-        //         A.nrows(),
-        //         Parallelism::None,
-        //         Default::default(), // use default parameters
-        //     )
-        //     .unwrap(),
-        //     ldl::update::insert_rows_and_cols_clobber_req::<f64>(
-        //         1, // we're inserting one column
-        //         Parallelism::None,
-        //     )
-        //     .unwrap(),
-        // ]));
-        // let mut stack = DynStack::new(&mut mem);
-        LinearSolverStatus::Success
+        match A.clone().cholesky() {
+            Some(llt) => {
+                x.copy_from(&llt.solve(b));
+                LinearSolverStatus::Success
+            }
+            None => LinearSolverStatus::RankDeficiency,
+        }
     }
 
     fn is_normal(&self) -> bool {
