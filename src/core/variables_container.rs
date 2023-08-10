@@ -4,7 +4,7 @@ use crate::core::variables::Variables;
 use hashbrown::HashMap;
 use nalgebra::{DVectorView, DVectorViewMut, RealField};
 use std::any::{type_name, TypeId};
-use std::marker::PhantomData;
+
 use std::mem;
 
 pub trait VariablesKey<R>

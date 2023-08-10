@@ -58,7 +58,7 @@ pub fn linearzation_jacobian<R, VC, FC>(
                 (err_row_counter, jacobian_col[j_idx]),
                 (jacob.nrows(), jacob.ncols()),
             )
-            .copy_from(&jacob);
+            .copy_from(jacob);
         }
 
         err_row_counter += f_dim;
@@ -73,7 +73,7 @@ pub(crate) fn stack_matrix_col<R>(mats: &Jacobians<R>) -> DMatrix<R>
 where
     R: RealField,
 {
-    assert!(mats.len() > 0);
+    assert!(!mats.is_empty());
     let mut H_stack_cols: usize = 0;
     for H in mats {
         H_stack_cols += H.ncols();
@@ -143,7 +143,7 @@ fn linearzation_lower_hessian_single_factor<R, VC, FC>(
         stackJtJ.copy_from(&sTs);
     }
 
-    let mut stackJtb = stackJ.transpose() * wht_err.clone();
+    let stackJtb = stackJ.transpose() * wht_err.clone();
     // stackJtb.neg_mut();
     // #ifdef MINISAM_WITH_MULTI_THREADS
     //   mutex_b.lock();
@@ -262,11 +262,11 @@ pub fn linearzation_lower_hessian<R, VC, FC>(
 
 #[allow(non_snake_case)]
 pub fn linearzation_full_hessian<R, VC, FC>(
-    factors: &Factors<R, FC>,
-    variables: &Variables<R, VC>,
-    sparsity: &LowerHessianSparsityPattern,
-    A: &mut DMatrix<R>,
-    b: &mut DVector<R>,
+    _factors: &Factors<R, FC>,
+    _variables: &Variables<R, VC>,
+    _sparsity: &LowerHessianSparsityPattern,
+    _A: &mut DMatrix<R>,
+    _b: &mut DVector<R>,
 ) where
     R: RealField + Float,
     VC: VariablesContainer<R>,
@@ -296,7 +296,7 @@ mod tests {
         nonlinear::{
             linearization::{linearzation_jacobian, linearzation_lower_hessian, stack_matrix_col},
             sparsity_pattern::{
-                self, construct_jacobian_sparsity, construct_lower_hessian_sparsity,
+                construct_jacobian_sparsity, construct_lower_hessian_sparsity,
             },
         },
     };
@@ -357,7 +357,7 @@ mod tests {
         let values = vec![22.0, 7.0, 3.0, 5.0, 14.0, 1.0, 17.0, 8.0]; //values
 
         // The dense representation of the CSC data, for comparison
-        let dense = Matrix3x4::new(1.0, 2.0, 0.0, 5.0, 0.0, 0.0, 0.0, 0.0, 0.0, 3.0, 4.0, 0.0);
+        let _dense = Matrix3x4::new(1.0, 2.0, 0.0, 5.0, 0.0, 0.0, 0.0, 0.0, 0.0, 3.0, 4.0, 0.0);
 
         let patt =
             SparsityPattern::try_from_offsets_and_indices(5, 5, major_offsets, minor_indices);
@@ -365,7 +365,7 @@ mod tests {
         // The constructor validates the raw CSC data and returns an error if it is invalid.
         let csc = CscMatrix::try_from_pattern_and_values(patt.unwrap(), values)
             .expect("CSC data must conform to format specifications");
-        let csc_d: DMatrix<f64> = DMatrix::<f64>::from(&csc);
+        let _csc_d: DMatrix<f64> = DMatrix::<f64>::from(&csc);
         // assert_matrix_eq!(csc, dense);
         // println!("csc {}", csc_d);
 
@@ -391,7 +391,7 @@ mod tests {
         );
         let AtA = CscMatrix::try_from_pattern_and_values(patt.unwrap(), AtA_values)
             .expect("CSC data must conform to format specifications");
-        let AtA: DMatrix<f64> = DMatrix::<f64>::from(&AtA);
+        let _AtA: DMatrix<f64> = DMatrix::<f64>::from(&AtA);
         // assert_matrix_eq!(csc, dense);
         // println!("AtA {}", AtA);
         // println!("Atb {}", Atb);

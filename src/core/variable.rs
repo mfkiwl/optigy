@@ -88,7 +88,7 @@ pub(crate) mod tests {
     {
         pub fn new(v: R) -> Self {
             VariableA {
-                val: DVector::<R>::from_element(3, v.clone()),
+                val: DVector::<R>::from_element(3, v),
             }
         }
     }
@@ -98,7 +98,7 @@ pub(crate) mod tests {
     {
         pub fn new(v: R) -> Self {
             VariableB {
-                val: DVector::<R>::from_element(3, v.clone()),
+                val: DVector::<R>::from_element(3, v),
             }
         }
     }

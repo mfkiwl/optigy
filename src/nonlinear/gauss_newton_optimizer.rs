@@ -55,8 +55,8 @@ where
         let mut dx: DVector<R> = DVector::zeros(variables.dim());
         let linear_solver_status = self.linear_solver.solve(A, b, &mut dx);
         if linear_solver_status == LinearSolverStatus::Success {
-            variables.retract(dx.as_view(), &var_ordering);
-            return NonlinearOptimizationStatus::Success;
+            variables.retract(dx.as_view(), var_ordering);
+            NonlinearOptimizationStatus::Success
         } else if linear_solver_status == LinearSolverStatus::RankDeficiency {
             println!("Warning: linear system has rank deficiency");
             return NonlinearOptimizationStatus::RankDeficiency;
@@ -114,8 +114,8 @@ mod tests {
         let mut err_squared_norm = 0.0;
         let A_rows: usize = h_sparsity.base.A_cols;
         let A_cols: usize = h_sparsity.base.A_cols;
-        let mut A: DMatrix<Real> = DMatrix::zeros(A_rows, A_cols);
-        let mut b: DVector<Real> = DVector::zeros(A_rows);
+        let A: DMatrix<Real> = DMatrix::zeros(A_rows, A_cols);
+        let b: DVector<Real> = DVector::zeros(A_rows);
         let opt_res = optimizer.iterate(
             &factors,
             &mut variables,

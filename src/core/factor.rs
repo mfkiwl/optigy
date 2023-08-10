@@ -1,4 +1,4 @@
-use core::cell::Ref;
+
 use core::cell::RefMut;
 
 use crate::core::key::Key;
@@ -82,16 +82,15 @@ pub(crate) mod tests {
     use super::{Factor, Jacobians};
     use crate::core::{
         key::Key,
-        loss_function::{GaussianLoss, LossFunction},
+        loss_function::{GaussianLoss},
         variable::{
             tests::{RandomVariable, VariableA, VariableB},
-            Variable,
         },
         variables::Variables,
         variables_container::VariablesContainer,
     };
-    use core::cell::{Ref, RefCell};
-    use core::{borrow::BorrowMut, cell::RefMut, ops::Deref};
+    use core::cell::{RefCell};
+    use core::{borrow::BorrowMut, cell::RefMut};
     use nalgebra::{DMatrix, DVector, RealField};
     use rand::Rng;
 
@@ -116,7 +115,7 @@ pub(crate) mod tests {
             keys.push(var0);
             keys.push(var1);
             FactorA {
-                orig: DVector::from_element(3, v.clone()),
+                orig: DVector::from_element(3, v),
                 loss,
                 error: RefCell::new(DVector::zeros(3)),
                 jacobians: RefCell::new(jacobians),
@@ -191,7 +190,7 @@ pub(crate) mod tests {
             keys.push(var0);
             keys.push(var1);
             FactorB {
-                orig: DVector::from_element(3, v.clone()),
+                orig: DVector::from_element(3, v),
                 loss,
                 error: RefCell::new(DVector::zeros(3)),
                 jacobians: RefCell::new(jacobians),
@@ -289,7 +288,7 @@ pub(crate) mod tests {
             self.error.borrow_mut()
         }
 
-        fn jacobians<C>(&self, variables: &Variables<R, C>) -> RefMut<Jacobians<R>>
+        fn jacobians<C>(&self, _variables: &Variables<R, C>) -> RefMut<Jacobians<R>>
         where
             C: VariablesContainer<R>,
         {
@@ -316,7 +315,7 @@ pub(crate) mod tests {
         variables.add(Key(0), VariableA::<Real>::new(4.0));
         variables.add(Key(1), VariableB::<Real>::new(2.0));
         let loss = GaussianLoss {};
-        let f0 = FactorA::new(1.0, Some(loss.clone()), Key(0), Key(1));
+        let f0 = FactorA::new(1.0, Some(loss), Key(0), Key(1));
         {
             let e0 = f0.error(&variables);
             assert_eq!(*e0, DVector::<Real>::from_element(3, 3.0));

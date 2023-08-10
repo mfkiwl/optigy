@@ -36,7 +36,7 @@ impl VariableOrdering {
     pub fn new(keylist: &[Key]) -> Self {
         let mut keymap: HashMap<Key, usize> = HashMap::new();
         for (i, k) in keylist.iter().enumerate() {
-            if keymap.insert(*k, i) != None {
+            if keymap.insert(*k, i).is_some() {
                 panic!("keymap already has a key {:?}", k)
             }
         }

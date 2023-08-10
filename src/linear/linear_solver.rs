@@ -19,7 +19,7 @@ where
     /// call once before solving Ax = b share the same sparsity structure
     /// needs an actual implementation, if the empty one if not used
     #[allow(non_snake_case)]
-    fn initialize(&self, A: &DMatrix<R>) -> LinearSolverStatus {
+    fn initialize(&self, _A: &DMatrix<R>) -> LinearSolverStatus {
         LinearSolverStatus::Success
     }
     /// solve Ax = b, return solving status

@@ -299,7 +299,7 @@ mod tests {
         assert_eq!(pattern.factor_err_row[1], 3);
         assert_eq!(pattern.factor_err_row[2], 6);
         assert_eq!(
-            pattern.nnz_cols[0 + variable_ordering.search_key(Key(0)).unwrap() * 3],
+            pattern.nnz_cols[variable_ordering.search_key(Key(0)).unwrap() * 3],
             6
         );
         assert_eq!(
@@ -311,7 +311,7 @@ mod tests {
             6
         );
         assert_eq!(
-            pattern.nnz_cols[0 + variable_ordering.search_key(Key(1)).unwrap() * 3],
+            pattern.nnz_cols[variable_ordering.search_key(Key(1)).unwrap() * 3],
             6
         );
         assert_eq!(
@@ -323,7 +323,7 @@ mod tests {
             6
         );
         assert_eq!(
-            pattern.nnz_cols[0 + variable_ordering.search_key(Key(2)).unwrap() * 3],
+            pattern.nnz_cols[variable_ordering.search_key(Key(2)).unwrap() * 3],
             6
         );
         assert_eq!(
@@ -363,7 +363,7 @@ mod tests {
         assert_eq!(pattern.factor_err_row[2], 6);
         assert_eq!(pattern.nnz_cols.len(), 9);
         assert_eq!(
-            pattern.nnz_cols[0 + variable_ordering.search_key(Key(0)).unwrap() * 3],
+            pattern.nnz_cols[variable_ordering.search_key(Key(0)).unwrap() * 3],
             6
         );
         assert_eq!(
@@ -375,7 +375,7 @@ mod tests {
             6
         );
         assert_eq!(
-            pattern.nnz_cols[0 + variable_ordering.search_key(Key(1)).unwrap() * 3],
+            pattern.nnz_cols[variable_ordering.search_key(Key(1)).unwrap() * 3],
             9
         );
         assert_eq!(
@@ -387,7 +387,7 @@ mod tests {
             9
         );
         assert_eq!(
-            pattern.nnz_cols[0 + variable_ordering.search_key(Key(2)).unwrap() * 3],
+            pattern.nnz_cols[variable_ordering.search_key(Key(2)).unwrap() * 3],
             3
         );
         assert_eq!(
@@ -425,7 +425,7 @@ mod tests {
         assert_eq!(pattern.factor_err_row[1], 3);
         assert_eq!(pattern.nnz_cols.len(), 9);
         assert_eq!(
-            pattern.nnz_cols[0 + variable_ordering.search_key(Key(0)).unwrap() * 3],
+            pattern.nnz_cols[variable_ordering.search_key(Key(0)).unwrap() * 3],
             3
         );
         assert_eq!(
@@ -437,7 +437,7 @@ mod tests {
             3
         );
         assert_eq!(
-            pattern.nnz_cols[0 + variable_ordering.search_key(Key(1)).unwrap() * 3],
+            pattern.nnz_cols[variable_ordering.search_key(Key(1)).unwrap() * 3],
             6
         );
         assert_eq!(
@@ -449,7 +449,7 @@ mod tests {
             6
         );
         assert_eq!(
-            pattern.nnz_cols[0 + variable_ordering.search_key(Key(2)).unwrap() * 3],
+            pattern.nnz_cols[variable_ordering.search_key(Key(2)).unwrap() * 3],
             3
         );
         assert_eq!(

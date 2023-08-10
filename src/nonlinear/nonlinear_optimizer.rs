@@ -1,18 +1,18 @@
 use std::marker::PhantomData;
 
-use nalgebra::{DMatrix, DVector, RealField, RowDVector};
+use nalgebra::{DMatrix, DVector, RealField};
 use num::Float;
 
 use crate::{
     core::{
-        factors::Factors, factors_container::FactorsContainer, variable_ordering,
+        factors::Factors, factors_container::FactorsContainer,
         variables::Variables, variables_container::VariablesContainer,
     },
     linear::linear_solver::{DenseLinearSolver, SparseLinearSolver},
 };
 
 use super::{
-    linearization::{linearzation_full_hessian, linearzation_jacobian, linearzation_lower_hessian},
+    linearization::{linearzation_full_hessian, linearzation_jacobian},
     sparsity_pattern::{
         construct_jacobian_sparsity, construct_lower_hessian_sparsity, JacobianSparsityPattern,
         LowerHessianSparsityPattern,

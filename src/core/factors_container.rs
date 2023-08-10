@@ -2,7 +2,7 @@ use crate::core::factor::Factor;
 use core::any::{type_name, TypeId};
 use core::cell::RefMut;
 use core::mem;
-use nalgebra::{DVector, DVectorViewMut, RealField};
+use nalgebra::{DVector, RealField};
 
 use super::factor::JacobiansError;
 use super::key::Key;
@@ -91,15 +91,15 @@ where
     fn dim_at(&self, _index: usize, _init: usize) -> Option<usize> {
         None
     }
-    fn keys_at(&self, index: usize, init: usize) -> Option<&[Key]> {
+    fn keys_at(&self, _index: usize, _init: usize) -> Option<&[Key]> {
         None
     }
 
     fn weighted_jacobians_error_at<C>(
         &self,
-        variables: &Variables<R, C>,
-        index: usize,
-        init: usize,
+        _variables: &Variables<R, C>,
+        _index: usize,
+        _init: usize,
     ) -> Option<JacobiansError<'_, R>>
     where
         C: VariablesContainer<R>,
@@ -108,9 +108,9 @@ where
     }
     fn weighted_error_at<C>(
         &self,
-        variables: &Variables<R, C>,
-        index: usize,
-        init: usize,
+        _variables: &Variables<R, C>,
+        _index: usize,
+        _init: usize,
     ) -> Option<RefMut<DVector<R>>>
     where
         C: VariablesContainer<R>,
@@ -189,11 +189,11 @@ where
                 self.data
                     .get(index - init)
                     .unwrap()
-                    .weighted_jacobians_error(&variables),
+                    .weighted_jacobians_error(variables),
             )
         } else {
             self.parent
-                .weighted_jacobians_error_at(&variables, index, init + self.data.len())
+                .weighted_jacobians_error_at(variables, index, init + self.data.len())
         }
     }
     fn weighted_error_at<C>(
@@ -210,11 +210,11 @@ where
                 self.data
                     .get(index - init)
                     .unwrap()
-                    .weighted_error(&variables),
+                    .weighted_error(variables),
             )
         } else {
             self.parent
-                .weighted_error_at(&variables, index, init + self.data.len())
+                .weighted_error_at(variables, index, init + self.data.len())
         }
     }
 }
