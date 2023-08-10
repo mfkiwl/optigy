@@ -7,7 +7,7 @@ use nalgebra::Vector2;
 use nalgebra::{DMatrix, DVector, RealField};
 use optigy::core::factors::Factors;
 use optigy::core::factors_container::FactorsContainer;
-use optigy::linear::sparse_cholesky_solver::SparseCholeskySolver;
+
 use optigy::nonlinear::gauss_newton_optimizer::GaussNewtonOptimizer;
 use optigy::nonlinear::nonlinear_optimizer::NonlinearOptimizer;
 use optigy::prelude::Variable;
