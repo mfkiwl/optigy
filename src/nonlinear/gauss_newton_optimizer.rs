@@ -11,13 +11,11 @@ use crate::{
     linear::linear_solver::{LinearSolverStatus, SparseLinearSolver},
 };
 
-use super::{
-    nonlinear_optimizer::{
-        IterationData, LinSysWrapper, NonlinearOptimizationError, OptIterate,
-    },
+use super::nonlinear_optimizer::{
+    IterationData, LinSysWrapper, NonlinearOptimizationError, OptIterate,
 };
 #[derive(Default)]
-pub struct GaussNewtonOptimizer<R, S>
+pub struct GaussNewtonOptimizer<S, R = f64>
 where
     R: RealField + Float,
     S: SparseLinearSolver<R>,
@@ -26,7 +24,7 @@ where
     /// linear solver
     pub linear_solver: S,
 }
-impl<R, S> OptIterate<R, S> for GaussNewtonOptimizer<R, S>
+impl<S, R> OptIterate<R, S> for GaussNewtonOptimizer<S, R>
 where
     R: RealField + Float,
     S: SparseLinearSolver<R>,
@@ -64,7 +62,7 @@ where
 }
 #[cfg(test)]
 mod tests {
-    use nalgebra::{DVector};
+    use nalgebra::DVector;
     use nalgebra_sparse::{pattern::SparsityPattern, CscMatrix};
 
     use crate::{
@@ -81,10 +79,8 @@ mod tests {
         nonlinear::{
             gauss_newton_optimizer::GaussNewtonOptimizer,
             linearization::linearzation_lower_hessian,
-            nonlinear_optimizer::{
-                LinSysWrapper, OptIterate,
-            },
-            sparsity_pattern::{construct_lower_hessian_sparsity},
+            nonlinear_optimizer::{LinSysWrapper, OptIterate},
+            sparsity_pattern::construct_lower_hessian_sparsity,
         },
     };
 
@@ -103,7 +99,7 @@ mod tests {
         factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
         factors.add(FactorB::new(2.0, None, Key(1), Key(2)));
         let variable_ordering = variables.default_variable_ordering();
-        let optimizer = GaussNewtonOptimizer::<Real, SparseCholeskySolver<Real>>::default();
+        let optimizer = GaussNewtonOptimizer::<SparseCholeskySolver<Real>, Real>::default();
         let sparsity = construct_lower_hessian_sparsity(&factors, &variables, &variable_ordering);
         let A_rows: usize = sparsity.base.A_cols;
         let mut A_values = Vec::<Real>::new();

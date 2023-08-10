@@ -153,7 +153,7 @@ where
 }
 
 #[derive(Default)]
-pub struct NonlinearOptimizer<R, S, O>
+pub struct NonlinearOptimizer<O, S, R = f64>
 where
     R: RealField + Float,
     S: SparseLinearSolver<R>,
@@ -180,7 +180,7 @@ where
     pub opt: O,
 }
 
-impl<R, S, O> NonlinearOptimizer<R, S, O>
+impl<S, O, R> NonlinearOptimizer<O, S, R>
 where
     R: RealField + Float,
     S: SparseLinearSolver<R>,

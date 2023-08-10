@@ -18,7 +18,7 @@ use optigy::{
     prelude::{Factor, Key, Variables},
 };
 #[derive(Debug, Clone)]
-pub struct E2<R>
+pub struct E2<R = f64>
 where
     R: RealField,
 {
@@ -58,7 +58,7 @@ where
     }
 }
 
-struct GPSPositionFactor<R>
+struct GPSPositionFactor<R = f64>
 where
     R: RealField,
 {
@@ -134,11 +134,10 @@ where
  *     e = pose.translation() - measurement
  */
 fn main() {
-    type Real = f64;
-    let container = ().and_variable::<E2<Real>>();
+    let container = ().and_variable::<E2>();
     let mut variables = Variables::new(container);
 
-    let container = ().and_factor::<GPSPositionFactor<Real>>();
+    let container = ().and_factor::<GPSPositionFactor>();
     let mut factors = Factors::new(container);
 
     factors.add(GPSPositionFactor::new(Key(1), Vector2::new(0.0, 0.0)));
@@ -149,24 +148,21 @@ fn main() {
     variables.add(Key(2), E2::new(Vector2::new(5.1, 0.3)));
     variables.add(Key(3), E2::new(Vector2::new(9.9, -0.1)));
 
-    let mut optimizer = NonlinearOptimizer::<
-        Real,
-        _,
-        GaussNewtonOptimizer<Real, SparseCholeskySolver<Real>>,
-    >::default();
+    let mut optimizer =
+        NonlinearOptimizer::<GaussNewtonOptimizer<SparseCholeskySolver>, _>::default();
 
     println!("before optimization");
-    let var1: &E2<Real> = variables.at(Key(1)).unwrap();
-    let var2: &E2<Real> = variables.at(Key(2)).unwrap();
-    let var3: &E2<Real> = variables.at(Key(3)).unwrap();
+    let var1: &E2 = variables.at(Key(1)).unwrap();
+    let var2: &E2 = variables.at(Key(2)).unwrap();
+    let var3: &E2 = variables.at(Key(3)).unwrap();
     println!("var 1 {}", var1.pose);
     println!("var 2 {}", var2.pose);
     println!("var 3 {}", var3.pose);
     let opt_res = optimizer.optimize(&factors, &mut variables);
     println!("opt_res {:?}", opt_res);
-    let var1: &E2<Real> = variables.at(Key(1)).unwrap();
-    let var2: &E2<Real> = variables.at(Key(2)).unwrap();
-    let var3: &E2<Real> = variables.at(Key(3)).unwrap();
+    let var1: &E2 = variables.at(Key(1)).unwrap();
+    let var2: &E2 = variables.at(Key(2)).unwrap();
+    let var3: &E2 = variables.at(Key(3)).unwrap();
     println!("after optimization");
     println!("var 1 {}", var1.pose);
     println!("var 2 {}", var2.pose);

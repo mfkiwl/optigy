@@ -12,7 +12,7 @@ pub enum LinearSolverStatus {
     /// something wrong with the system, e.g. matrix size incompatible
     Invalid,
 }
-pub trait SparseLinearSolver<R>
+pub trait SparseLinearSolver<R = f64>
 where
     R: RealField + Float,
 {
@@ -41,7 +41,7 @@ where
     fn is_normal_lower(&self) -> bool;
 }
 
-pub trait DenseLinearSolver<R>
+pub trait DenseLinearSolver<R = f64>
 where
     R: RealField,
 {

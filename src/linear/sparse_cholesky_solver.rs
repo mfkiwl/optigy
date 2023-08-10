@@ -6,7 +6,7 @@ use num::Float;
 
 use super::linear_solver::{LinearSolverStatus, SparseLinearSolver};
 #[derive(Default)]
-pub struct SparseCholeskySolver<R>
+pub struct SparseCholeskySolver<R = f64>
 where
     R: RealField + Float,
 {

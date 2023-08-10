@@ -15,7 +15,7 @@ where
 }
 
 /// The building block trait for recursive variadics.
-pub trait VariablesContainer<R>
+pub trait VariablesContainer<R = f64>
 where
     R: RealField,
 {
