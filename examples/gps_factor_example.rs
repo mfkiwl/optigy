@@ -154,12 +154,22 @@ fn main() {
         _,
         GaussNewtonOptimizer<Real, SparseCholeskySolver<Real>>,
     >::default();
+
+    println!("before optimization");
+    let var1: &E2<Real> = variables.at(Key(1)).unwrap();
+    let var2: &E2<Real> = variables.at(Key(2)).unwrap();
+    let var3: &E2<Real> = variables.at(Key(3)).unwrap();
+    println!("var 1 {}", var1.pose);
+    println!("var 2 {}", var2.pose);
+    println!("var 3 {}", var3.pose);
     let opt_res = optimizer.optimize(&factors, &mut variables);
     println!("opt_res {:?}", opt_res);
     let var1: &E2<Real> = variables.at(Key(1)).unwrap();
     let var2: &E2<Real> = variables.at(Key(2)).unwrap();
-    let var3: &E2<Real> = variables.at(Key(2)).unwrap();
+    let var3: &E2<Real> = variables.at(Key(3)).unwrap();
+    println!("after optimization");
     println!("var 1 {}", var1.pose);
     println!("var 2 {}", var2.pose);
     println!("var 3 {}", var3.pose);
+    println!("final error {}", factors.error_squared_norm(&variables));
 }

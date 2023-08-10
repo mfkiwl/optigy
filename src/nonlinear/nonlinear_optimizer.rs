@@ -249,6 +249,7 @@ where
         }
         let mut b: DVector<R> = DVector::zeros(A_rows);
         while self.iterations < self.params.max_iterations {
+            b.fill(R::zero());
             match &self.sparsity {
                 OptimizerSpasityPattern::Jacobian(_sparsity) => {
                     // jacobian linearization
@@ -292,7 +293,10 @@ where
             if iterate_result.is_err() {
                 return Err(iterate_result.err().unwrap());
             }
+            let iter_data = iterate_result.ok().unwrap();
 
+            self.err_uptodate = iter_data.err_uptodate;
+            self.err_squared_norm = iter_data.err_squared_norm;
             // check error for stop condition
             let curr_err: f64;
             if self.err_uptodate {
