@@ -1,88 +1,48 @@
-use nalgebra::{DVector, DVectorView, Matrix2, RealField, Vector2};
+use std::marker::PhantomData;
+
+use nalgebra::{
+    ComplexField, DVector, DVectorView, Matrix2, RealField, SMatrix, UnitComplex, Vector2, Vector3,
+};
 use num::Float;
+use sophus_rs::lie::rotation2::{Isometry2, Rotation2};
 
 use crate::core::variable::Variable;
 
 #[derive(Debug, Clone)]
 pub struct SE2<R = f64>
 where
-    R: RealField,
+    R: RealField + Float,
 {
-    pub pose: Vector2<R>,
-    pub unit_complex: Vector2<R>,
+    pub origin: Isometry2,
+    __marker: PhantomData<R>,
 }
 
-fn exp<R>(theta: R) -> Vector2<R>
-where
-    R: RealField,
-{
-    Vector2::<R>::new(theta.clone().cos(), theta.clone().sin())
-}
-
-fn inverse<R>(so2: Vector2<R>) -> Vector2<R>
-where
-    R: RealField,
-{
-    Vector2::<R>::new(so2.x.clone(), -so2.y.clone())
-}
-
-fn log<R>(so2: Vector2<R>) -> R
-where
-    R: RealField,
-{
-    so2.y.clone().atan2(so2.x.clone())
-}
-fn matrix<R>(so2: Vector2<R>) -> Matrix2<R>
-where
-    R: RealField,
-{
-    Matrix2::<R>::new(so2.x.clone(), -so2.y.clone(), so2.y.clone(), so2.x.clone())
-}
-fn se2_exp<R>(a: DVector<R>) -> (Vector2<R>, Vector2<R>)
-where
-    R: RealField,
-{
-    let theta = a[2].clone();
-    let so2 = exp(theta.clone());
-    let mut sin_theta_by_theta = R::zero();
-    let mut one_minus_cos_theta_by_theta = R::zero();
-
-    if theta.clone().abs() < R::from_f64(1e-10).unwrap() {
-        let theta_sq = theta.clone() * theta.clone();
-        sin_theta_by_theta =
-            R::from_f64(1.).unwrap() - R::from_f64(1. / 6.).unwrap() * theta_sq.clone();
-        one_minus_cos_theta_by_theta = R::from_f64(0.5).unwrap() * theta.clone()
-            - R::from_f64(1. / 24.).unwrap() * theta * theta_sq;
-    } else {
-        sin_theta_by_theta = so2.y.clone() / theta.clone();
-        one_minus_cos_theta_by_theta = (R::from_f64(1.).unwrap() - so2.x.clone()) / theta;
-    }
-    let trans = Vector2::<R>::new(
-        sin_theta_by_theta.clone() * a[0].clone()
-            - one_minus_cos_theta_by_theta.clone() * a[1].clone(),
-        one_minus_cos_theta_by_theta.clone() * a[0].clone()
-            + sin_theta_by_theta.clone() * a[1].clone(),
-    );
-    return (so2, trans);
-}
 impl<R> Variable<R> for SE2<R>
 where
-    R: RealField,
+    R: RealField + Float,
 {
     fn local(&self, value: &Self) -> DVector<R>
     where
         R: RealField,
     {
-        let d = self.pose.clone() - value.pose.clone();
-        let l = DVector::<R>::from_column_slice(d.as_slice());
+        let d = (self.origin.inverse().multiply(&value.origin)).log();
+        // let translation = d.translation;
+        // let subgroup_params = d.rotation;
+        // let subgroup_tangent = subgroup_params.log();
+        // let d = self.pose.clone() - value.pose.clone();
+        let l = DVector::<R>::from_column_slice(d.cast::<R>().as_slice());
         l
     }
 
     fn retract(&mut self, delta: DVectorView<R>)
     where
-        R: RealField,
+        R: RealField + Float,
     {
-        self.pose = self.pose.clone() + delta.clone();
+        self.origin = self.origin.clone().multiply(&Isometry2::exp(&Vector3::new(
+            delta[0].to_f64().unwrap(),
+            delta[1].to_f64().unwrap(),
+            delta[2].to_f64().unwrap(),
+        )));
     }
 
     fn dim(&self) -> usize {
@@ -91,12 +51,17 @@ where
 }
 impl<R> SE2<R>
 where
-    R: RealField,
+    R: RealField + Float,
 {
-    pub fn new(x: R, y: R, theta: R) -> Self {
+    pub fn new(x: f64, y: f64, theta: f64) -> Self {
         SE2 {
-            pose: Vector2::new(x, y),
-            unit_complex: exp(theta),
+            origin: Isometry2::from_t_and_subgroup(
+                &Vector2::new(x, y),
+                &Rotation2::exp(&SMatrix::<f64, 1, 1>::from_column_slice(
+                    vec![theta].as_slice(),
+                )),
+            ),
+            __marker: PhantomData,
         }
     }
 }

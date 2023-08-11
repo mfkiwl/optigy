@@ -11,6 +11,7 @@ nalgebra = {version="0.32.3", features=["compare"]}
 nalgebra-sparse = {version="0.9.0", features=["compare"]}
 num = "0.4.1"
 rand = "0.8.5"
+sophus-rs= { git = "https://github.com/strasdat/sophus-rs.git",  rev="f632c85" }
 [dev-dependencies]
 matrixcompare = "0.3.0"
 criterion = { version = "0.4", features = ["html_reports"] }
