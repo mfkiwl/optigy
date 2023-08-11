@@ -157,7 +157,7 @@ where
     }
 
     fn dim(&self) -> usize {
-        2
+        3
     }
 
     fn keys(&self) -> &[Key] {

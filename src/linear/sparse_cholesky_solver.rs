@@ -28,12 +28,7 @@ where
         let chol = CscCholesky::factor(A);
         match chol {
             Ok(chol) => {
-                let mut B = DMatrix::<R>::zeros(b.nrows(), b.nrows());
-                for i in 0..B.nrows() {
-                    B.column_mut(i).copy_from(b);
-                }
-                chol.solve_mut(&mut B);
-                x.copy_from(&B.column(0));
+                x.copy_from(&chol.solve(b));
                 LinearSolverStatus::Success
             }
             Err(_) => LinearSolverStatus::RankDeficiency,

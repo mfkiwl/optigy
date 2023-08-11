@@ -250,6 +250,7 @@ where
         let mut b: DVector<R> = DVector::zeros(A_rows);
         while self.iterations < self.params.max_iterations {
             b.fill(R::zero());
+            A_values.fill(R::zero());
             match &self.sparsity {
                 OptimizerSpasityPattern::Jacobian(_sparsity) => {
                     // jacobian linearization
