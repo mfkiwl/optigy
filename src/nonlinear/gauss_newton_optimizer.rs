@@ -46,6 +46,7 @@ where
         FC: FactorsContainer<R>,
     {
         let mut dx: DVector<R> = DVector::zeros(variables.dim());
+        //WARN sparse cholesky solver not working for lower triangular matrices
         let linear_solver_status = self.linear_solver.solve(lin_sys.A, lin_sys.b, &mut dx);
         let mut A = DMatrix::<R>::from(lin_sys.A);
         A.fill_upper_triangle_with_lower_triangle();
