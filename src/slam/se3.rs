@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use nalgebra::{
-    ComplexField, DVector, DVectorView, Matrix2, RealField, SMatrix, UnitComplex, Vector2, Vector3,
+    ComplexField, DVector, DVectorView, RealField, SMatrix, Vector2, Vector3,
 };
 use num::Float;
 use sophus_rs::lie::rotation2::{Isometry2, Rotation2};

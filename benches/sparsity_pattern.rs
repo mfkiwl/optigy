@@ -1,6 +1,6 @@
 use std::cell::{RefCell, RefMut};
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use nalgebra::{DMatrix, DVector, DVectorView, RealField, Vector2};
 use optigy::{
     core::{

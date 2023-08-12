@@ -50,7 +50,7 @@ where
         let linear_solver_status = self.linear_solver.solve(lin_sys.A, lin_sys.b, &mut dx);
         let mut A = DMatrix::<R>::from(lin_sys.A);
         A.fill_upper_triangle_with_lower_triangle();
-        dx = A.clone().cholesky().unwrap().solve(&lin_sys.b);
+        dx = A.clone().cholesky().unwrap().solve(lin_sys.b);
         if linear_solver_status == LinearSolverStatus::Success {
             variables.retract(dx.as_view(), variable_ordering);
             Ok(IterationData::new(false, 0.0))

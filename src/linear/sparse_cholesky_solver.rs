@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use nalgebra::{DMatrix, DVector, RealField};
+use nalgebra::{DVector, RealField};
 use nalgebra_sparse::{factorization::CscCholesky, CscMatrix};
 use num::Float;
 

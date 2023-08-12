@@ -1,11 +1,11 @@
 use core::cell::RefCell;
 use core::cell::RefMut;
 
-use nalgebra::DVectorView;
 
-use nalgebra::dvector;
+
+
 use nalgebra::vector;
-use nalgebra::Matrix3;
+
 use nalgebra::SMatrix;
 use nalgebra::Vector2;
 use nalgebra::{DMatrix, DVector, RealField};
@@ -16,7 +16,7 @@ use optigy::prelude::GaussNewtonOptimizer;
 use optigy::prelude::GaussianLoss;
 use optigy::prelude::Jacobians;
 use optigy::prelude::NonlinearOptimizer;
-use optigy::prelude::Variable;
+
 use optigy::prelude::VariablesContainer;
 use optigy::prelude::{Factor, Key, Variables};
 use optigy::slam::se3::SE2;
@@ -61,7 +61,7 @@ where
         {
             let pose = v0.origin.params();
             let pose = vector![pose[0], pose[1]];
-            let d = pose.cast::<R>() - self.pose.clone();
+            let d = pose.cast::<R>() - self.pose;
             let l = DVector::<R>::from_column_slice(d.as_slice());
             *self.error.borrow_mut() = l;
         }
