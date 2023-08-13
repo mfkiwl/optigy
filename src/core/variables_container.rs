@@ -3,7 +3,7 @@ use crate::core::variable::Variable;
 use crate::core::variables::Variables;
 use hashbrown::HashMap;
 use nalgebra::{DVectorView, DVectorViewMut, RealField};
-use std::any::{type_name, TypeId};
+use std::any::TypeId;
 
 use std::mem;
 
@@ -32,7 +32,7 @@ where
         match self.get::<N::Value>() {
             Some(_) => panic!(
                 "type {} already present in VariablesContainer",
-                type_name::<N::Value>()
+                tynm::type_name::<N::Value>()
             ),
             None => VariablesEntry {
                 data: HashMap::<Key, N::Value>::default(),
@@ -220,9 +220,9 @@ where
         .get::<V>()
         .expect(
             format!(
-                "type {} not registered in variables container. use ().and_variable::<{}>()",
-                type_name::<V>(),
-                type_name::<V>()
+                "type {} should be registered in variables container. use ().and_variable::<{}>()",
+                tynm::type_name::<V>(),
+                tynm::type_name::<V>()
             )
             .as_str(),
         )
@@ -239,9 +239,9 @@ where
         .get_mut::<V>()
         .expect(
             format!(
-                "type {} not registered in variables container. use ().and_variable::<{}>()",
-                type_name::<V>(),
-                type_name::<V>()
+                "type {} should be registered in variables container. use ().and_variable::<{}>()",
+                tynm::type_name::<V>(),
+                tynm::type_name::<V>()
             )
             .as_str(),
         )

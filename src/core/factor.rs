@@ -41,9 +41,13 @@ where
         C: VariablesContainer<R>,
     {
         // match self.loss_function() {
-        //     Some(loss) => loss.weight_in_place()
-        //     None => todo!(),
+        //     Some(loss) => {
+        //         let mut e = self.error(variables).as_view_mut();
+        //         loss.weight_in_place(e.as_view_mut())
+        //     }
+        //     None => self.error(variables),
         // }
+
         self.error(variables)
     }
 

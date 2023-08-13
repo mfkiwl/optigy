@@ -3,7 +3,7 @@ use crate::core::variable::Variable;
 use crate::core::variable_ordering::VariableOrdering;
 use crate::core::variables_container::{get_variable, get_variable_mut, VariablesContainer};
 use nalgebra::{DVector, DVectorView, RealField};
-use std::any::type_name;
+
 use std::marker::PhantomData;
 
 #[derive(Clone)]
@@ -87,9 +87,9 @@ where
             .get_mut::<V>()
             .expect(
                 format!(
-                    "type {} not registered in variables container. use ().and_variable::<{}>()",
-                    type_name::<V>(),
-                    type_name::<V>()
+                    "type {} should be registered in variables container. use ().and_variable::<{}>()",
+                   tynm::type_name::<V>(),
+                   tynm::type_name::<V>()
                 )
                 .as_str(),
             )

@@ -3,7 +3,6 @@ use num::Float;
 
 use crate::core::variables::Variables;
 use core::{cell::RefMut, marker::PhantomData};
-use std::any::type_name;
 
 use super::{
     factor::{Factor, JacobiansError},
@@ -93,9 +92,9 @@ where
             .get_mut::<F>()
             .expect(
                 format!(
-                    "type {} not registered in factors container. use ().and_factor::<{}>()",
-                    type_name::<F>(),
-                    type_name::<F>()
+                    "type {} should be registered in factors container. use ().and_factor::<{}>()",
+                    tynm::type_name::<F>(),
+                    tynm::type_name::<F>()
                 )
                 .as_str(),
             )

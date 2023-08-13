@@ -9,7 +9,7 @@ where
 {
     /// weight error: apply loss function
     /// in place operation to avoid excessive memory operation
-    fn weight_in_place(&self, b: DVectorViewMut<R>);
+    fn weight_in_place(&self, b: DVectorViewMut<R>) -> DVectorViewMut<R>;
 
     /// weight jacobian matrices and error: apply loss function
     /// in place operation to avoid excessive memory operation
@@ -22,7 +22,7 @@ impl<R> LossFunction<R> for GaussianLoss
 where
     R: RealField,
 {
-    fn weight_in_place(&self, _b: DVectorViewMut<R>) {
+    fn weight_in_place(&self, _b: DVectorViewMut<R>) -> DVectorViewMut<R> {
         todo!()
     }
 
@@ -49,7 +49,7 @@ impl<R> LossFunction<R> for ScaleLoss<R>
 where
     R: RealField + Float,
 {
-    fn weight_in_place(&self, _b: DVectorViewMut<R>) {
+    fn weight_in_place(&self, _b: DVectorViewMut<R>) -> DVectorViewMut<R> {
         todo!()
     }
 

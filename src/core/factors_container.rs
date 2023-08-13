@@ -1,5 +1,5 @@
 use crate::core::factor::Factor;
-use core::any::{type_name, TypeId};
+use core::any::TypeId;
 use core::cell::RefMut;
 use core::mem;
 use nalgebra::{DVector, RealField};
@@ -34,7 +34,7 @@ where
         match self.get::<N::Value>() {
             Some(_) => panic!(
                 "type {} already present in FactorsContainer",
-                type_name::<N::Value>()
+                tynm::type_name::<N::Value>()
             ),
             None => FactorsEntry {
                 data: Vec::<N::Value>::default(),
