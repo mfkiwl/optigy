@@ -1,9 +1,6 @@
 use core::cell::RefCell;
 use core::cell::RefMut;
 
-
-
-
 use nalgebra::vector;
 
 use nalgebra::SMatrix;
@@ -146,12 +143,12 @@ where
         {
             let v0: &SE2<R> = variables.at(self.keys()[0]).unwrap();
             let v1: &SE2<R> = variables.at(self.keys()[1]).unwrap();
-            let Hinv = -v0.origin.adj();
-            let Hcmp1 = v1.origin.inverse().adj();
-            let J = (Hcmp1 * Hinv).cast::<R>();
+            let hinv = -v0.origin.adj();
+            let hcmp1 = v1.origin.inverse().adj();
+            let j = (hcmp1 * hinv).cast::<R>();
             // let sm = Matrix3::identity();
             // let m: DMatrix<f64> = Hcmp1
-            self.jacobians.borrow_mut()[0].copy_from(&J);
+            self.jacobians.borrow_mut()[0].copy_from(&j);
         }
         self.jacobians.borrow_mut()
     }
@@ -198,7 +195,9 @@ fn main() {
     variables.add(Key(2), SE2::new(5.1, 0.3, -0.1));
     variables.add(Key(3), SE2::new(9.9, -0.1, -0.2));
 
-    let mut optimizer = NonlinearOptimizer::<GaussNewtonOptimizer>::default();
+    // let mut optimizer = NonlinearOptimizer::<GaussNewtonOptimizer>::default();
+    // let mut optimizer = NonlinearOptimizer::new(GaussNewtonOptimizer::default());
+    let mut optimizer = NonlinearOptimizer::default();
 
     println!("before optimization");
     let var1: &SE2 = variables.at(Key(1)).unwrap();

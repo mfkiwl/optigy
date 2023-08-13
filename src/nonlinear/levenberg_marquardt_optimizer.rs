@@ -18,28 +18,62 @@ use super::nonlinear_optimizer::{
     IterationData, LinSysWrapper, NonlinearOptimizationError, NonlinearOptimizerParams, OptIterate,
     OptimizerBaseParams,
 };
-#[derive(Debug, Default)]
-pub struct GaussNewtonOptimizerParams {
+#[derive(Debug)]
+pub struct LevenbergMarquardtOptimizerParams {
+    // initial lambda
+    pub lambda_init: f64,
+    // initial multiply factor to increase lambda
+    pub lambda_increase_factor_init: f64,
+    // multiply factor to increase lambda multiply factor
+    pub lambda_increase_factor_update: f64,
+    // minimal lambda decrease factor
+    pub lambda_decrease_factor_min: f64,
+    // minimal lambda
+    pub lambda_min: f64,
+    // max lambda
+    pub lambda_max: f64,
+    // minimal gain ratio (quality factor) to accept a step
+    pub gain_ratio_thresh: f64,
+    // if true use lambda * diag(A'A) for dumping,
+    // if false use lambda * max(diag(A'A)) * I
+    pub diagonal_damping: bool,
+    //base params
     pub base: NonlinearOptimizerParams,
 }
-impl OptimizerBaseParams for GaussNewtonOptimizerParams {
+impl Default for LevenbergMarquardtOptimizerParams {
+    fn default() -> Self {
+        LevenbergMarquardtOptimizerParams {
+            lambda_init: 1e-5,
+            lambda_increase_factor_init: 2.0,
+            lambda_increase_factor_update: 2.0,
+            lambda_decrease_factor_min: 1.0 / 3.0,
+            lambda_min: 1e-20,
+            lambda_max: 1e10,
+            gain_ratio_thresh: 1e-3,
+            diagonal_damping: true,
+            base: NonlinearOptimizerParams::default(),
+        }
+    }
+}
+impl OptimizerBaseParams for LevenbergMarquardtOptimizerParams {
     fn base(&self) -> &NonlinearOptimizerParams {
         &self.base
     }
 }
+
 #[derive(Default)]
-pub struct GaussNewtonOptimizer<R = f64>
+pub struct LevenbergMarquardtOptimizer<R = f64>
 where
-    R: RealField + Float + Default,
+    R: RealField + Float,
 {
     __marker: PhantomData<R>,
     /// linear solver
     pub linear_solver: SparseCholeskySolver<R>,
-    pub params: GaussNewtonOptimizerParams,
+    pub params: LevenbergMarquardtOptimizerParams,
 }
-impl<R> OptIterate<R> for GaussNewtonOptimizer<R>
+impl<R> OptIterate<R> for LevenbergMarquardtOptimizer<R>
 where
-    R: RealField + Float + Default,
+    R: RealField + Float,
 {
     type S = SparseCholeskySolver<R>;
     #[allow(non_snake_case)]
@@ -76,7 +110,6 @@ where
     fn linear_solver(&self) -> &Self::S {
         &self.linear_solver
     }
-
     fn base_params(&self) -> &NonlinearOptimizerParams {
         &self.params.base
     }
@@ -96,6 +129,7 @@ mod tests {
             variables::Variables,
             variables_container::VariablesContainer,
         },
+        linear::sparse_cholesky_solver::SparseCholeskySolver,
         nonlinear::{
             gauss_newton_optimizer::GaussNewtonOptimizer,
             linearization::linearzation_lower_hessian,
@@ -119,7 +153,7 @@ mod tests {
         factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
         factors.add(FactorB::new(2.0, None, Key(1), Key(2)));
         let variable_ordering = variables.default_variable_ordering();
-        let optimizer = GaussNewtonOptimizer::<Real>::default();
+        let optimizer = GaussNewtonOptimizer::<SparseCholeskySolver<Real>, Real>::default();
         let sparsity = construct_lower_hessian_sparsity(&factors, &variables, &variable_ordering);
         let A_rows: usize = sparsity.base.A_cols;
         let mut A_values = Vec::<Real>::new();

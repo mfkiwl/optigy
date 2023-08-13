@@ -9,7 +9,8 @@ use crate::{
         factors::Factors, factors_container::FactorsContainer, variable_ordering::VariableOrdering,
         variables::Variables, variables_container::VariablesContainer,
     },
-    linear::{linear_solver::SparseLinearSolver, sparse_cholesky_solver::SparseCholeskySolver},
+    linear::linear_solver::SparseLinearSolver,
+    prelude::GaussNewtonOptimizer,
 };
 
 use super::{
@@ -31,6 +32,7 @@ pub enum NonlinearOptimizationError {
     Invalid,
 }
 /// enum of linear solver types
+#[derive(Debug)]
 pub enum LinearSolverType {
     // Eigen Direct LDLt factorization
     Cholesky,
@@ -48,7 +50,7 @@ pub enum LinearSolverType {
     SchurDenseCholesky,
 }
 // enum of nonlinear optimization verbosity level
-#[derive(PartialOrd, Ord, PartialEq, Eq)]
+#[derive(PartialOrd, Ord, PartialEq, Eq, Debug)]
 pub enum NonlinearOptimizerVerbosityLevel {
     /// only print warning message to std::cerr when optimization does not success
     /// and terminated abnormally. Default verbosity level
@@ -62,6 +64,7 @@ pub enum NonlinearOptimizerVerbosityLevel {
     Subiteration,
 }
 /// base class for nonlinear optimization settings
+#[derive(Debug)]
 pub struct NonlinearOptimizerParams {
     /// max number of iterations
     pub max_iterations: usize,
@@ -85,7 +88,9 @@ impl Default for NonlinearOptimizerParams {
         }
     }
 }
-
+pub trait OptimizerBaseParams {
+    fn base(&self) -> &NonlinearOptimizerParams;
+}
 impl Default for NonlinearOptimizationError {
     fn default() -> Self {
         Self::Invalid
@@ -129,11 +134,11 @@ impl IterationData {
         }
     }
 }
-pub trait OptIterate<R, S>
+pub trait OptIterate<R>
 where
     R: RealField + Float,
-    S: SparseLinearSolver<R>,
 {
+    type S: SparseLinearSolver<R>;
     /// method to run a single iteration to update variables
     /// use to implement your own optimization iterate procedure
     /// need a implementation
@@ -149,20 +154,17 @@ where
         R: RealField,
         VC: VariablesContainer<R>,
         FC: FactorsContainer<R>;
-    fn linear_solver(&self) -> &S;
+    fn linear_solver(&self) -> &Self::S;
+    fn base_params(&self) -> &NonlinearOptimizerParams;
 }
 
-#[derive(Default)]
-pub struct NonlinearOptimizer<O, S = SparseCholeskySolver, R = f64>
+// #[derive(Default)]
+pub struct NonlinearOptimizer<O, R = f64>
 where
     R: RealField + Float,
-    S: SparseLinearSolver<R>,
-    O: OptIterate<R, S>,
+    O: OptIterate<R>,
 {
     __marker: PhantomData<R>,
-    __marker2: PhantomData<S>,
-    /// settings
-    pub params: NonlinearOptimizerParams,
     /// linearization sparsity pattern
     pub sparsity: OptimizerSpasityPattern,
     /// cached internal optimization status, used by iterate() method
@@ -179,13 +181,39 @@ where
     /// optimizer that implement iteration function
     pub opt: O,
 }
+impl<R> Default for NonlinearOptimizer<GaussNewtonOptimizer<R>, R>
+where
+    R: RealField + Float + Default,
+{
+    fn default() -> Self {
+        NonlinearOptimizer {
+            __marker: PhantomData,
+            sparsity: OptimizerSpasityPattern::default(),
+            iterations: 0,
+            last_err_squared_norm: 0.0,
+            err_squared_norm: 0.0,
+            err_uptodate: false,
+            opt: GaussNewtonOptimizer::<R>::default(),
+        }
+    }
+}
 
-impl<S, O, R> NonlinearOptimizer<O, S, R>
+impl<O, R> NonlinearOptimizer<O, R>
 where
     R: RealField + Float,
-    S: SparseLinearSolver<R>,
-    O: OptIterate<R, S>,
+    O: OptIterate<R>,
 {
+    pub fn new(opt: O) -> Self {
+        NonlinearOptimizer {
+            __marker: PhantomData,
+            sparsity: OptimizerSpasityPattern::default(),
+            iterations: 0,
+            last_err_squared_norm: 0.0,
+            err_squared_norm: 0.0,
+            err_uptodate: false,
+            opt,
+        }
+    }
     /// default optimization method with default error termination condition
     /// can be override in derived classes
     /// by default VariablesToEliminate is empty, do not eliminate any variable
@@ -244,11 +272,12 @@ where
         self.iterations = 0;
         self.last_err_squared_norm = 0.5 * factors.error_squared_norm(variables);
 
-        if self.params.verbosity_level >= NonlinearOptimizerVerbosityLevel::Iteration {
+        let params = self.opt.base_params();
+        if params.verbosity_level >= NonlinearOptimizerVerbosityLevel::Iteration {
             println!("initial error: {}", self.last_err_squared_norm);
         }
         let mut b: DVector<R> = DVector::zeros(A_rows);
-        while self.iterations < self.params.max_iterations {
+        while self.iterations < params.max_iterations {
             b.fill(R::zero());
             A_values.fill(R::zero());
             match &self.sparsity {
@@ -308,7 +337,7 @@ where
                 curr_err = 0.5 * factors.error_squared_norm(variables);
             }
 
-            if self.params.verbosity_level >= NonlinearOptimizerVerbosityLevel::Iteration {
+            if params.verbosity_level >= NonlinearOptimizerVerbosityLevel::Iteration {
                 println!("iteration: {}, error: {}", self.iterations, curr_err);
             }
 
@@ -318,7 +347,7 @@ where
             }
 
             if self.error_stop_condition(self.last_err_squared_norm, curr_err) {
-                if self.params.verbosity_level >= NonlinearOptimizerVerbosityLevel::Iteration {
+                if params.verbosity_level >= NonlinearOptimizerVerbosityLevel::Iteration {
                     println!("reach stop condition, optimization success");
                 }
                 return Ok(());
@@ -331,7 +360,8 @@ where
     /// default stop condition using error threshold
     /// return true if stop condition meets
     fn error_stop_condition(&self, last_err: f64, curr_err: f64) -> bool {
-        ((last_err - curr_err) < self.params.min_abs_err_decrease)
-            || ((last_err - curr_err) / last_err < self.params.min_rel_err_decrease)
+        let params = self.opt.base_params();
+        ((last_err - curr_err) < params.min_abs_err_decrease)
+            || ((last_err - curr_err) / last_err < params.min_rel_err_decrease)
     }
 }
