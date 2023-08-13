@@ -7,6 +7,7 @@ use nalgebra::SMatrix;
 use nalgebra::Vector2;
 use nalgebra::{DMatrix, DVector, RealField};
 use num::Float;
+use optigy::core::loss_function::ScaleLoss;
 use optigy::nonlinear::levenberg_marquardt_optimizer::LevenbergMarquardtOptimizer;
 use optigy::nonlinear::levenberg_marquardt_optimizer::LevenbergMarquardtOptimizerParams;
 use optigy::prelude::Factors;
@@ -60,8 +61,7 @@ where
             let pose = v0.origin.params();
             let pose = vector![pose[0], pose[1]];
             let d = pose.cast::<R>() - self.pose;
-            let l = DVector::<R>::from_column_slice(d.as_slice());
-            *self.error.borrow_mut() = l;
+            self.error.borrow_mut().copy_from(&d);
         }
         self.error.borrow_mut()
     }
@@ -103,14 +103,31 @@ fn main() {
     let container = ().and_variable::<SE2>();
     let mut variables = Variables::new(container);
 
-    let container = ().and_factor::<GPSPositionFactor>().and_factor::<BetweenFactor>();
+    let container =
+        ().and_factor::<GPSPositionFactor>()
+            .and_factor::<BetweenFactor<GaussianLoss>>()
+            .and_factor::<BetweenFactor<ScaleLoss>>();
     let mut factors = Factors::new(container);
 
     factors.add(GPSPositionFactor::new(Key(1), Vector2::new(0.0, 0.0)));
     factors.add(GPSPositionFactor::new(Key(2), Vector2::new(5.0, 0.0)));
     factors.add(GPSPositionFactor::new(Key(3), Vector2::new(10.0, 0.0)));
-    factors.add(BetweenFactor::new(Key(1), Key(2), 5.0, 0.0, 0.0));
-    factors.add(BetweenFactor::new(Key(2), Key(3), 5.0, 0.0, 0.0));
+    factors.add(BetweenFactor::new(
+        Key(1),
+        Key(2),
+        5.0,
+        0.0,
+        0.0,
+        Some(GaussianLoss {}),
+    ));
+    factors.add(BetweenFactor::new(
+        Key(2),
+        Key(3),
+        5.0,
+        0.0,
+        0.0,
+        Some(ScaleLoss::new(2.0)),
+    ));
 
     variables.add(Key(1), SE2::new(0.2, -0.3, 0.2));
     variables.add(Key(2), SE2::new(5.1, 0.3, -0.1));

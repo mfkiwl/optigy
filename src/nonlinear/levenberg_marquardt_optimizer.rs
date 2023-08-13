@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use nalgebra::{DMatrix, DVector, RealField};
 use num::Float;
 

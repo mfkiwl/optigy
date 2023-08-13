@@ -3,6 +3,7 @@ use crate::core::variable::Variable;
 use crate::core::variable_ordering::VariableOrdering;
 use crate::core::variables_container::{get_variable, get_variable_mut, VariablesContainer};
 use nalgebra::{DVector, DVectorView, RealField};
+use std::any::type_name;
 use std::marker::PhantomData;
 
 #[derive(Clone)]
@@ -81,7 +82,18 @@ where
     where
         V: Variable<R> + 'static,
     {
-        self.container.get_mut::<V>().unwrap().insert(key, var);
+        // self.container.get_mut::<V>().unwrap().insert(key, var);
+        self.container
+            .get_mut::<V>()
+            .expect(
+                format!(
+                    "type {} not registered in variables container. use ().and_variable::<{}>()",
+                    type_name::<V>(),
+                    type_name::<V>()
+                )
+                .as_str(),
+            )
+            .insert(key, var);
     }
     pub fn dim_at(&self, key: Key) -> Option<usize> {
         self.container.dim_at(key)

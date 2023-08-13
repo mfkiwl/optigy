@@ -3,6 +3,7 @@ use num::Float;
 
 use crate::core::variables::Variables;
 use core::{cell::RefMut, marker::PhantomData};
+use std::any::type_name;
 
 use super::{
     factor::{Factor, JacobiansError},
@@ -87,7 +88,18 @@ where
         F: Factor<R> + 'static,
         R: RealField,
     {
-        self.container.get_mut::<F>().unwrap().push(f)
+        // self.container.get_mut::<F>().unwrap().push(f)
+        self.container
+            .get_mut::<F>()
+            .expect(
+                format!(
+                    "type {} not registered in factors container. use ().and_factor::<{}>()",
+                    type_name::<F>(),
+                    type_name::<F>()
+                )
+                .as_str(),
+            )
+            .push(f)
     }
 }
 #[cfg(test)]

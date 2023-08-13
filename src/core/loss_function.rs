@@ -1,4 +1,5 @@
 use nalgebra::{DVectorViewMut, RealField};
+use num::Float;
 
 use super::factor::JacobiansError;
 
@@ -20,6 +21,33 @@ pub struct GaussianLoss {}
 impl<R> LossFunction<R> for GaussianLoss
 where
     R: RealField,
+{
+    fn weight_in_place(&self, _b: DVectorViewMut<R>) {
+        todo!()
+    }
+
+    fn weight_in_place_jacobians_error(&self, _je: JacobiansError<'_, R>) {
+        todo!()
+    }
+}
+#[derive(Clone)]
+pub struct ScaleLoss<R = f64>
+where
+    R: RealField + Float,
+{
+    inv_sigma: R,
+}
+impl<R> ScaleLoss<R>
+where
+    R: RealField + Float,
+{
+    pub fn new(s: R) -> Self {
+        ScaleLoss { inv_sigma: s }
+    }
+}
+impl<R> LossFunction<R> for ScaleLoss<R>
+where
+    R: RealField + Float,
 {
     fn weight_in_place(&self, _b: DVectorViewMut<R>) {
         todo!()
