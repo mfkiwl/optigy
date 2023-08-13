@@ -7,6 +7,8 @@ use nalgebra::SMatrix;
 use nalgebra::Vector2;
 use nalgebra::{DMatrix, DVector, RealField};
 use num::Float;
+use optigy::nonlinear::levenberg_marquardt_optimizer::LevenbergMarquardtOptimizer;
+use optigy::nonlinear::levenberg_marquardt_optimizer::LevenbergMarquardtOptimizerParams;
 use optigy::prelude::Factors;
 use optigy::prelude::FactorsContainer;
 use optigy::prelude::GaussNewtonOptimizer;
@@ -14,6 +16,7 @@ use optigy::prelude::GaussianLoss;
 use optigy::prelude::Jacobians;
 use optigy::prelude::NonlinearOptimizer;
 
+use optigy::prelude::Variable;
 use optigy::prelude::VariablesContainer;
 use optigy::prelude::{Factor, Key, Variables};
 use optigy::slam::se3::SE2;
@@ -129,9 +132,8 @@ where
 
         let diff = v0.origin.inverse().multiply(&v1.origin);
         let d = (self.origin.inverse().multiply(&diff)).log();
-        let l = DVector::<R>::from_column_slice(d.cast::<R>().as_slice());
         {
-            *self.error.borrow_mut() = l;
+            self.error.borrow_mut().copy_from(&d.cast::<R>());
         }
         self.error.borrow_mut()
     }
@@ -198,6 +200,9 @@ fn main() {
     // let mut optimizer = NonlinearOptimizer::<GaussNewtonOptimizer>::default();
     // let mut optimizer = NonlinearOptimizer::new(GaussNewtonOptimizer::default());
     let mut optimizer = NonlinearOptimizer::default();
+    // let mut optimizer = NonlinearOptimizer::new(LevenbergMarquardtOptimizer::with_params(
+    //     LevenbergMarquardtOptimizerParams::default(),
+    // ));
 
     println!("before optimization");
     let var1: &SE2 = variables.at(Key(1)).unwrap();

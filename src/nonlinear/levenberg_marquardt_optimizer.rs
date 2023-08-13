@@ -64,16 +64,26 @@ impl OptimizerBaseParams for LevenbergMarquardtOptimizerParams {
 #[derive(Default)]
 pub struct LevenbergMarquardtOptimizer<R = f64>
 where
-    R: RealField + Float,
+    R: RealField + Float + Default,
 {
-    __marker: PhantomData<R>,
     /// linear solver
     pub linear_solver: SparseCholeskySolver<R>,
     pub params: LevenbergMarquardtOptimizerParams,
 }
+impl<R> LevenbergMarquardtOptimizer<R>
+where
+    R: RealField + Float + Default,
+{
+    pub fn with_params(params: LevenbergMarquardtOptimizerParams) -> Self {
+        LevenbergMarquardtOptimizer {
+            linear_solver: SparseCholeskySolver::default(),
+            params,
+        }
+    }
+}
 impl<R> OptIterate<R> for LevenbergMarquardtOptimizer<R>
 where
-    R: RealField + Float,
+    R: RealField + Float + Default,
 {
     type S = SparseCholeskySolver<R>;
     #[allow(non_snake_case)]
@@ -129,7 +139,6 @@ mod tests {
             variables::Variables,
             variables_container::VariablesContainer,
         },
-        linear::sparse_cholesky_solver::SparseCholeskySolver,
         nonlinear::{
             gauss_newton_optimizer::GaussNewtonOptimizer,
             linearization::linearzation_lower_hessian,
@@ -153,7 +162,7 @@ mod tests {
         factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
         factors.add(FactorB::new(2.0, None, Key(1), Key(2)));
         let variable_ordering = variables.default_variable_ordering();
-        let optimizer = GaussNewtonOptimizer::<SparseCholeskySolver<Real>, Real>::default();
+        let optimizer = GaussNewtonOptimizer::default();
         let sparsity = construct_lower_hessian_sparsity(&factors, &variables, &variable_ordering);
         let A_rows: usize = sparsity.base.A_cols;
         let mut A_values = Vec::<Real>::new();

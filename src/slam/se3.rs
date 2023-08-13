@@ -1,8 +1,6 @@
 use std::marker::PhantomData;
 
-use nalgebra::{
-    ComplexField, DVector, DVectorView, RealField, SMatrix, Vector2, Vector3,
-};
+use nalgebra::{DVector, DVectorView, RealField, SMatrix, Vector2, Vector3};
 use num::Float;
 use sophus_rs::lie::rotation2::{Isometry2, Rotation2};
 

@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use nalgebra::{DMatrix, DVector, RealField};
 use num::Float;
 
@@ -32,7 +30,6 @@ pub struct GaussNewtonOptimizer<R = f64>
 where
     R: RealField + Float + Default,
 {
-    __marker: PhantomData<R>,
     /// linear solver
     pub linear_solver: SparseCholeskySolver<R>,
     pub params: GaussNewtonOptimizerParams,

@@ -8,13 +8,13 @@ use super::linear_solver::{LinearSolverStatus, SparseLinearSolver};
 #[derive(Default)]
 pub struct SparseCholeskySolver<R = f64>
 where
-    R: RealField + Float,
+    R: RealField + Float + Default,
 {
     __marker: PhantomData<R>,
 }
 impl<R> SparseLinearSolver<R> for SparseCholeskySolver<R>
 where
-    R: RealField + Float,
+    R: RealField + Float + Default,
 {
     #[allow(non_snake_case)]
     fn solve(&self, A: &CscMatrix<R>, b: &DVector<R>, x: &mut DVector<R>) -> LinearSolverStatus {
