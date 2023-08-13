@@ -16,12 +16,10 @@ use optigy::prelude::GaussianLoss;
 use optigy::prelude::Jacobians;
 use optigy::prelude::NonlinearOptimizer;
 
-use optigy::prelude::Variable;
 use optigy::prelude::VariablesContainer;
 use optigy::prelude::{Factor, Key, Variables};
+use optigy::slam::between_factor::BetweenFactor;
 use optigy::slam::se3::SE2;
-use sophus_rs::lie::rotation2::Isometry2;
-use sophus_rs::lie::rotation2::Rotation2;
 
 struct GPSPositionFactor<R = f64>
 where
@@ -88,85 +86,6 @@ where
     }
 }
 
-struct BetweenFactor<R = f64>
-where
-    R: RealField + Float,
-{
-    pub error: RefCell<DVector<R>>,
-    pub jacobians: RefCell<Jacobians<R>>,
-    pub keys: Vec<Key>,
-    origin: Isometry2,
-}
-impl<R> BetweenFactor<R>
-where
-    R: RealField + Float,
-{
-    pub fn new(key0: Key, key1: Key, x: f64, y: f64, theta: f64) -> Self {
-        let mut jacobians = Vec::<DMatrix<R>>::with_capacity(2);
-        jacobians.resize_with(2, || DMatrix::identity(3, 3));
-        let keys = vec![key0, key1];
-        BetweenFactor {
-            error: RefCell::new(DVector::zeros(3)),
-            jacobians: RefCell::new(jacobians),
-            keys,
-            origin: Isometry2::from_t_and_subgroup(
-                &Vector2::new(x, y),
-                &Rotation2::exp(&SMatrix::<f64, 1, 1>::from_column_slice(
-                    vec![theta].as_slice(),
-                )),
-            ),
-        }
-    }
-}
-impl<R> Factor<R> for BetweenFactor<R>
-where
-    R: RealField + Float,
-{
-    type L = GaussianLoss;
-    fn error<C>(&self, variables: &Variables<R, C>) -> RefMut<DVector<R>>
-    where
-        C: VariablesContainer<R>,
-    {
-        let v0: &SE2<R> = variables.at(self.keys()[0]).unwrap();
-        let v1: &SE2<R> = variables.at(self.keys()[1]).unwrap();
-
-        let diff = v0.origin.inverse().multiply(&v1.origin);
-        let d = (self.origin.inverse().multiply(&diff)).log();
-        {
-            self.error.borrow_mut().copy_from(&d.cast::<R>());
-        }
-        self.error.borrow_mut()
-    }
-
-    fn jacobians<C>(&self, variables: &Variables<R, C>) -> RefMut<Jacobians<R>>
-    where
-        C: VariablesContainer<R>,
-    {
-        {
-            let v0: &SE2<R> = variables.at(self.keys()[0]).unwrap();
-            let v1: &SE2<R> = variables.at(self.keys()[1]).unwrap();
-            let hinv = -v0.origin.adj();
-            let hcmp1 = v1.origin.inverse().adj();
-            let j = (hcmp1 * hinv).cast::<R>();
-            // let sm = Matrix3::identity();
-            // let m: DMatrix<f64> = Hcmp1
-            self.jacobians.borrow_mut()[0].copy_from(&j);
-        }
-        self.jacobians.borrow_mut()
-    }
-
-    fn dim(&self) -> usize {
-        3
-    }
-
-    fn keys(&self) -> &[Key] {
-        &self.keys
-    }
-
-    fn loss_function(&self) -> Option<&Self::L> {
-        None
-    }
-}
 /**
  * A simple 2D pose-graph SLAM with 'GPS' measurement
  * The robot moves from x1 to x3, with odometry information between each pair.
