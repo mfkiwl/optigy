@@ -1,5 +1,6 @@
 use core::cell::RefCell;
 use core::cell::RefMut;
+use std::io::Error;
 
 use nalgebra::vector;
 
@@ -7,6 +8,8 @@ use nalgebra::SMatrix;
 use nalgebra::Vector2;
 use nalgebra::{DMatrix, DVector, RealField};
 use num::Float;
+use optigy::core::factor::ErrorReturn;
+use optigy::core::factor::Jacobians;
 use optigy::core::loss_function::ScaleLoss;
 use optigy::nonlinear::levenberg_marquardt_optimizer::LevenbergMarquardtOptimizer;
 use optigy::nonlinear::levenberg_marquardt_optimizer::LevenbergMarquardtOptimizerParams;
@@ -14,7 +17,7 @@ use optigy::prelude::Factors;
 use optigy::prelude::FactorsContainer;
 use optigy::prelude::GaussNewtonOptimizer;
 use optigy::prelude::GaussianLoss;
-use optigy::prelude::Jacobians;
+use optigy::prelude::JacobiansReturn;
 use optigy::prelude::NonlinearOptimizer;
 
 use optigy::prelude::VariablesContainer;
@@ -52,7 +55,7 @@ where
     R: RealField + Float,
 {
     type L = GaussianLoss;
-    fn error<C>(&self, variables: &Variables<R, C>) -> RefMut<DVector<R>>
+    fn error<C>(&self, variables: &Variables<R, C>) -> ErrorReturn<R>
     where
         C: VariablesContainer<R>,
     {
@@ -63,14 +66,14 @@ where
             let d = pose.cast::<R>() - self.pose;
             self.error.borrow_mut().copy_from(&d);
         }
-        self.error.borrow_mut()
+        self.error.borrow()
     }
 
-    fn jacobians<C>(&self, _variables: &Variables<R, C>) -> RefMut<Jacobians<R>>
+    fn jacobians<C>(&self, _variables: &Variables<R, C>) -> JacobiansReturn<R>
     where
         C: VariablesContainer<R>,
     {
-        self.jacobians.borrow_mut()
+        self.jacobians.borrow()
     }
 
     fn dim(&self) -> usize {
@@ -112,21 +115,38 @@ fn main() {
     factors.add(GPSPositionFactor::new(Key(1), Vector2::new(0.0, 0.0)));
     factors.add(GPSPositionFactor::new(Key(2), Vector2::new(5.0, 0.0)));
     factors.add(GPSPositionFactor::new(Key(3), Vector2::new(10.0, 0.0)));
-    factors.add(BetweenFactor::new(
+    // factors.add(BetweenFactor::new(
+    //     Key(1),
+    //     Key(2),
+    //     5.0,
+    //     0.0,
+    //     0.0,
+    //     Some(GaussianLoss {}),
+    // ));
+    // factors.add(BetweenFactor::new(
+    //     Key(2),
+    //     Key(3),
+    //     5.0,
+    //     0.0,
+    //     0.0,
+    //     Some(ScaleLoss::new(2.0)),
+    // ));
+
+    factors.add(BetweenFactor::<GaussianLoss>::new(
         Key(1),
         Key(2),
         5.0,
         0.0,
         0.0,
-        Some(GaussianLoss {}),
+        None,
     ));
-    factors.add(BetweenFactor::new(
+    factors.add(BetweenFactor::<GaussianLoss>::new(
         Key(2),
         Key(3),
         5.0,
         0.0,
         0.0,
-        Some(ScaleLoss::new(2.0)),
+        None,
     ));
 
     variables.add(Key(1), SE2::new(0.2, -0.3, 0.2));

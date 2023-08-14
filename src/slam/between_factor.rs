@@ -1,11 +1,14 @@
-use std::cell::{RefCell, RefMut};
+use std::{
+    cell::{RefCell, RefMut},
+    ops::Deref,
+};
 
-use nalgebra::{DMatrix, DVector, RealField, SMatrix, Vector2};
+use nalgebra::{DMatrix, DVector, DVectorView, RealField, SMatrix, Vector2};
 use num::Float;
 use sophus_rs::lie::rotation2::{Isometry2, Rotation2};
 
 use crate::core::{
-    factor::{Factor, Jacobians},
+    factor::{ErrorReturn, Factor, Jacobians, JacobiansReturn},
     key::Key,
     loss_function::{GaussianLoss, LossFunction},
     variables::Variables,
@@ -14,7 +17,7 @@ use crate::core::{
 
 use super::se3::SE2;
 
-pub struct BetweenFactor<L, R = f64>
+pub struct BetweenFactor<L = GaussianLoss, R = f64>
 where
     R: RealField + Float,
     L: LossFunction<R>,
@@ -54,7 +57,7 @@ where
     L: LossFunction<R>,
 {
     type L = GaussianLoss;
-    fn error<C>(&self, variables: &Variables<R, C>) -> RefMut<DVector<R>>
+    fn error<C>(&self, variables: &Variables<R, C>) -> ErrorReturn<R>
     where
         C: VariablesContainer<R>,
     {
@@ -66,10 +69,10 @@ where
         {
             self.error.borrow_mut().copy_from(&d.cast::<R>());
         }
-        self.error.borrow_mut()
+        self.error.borrow()
     }
 
-    fn jacobians<C>(&self, variables: &Variables<R, C>) -> RefMut<Jacobians<R>>
+    fn jacobians<C>(&self, variables: &Variables<R, C>) -> JacobiansReturn<R>
     where
         C: VariablesContainer<R>,
     {
@@ -83,7 +86,7 @@ where
             // let m: DMatrix<f64> = Hcmp1
             self.jacobians.borrow_mut()[0].copy_from(&j);
         }
-        self.jacobians.borrow_mut()
+        self.jacobians.borrow()
     }
 
     fn dim(&self) -> usize {

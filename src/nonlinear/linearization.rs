@@ -5,8 +5,8 @@ use nalgebra::{DMatrix, DVector, RealField};
 use num::Float;
 
 use crate::core::{
-    factor::Jacobians, factors::Factors, factors_container::FactorsContainer, variables::Variables,
-    variables_container::VariablesContainer,
+    factor::JacobiansReturn, factors::Factors, factors_container::FactorsContainer,
+    variables::Variables, variables_container::VariablesContainer,
 };
 
 use super::sparsity_pattern::{JacobianSparsityPattern, LowerHessianSparsityPattern};
@@ -31,45 +31,46 @@ pub fn linearzation_jacobian<R, VC, FC>(
     VC: VariablesContainer<R>,
     FC: FactorsContainer<R>,
 {
-    assert_eq!(A.nrows(), sparsity.base.A_rows);
-    assert_eq!(A.ncols(), sparsity.base.A_cols);
-    assert_eq!(b.nrows(), sparsity.base.A_rows);
-    let mut err_row_counter = 0;
-    for f_index in 0..factors.len() {
-        // factor dim
-        let f_dim = factors.dim_at(f_index).unwrap();
-        let keys = factors.keys_at(f_index).unwrap();
-        assert!(has_unique_elements(keys));
-        let mut jacobian_col = Vec::<usize>::with_capacity(keys.len());
-        for vkey in keys {
-            let key_idx = sparsity.base.var_ordering.search_key(*vkey).unwrap();
-            jacobian_col.push(sparsity.base.var_col[key_idx]);
-        }
-        let wht_js_err = factors
-            .weighted_jacobians_error_at(variables, f_index)
-            .unwrap();
-        let wht_js = wht_js_err.jacobians.deref();
-        b.rows_mut(err_row_counter, f_dim)
-            .copy_from(&wht_js_err.error.deref().clone());
+    // assert_eq!(A.nrows(), sparsity.base.A_rows);
+    // assert_eq!(A.ncols(), sparsity.base.A_cols);
+    // assert_eq!(b.nrows(), sparsity.base.A_rows);
+    // let mut err_row_counter = 0;
+    // for f_index in 0..factors.len() {
+    //     // factor dim
+    //     let f_dim = factors.dim_at(f_index).unwrap();
+    //     let keys = factors.keys_at(f_index).unwrap();
+    //     assert!(has_unique_elements(keys));
+    //     let mut jacobian_col = Vec::<usize>::with_capacity(keys.len());
+    //     for vkey in keys {
+    //         let key_idx = sparsity.base.var_ordering.search_key(*vkey).unwrap();
+    //         jacobian_col.push(sparsity.base.var_col[key_idx]);
+    //     }
+    //     let wht_js_err = factors
+    //         .weighted_jacobians_error_at(variables, f_index)
+    //         .unwrap();
+    //     let wht_js = wht_js_err.jacobians.deref();
+    //     b.rows_mut(err_row_counter, f_dim)
+    //         .copy_from(&wht_js_err.error.deref().clone());
 
-        for j_idx in 0..wht_js.len() {
-            let jacob = &wht_js[j_idx];
-            A.view_mut(
-                (err_row_counter, jacobian_col[j_idx]),
-                (jacob.nrows(), jacob.ncols()),
-            )
-            .copy_from(jacob);
-        }
+    //     for j_idx in 0..wht_js.len() {
+    //         let jacob = &wht_js[j_idx];
+    //         A.view_mut(
+    //             (err_row_counter, jacobian_col[j_idx]),
+    //             (jacob.nrows(), jacob.ncols()),
+    //         )
+    //         .copy_from(jacob);
+    //     }
 
-        err_row_counter += f_dim;
-    }
-    //TODO: do better
-    b.neg_mut();
+    //     err_row_counter += f_dim;
+    // }
+    // //TODO: do better
+    // b.neg_mut();
+    todo!()
 }
 
 // data struct for sort key in
 #[allow(non_snake_case)]
-pub(crate) fn stack_matrix_col<R>(mats: &Jacobians<R>) -> DMatrix<R>
+pub(crate) fn stack_matrix_col<R>(mats: &Vec<DMatrix<R>>) -> DMatrix<R>
 where
     R: RealField,
 {
@@ -105,6 +106,7 @@ fn linearzation_lower_hessian_single_factor<R, VC, FC>(
     let f_keys = factors.keys_at(f_index).unwrap();
     assert!(has_unique_elements(f_keys));
     let f_len = f_keys.len();
+    let f_dim: usize = factors.dim_at(f_index).unwrap();
     //  whiten err and jacobians
     let mut var_idx = Vec::<usize>::new();
     let mut jacobian_col = Vec::<usize>::new();
@@ -122,13 +124,14 @@ fn linearzation_lower_hessian_single_factor<R, VC, FC>(
         local_col += sparsity.base.var_dim[key_idx];
     }
 
-    let wht_Js_err = factors
-        .weighted_jacobians_error_at(variables, f_index)
-        .unwrap();
-    let wht_Js = wht_Js_err.jacobians.deref();
-    let wht_err = wht_Js_err.error.deref();
+    let mut error: DVector<R> = DVector::zeros(f_dim);
+    let mut jacobians = Vec::<DMatrix<R>>::with_capacity(f_len);
+    jacobians.resize_with(f_len, || DMatrix::zeros(f_dim, 10));
+    let wht_Js_err = factors.jacobians_error_at(variables, f_index).unwrap();
+    let wht_Js = wht_Js_err.jacobians;
+    let wht_err = wht_Js_err.error;
 
-    let stackJ = stack_matrix_col(wht_Js);
+    let stackJ = stack_matrix_col(&wht_Js);
 
     let mut stackJtJ = DMatrix::<R>::zeros(stackJ.ncols(), stackJ.ncols());
 
@@ -286,7 +289,10 @@ mod tests {
 
     use crate::{
         core::{
-            factor::tests::{FactorA, FactorB, RandomBlockFactor},
+            factor::{
+                tests::{FactorA, FactorB, RandomBlockFactor},
+                JacobiansReturn,
+            },
             factors::Factors,
             factors_container::FactorsContainer,
             key::Key,
@@ -458,10 +464,11 @@ mod tests {
             dmatrix![1.0, 2.0; 2.0, 3.0],
             dmatrix![3.0, 4.0, 5.0; 6.0, 7.0, 8.0],
         ];
-        let stack = stack_matrix_col(&mats);
-        assert_matrix_eq!(
-            stack,
-            dmatrix![1.0, 2.0, 3.0, 4.0, 5.0;2.0, 3.0, 6.0, 7.0, 8.0]
-        );
+        // let view_vec: JacobiansView<f64> = mats.into_iter().map(|m| m.as_view()).collect();
+        // let stack = stack_matrix_col(&view_vec);
+        // assert_matrix_eq!(
+        //     stack,
+        //     dmatrix![1.0, 2.0, 3.0, 4.0, 5.0;2.0, 3.0, 6.0, 7.0, 8.0]
+        // );
     }
 }

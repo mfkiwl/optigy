@@ -1,11 +1,11 @@
-use nalgebra::{DVector, RealField};
+use nalgebra::{DMatrixViewMut, DVector, DVectorViewMut, RealField};
 use num::Float;
 
 use crate::core::variables::Variables;
 use core::{cell::RefMut, marker::PhantomData};
 
 use super::{
-    factor::{Factor, JacobiansError},
+    factor::{ErrorReturn, Factor, JacobiansErrorReturn},
     factors_container::FactorsContainer,
     key::Key,
     variables_container::VariablesContainer,
@@ -44,26 +44,43 @@ where
     pub fn keys_at(&self, index: usize) -> Option<&[Key]> {
         self.container.keys_at(index, 0)
     }
+    pub fn weight_jacobians_error_in_place_at<VC>(
+        &self,
+        variables: &Variables<R, VC>,
+        error: DVectorViewMut<R>,
+        jacobians: &[DMatrixViewMut<R>],
+        index: usize,
+    ) where
+        VC: VariablesContainer<R>,
+    {
+        self.container
+            .weight_jacobians_error_in_place_at(variables, error, jacobians, index, 0)
+    }
+    pub fn jacobians_error_at<VC>(
+        &self,
+        variables: &Variables<R, VC>,
+        index: usize,
+    ) -> Option<JacobiansErrorReturn<'_, R>>
+    where
+        VC: VariablesContainer<R>,
+    {
+        self.container.jacobians_error_at(variables, index, 0)
+    }
     pub fn weighted_jacobians_error_at<VC>(
         &self,
         variables: &Variables<R, VC>,
         index: usize,
-    ) -> Option<JacobiansError<'_, R>>
+    ) -> Option<JacobiansErrorReturn<'_, R>>
     where
         VC: VariablesContainer<R>,
     {
-        self.container
-            .weighted_jacobians_error_at(variables, index, 0)
+        self.container.jacobians_error_at(variables, index, 0)
     }
-    pub fn weighted_error_at<VC>(
-        &self,
-        variables: &Variables<R, VC>,
-        index: usize,
-    ) -> Option<RefMut<DVector<R>>>
+    pub fn error_at<VC>(&self, variables: &Variables<R, VC>, index: usize) -> Option<ErrorReturn<R>>
     where
         VC: VariablesContainer<R>,
     {
-        self.container.weighted_error_at(variables, index, 0)
+        self.container.error_at(variables, index, 0)
     }
     pub fn error<VC>(&self, _variables: &Variables<R, VC>) -> DVector<R>
     where
@@ -77,8 +94,10 @@ where
     {
         let mut err_squared_norm = 0.0;
         for f_index in 0..self.len() {
-            let werr = self.weighted_error_at(variables, f_index).unwrap();
-            err_squared_norm += werr.norm_squared().to_f64().unwrap();
+            // let werr = self.weighted_error_at(variables, f_index).unwrap();
+            let error = self.error_at(variables, f_index).unwrap();
+            //TODO: do weighting
+            err_squared_norm += error.norm_squared().to_f64().unwrap();
         }
         err_squared_norm
     }

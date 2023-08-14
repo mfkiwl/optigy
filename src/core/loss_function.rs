@@ -1,7 +1,7 @@
-use nalgebra::{DVectorViewMut, RealField};
+use nalgebra::{DMatrixViewMut, DVectorViewMut, RealField};
 use num::Float;
 
-use super::factor::JacobiansError;
+use super::factor::JacobiansErrorReturn;
 
 pub trait LossFunction<R>
 where
@@ -13,7 +13,11 @@ where
 
     /// weight jacobian matrices and error: apply loss function
     /// in place operation to avoid excessive memory operation
-    fn weight_in_place_jacobians_error(&self, je: JacobiansError<'_, R>);
+    fn weight_in_place_jacobians_error(
+        &self,
+        error: DVectorViewMut<R>,
+        jacobians: &[DMatrixViewMut<R>],
+    );
 }
 #[derive(Clone)]
 pub struct GaussianLoss {}
@@ -26,7 +30,11 @@ where
         todo!()
     }
 
-    fn weight_in_place_jacobians_error(&self, _je: JacobiansError<'_, R>) {
+    fn weight_in_place_jacobians_error(
+        &self,
+        error: DVectorViewMut<R>,
+        jacobians: &[DMatrixViewMut<R>],
+    ) {
         todo!()
     }
 }
@@ -53,7 +61,11 @@ where
         todo!()
     }
 
-    fn weight_in_place_jacobians_error(&self, _je: JacobiansError<'_, R>) {
+    fn weight_in_place_jacobians_error(
+        &self,
+        error: DVectorViewMut<R>,
+        jacobians: &[DMatrixViewMut<R>],
+    ) {
         todo!()
     }
 }

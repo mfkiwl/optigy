@@ -1,27 +1,32 @@
+use core::cell::Ref;
 use core::cell::RefMut;
 
 use crate::core::key::Key;
 use crate::core::loss_function::LossFunction;
 use crate::core::variables::Variables;
 use nalgebra::DMatrix;
+use nalgebra::DMatrixView;
 use nalgebra::DVector;
+use nalgebra::DVectorView;
 use nalgebra::RealField;
 
 use super::variables_container::VariablesContainer;
+pub type JacobiansReturn<'a, R> = Ref<'a, Vec<DMatrix<R>>>;
+pub type ErrorReturn<'a, R> = Ref<'a, DVector<R>>;
 pub type Jacobians<R> = Vec<DMatrix<R>>;
-pub struct JacobiansError<'a, R>
+pub struct JacobiansErrorReturn<'a, R>
 where
     R: RealField,
 {
-    pub jacobians: RefMut<'a, Jacobians<R>>,
-    pub error: RefMut<'a, DVector<R>>,
+    pub jacobians: JacobiansReturn<'a, R>,
+    pub error: ErrorReturn<'a, R>,
 }
-impl<'a, R> JacobiansError<'a, R>
+impl<'a, R> JacobiansErrorReturn<'a, R>
 where
     R: RealField,
 {
-    fn new(jacobians: RefMut<'a, Jacobians<R>>, error: RefMut<'a, DVector<R>>) -> Self {
-        JacobiansError { jacobians, error }
+    fn new(jacobians: JacobiansReturn<'a, R>, error: ErrorReturn<'a, R>) -> Self {
+        JacobiansErrorReturn { jacobians, error }
     }
 }
 pub trait Factor<R>
@@ -31,12 +36,12 @@ where
     type L: LossFunction<R>;
     /// error function
     /// error vector dimension should meet dim()
-    fn error<C>(&self, variables: &Variables<R, C>) -> RefMut<DVector<R>>
+    fn error<C>(&self, variables: &Variables<R, C>) -> ErrorReturn<R>
     where
         C: VariablesContainer<R>;
 
     /// whiten error
-    fn weighted_error<C>(&self, variables: &Variables<R, C>) -> RefMut<DVector<R>>
+    fn weighted_error<C>(&self, variables: &Variables<R, C>) -> ErrorReturn<R>
     where
         C: VariablesContainer<R>,
     {
@@ -53,16 +58,16 @@ where
 
     /// jacobians function
     /// jacobians vector sequence meets key list, size error.dim x var.dim
-    fn jacobians<C>(&self, variables: &Variables<R, C>) -> RefMut<Jacobians<R>>
+    fn jacobians<C>(&self, variables: &Variables<R, C>) -> JacobiansReturn<R>
     where
         C: VariablesContainer<R>;
 
-    ///  whiten jacobian matrix
-    fn weighted_jacobians_error<C>(&self, variables: &Variables<R, C>) -> JacobiansError<R>
+    ///  jacobian matrix
+    fn jacobians_error<C>(&self, variables: &Variables<R, C>) -> JacobiansErrorReturn<R>
     where
         C: VariablesContainer<R>,
     {
-        JacobiansError::new(self.jacobians(variables), self.error(variables))
+        JacobiansErrorReturn::new(self.jacobians(variables), self.error(variables))
     }
 
     /// error dimension is dim of noisemodel
@@ -84,7 +89,7 @@ where
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use super::{Factor, Jacobians};
+    use super::{ErrorReturn, Factor, Jacobians, JacobiansReturn};
     use crate::core::{
         key::Key,
         loss_function::GaussianLoss,
@@ -94,8 +99,9 @@ pub(crate) mod tests {
     };
     use core::cell::RefCell;
     use core::cell::RefMut;
-    use nalgebra::{DMatrix, DVector, RealField};
+    use nalgebra::{DMatrix, DMatrixView, DVector, DVectorView, RealField};
     use rand::Rng;
+    use std::ops::Deref;
 
     pub struct FactorA<R>
     where
@@ -104,7 +110,7 @@ pub(crate) mod tests {
         pub orig: DVector<R>,
         pub loss: Option<GaussianLoss>,
         pub error: RefCell<DVector<R>>,
-        pub jacobians: RefCell<Jacobians<R>>,
+        pub jacobians: RefCell<Vec<DMatrix<R>>>,
         pub keys: Vec<Key>,
     }
     impl<R> FactorA<R>
@@ -130,7 +136,7 @@ pub(crate) mod tests {
         R: RealField,
     {
         type L = GaussianLoss;
-        fn error<C>(&self, variables: &Variables<R, C>) -> RefMut<DVector<R>>
+        fn error<C>(&self, variables: &Variables<R, C>) -> ErrorReturn<R>
         where
             C: VariablesContainer<R>,
         {
@@ -139,10 +145,10 @@ pub(crate) mod tests {
             {
                 *self.error.borrow_mut() = v0.val.clone() - v1.val.clone() + self.orig.clone();
             }
-            self.error.borrow_mut()
+            self.error.borrow()
         }
 
-        fn jacobians<C>(&self, variables: &Variables<R, C>) -> RefMut<Jacobians<R>>
+        fn jacobians<C>(&self, variables: &Variables<R, C>) -> JacobiansReturn<R>
         where
             C: VariablesContainer<R>,
         {
@@ -153,7 +159,7 @@ pub(crate) mod tests {
                 js[0].column_mut(0).copy_from(&v0.val);
                 js[1].column_mut(1).copy_from(&v1.val);
             }
-            self.jacobians.borrow_mut()
+            self.jacobians.borrow()
         }
 
         fn dim(&self) -> usize {
@@ -177,7 +183,7 @@ pub(crate) mod tests {
         pub orig: DVector<R>,
         pub loss: Option<GaussianLoss>,
         pub error: RefCell<DVector<R>>,
-        pub jacobians: RefCell<Jacobians<R>>,
+        pub jacobians: RefCell<Vec<DMatrix<R>>>,
         pub keys: Vec<Key>,
     }
     impl<R> FactorB<R>
@@ -202,7 +208,7 @@ pub(crate) mod tests {
         R: RealField,
     {
         type L = GaussianLoss;
-        fn error<C>(&self, variables: &Variables<R, C>) -> RefMut<DVector<R>>
+        fn error<C>(&self, variables: &Variables<R, C>) -> ErrorReturn<R>
         where
             C: VariablesContainer<R>,
         {
@@ -211,9 +217,9 @@ pub(crate) mod tests {
             {
                 *self.error.borrow_mut() = v0.val.clone() - v1.val.clone() + self.orig.clone();
             }
-            self.error.borrow_mut()
+            self.error.borrow()
         }
-        fn jacobians<C>(&self, variables: &Variables<R, C>) -> RefMut<Jacobians<R>>
+        fn jacobians<C>(&self, variables: &Variables<R, C>) -> JacobiansReturn<R>
         where
             C: VariablesContainer<R>,
         {
@@ -224,7 +230,7 @@ pub(crate) mod tests {
                 js[0].column_mut(0).copy_from(&v0.val);
                 js[1].column_mut(1).copy_from(&v1.val);
             }
-            self.jacobians.borrow_mut()
+            self.jacobians.borrow()
         }
 
         fn dim(&self) -> usize {
@@ -273,7 +279,7 @@ pub(crate) mod tests {
         R: RealField,
     {
         type L = GaussianLoss;
-        fn error<C>(&self, variables: &Variables<R, C>) -> RefMut<DVector<R>>
+        fn error<C>(&self, variables: &Variables<R, C>) -> ErrorReturn<R>
         where
             C: VariablesContainer<R>,
         {
@@ -282,14 +288,14 @@ pub(crate) mod tests {
             {
                 *self.error.borrow_mut() = v0.val.clone() - v1.val.clone();
             }
-            self.error.borrow_mut()
+            self.error.borrow()
         }
 
-        fn jacobians<C>(&self, _variables: &Variables<R, C>) -> RefMut<Jacobians<R>>
+        fn jacobians<C>(&self, _variables: &Variables<R, C>) -> JacobiansReturn<R>
         where
             C: VariablesContainer<R>,
         {
-            self.jacobians.borrow_mut()
+            self.jacobians.borrow()
         }
 
         fn dim(&self) -> usize {
@@ -314,14 +320,14 @@ pub(crate) mod tests {
         let loss = GaussianLoss {};
         let f0 = FactorA::new(1.0, Some(loss), Key(0), Key(1));
         {
-            let e0 = f0.error(&variables);
-            assert_eq!(*e0, DVector::<Real>::from_element(3, 3.0));
+            let e0 = f0.error(&variables).to_owned();
+            assert_eq!(e0, DVector::<Real>::from_element(3, 3.0));
         }
         let v0: &mut VariableA<Real> = variables.at_mut(Key(0)).unwrap();
         v0.val.fill(3.0);
         {
-            let e0 = f0.error(&variables);
-            assert_eq!(*e0, DVector::<Real>::from_element(3, 2.0));
+            let e0 = f0.error(&variables).to_owned();
+            assert_eq!(e0, DVector::<Real>::from_element(3, 2.0));
         }
     }
     #[test]

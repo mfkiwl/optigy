@@ -4,7 +4,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use nalgebra::{DMatrix, DVector, DVectorView, RealField, Vector2};
 use optigy::{
     core::{
-        factor::Jacobians, factors::Factors, factors_container::FactorsContainer,
+        factor::JacobiansReturn, factors::Factors, factors_container::FactorsContainer,
         loss_function::GaussianLoss, variables_container::VariablesContainer,
     },
     nonlinear::sparsity_pattern::construct_lower_hessian_sparsity,
@@ -56,7 +56,7 @@ where
     R: RealField,
 {
     pub error: RefCell<DVector<R>>,
-    pub jacobians: RefCell<Jacobians<R>>,
+    pub jacobians: RefCell<JacobiansReturn<R>>,
     pub keys: Vec<Key>,
     pose: Vector2<R>,
 }
@@ -94,7 +94,7 @@ where
         self.error.borrow_mut()
     }
 
-    fn jacobians<C>(&self, _variables: &Variables<R, C>) -> RefMut<Jacobians<R>>
+    fn jacobians<C>(&self, _variables: &Variables<R, C>) -> RefMut<JacobiansReturn<R>>
     where
         C: VariablesContainer<R>,
     {
