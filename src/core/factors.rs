@@ -103,16 +103,16 @@ where
     where
         VC: VariablesContainer<R>,
     {
-        let mut err_squared_norm = 0.0;
+        let mut err_squared_norm: R = R::zero();
         for f_index in 0..self.len() {
             // let werr = self.weighted_error_at(variables, f_index).unwrap();
             let error = self.error_at(variables, f_index).unwrap();
             let mut error = error.to_owned();
             //TODO: do optimal. copy not needed without
             self.weight_error_in_place_at(variables, error.as_view_mut(), f_index);
-            err_squared_norm += error.norm_squared().to_f64().unwrap();
+            err_squared_norm += error.norm_squared();
         }
-        err_squared_norm
+        err_squared_norm.to_f64().unwrap()
     }
     pub fn add<F>(&mut self, f: F)
     where

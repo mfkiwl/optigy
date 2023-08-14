@@ -65,9 +65,9 @@ where
         let v1: &SE2<R> = variables.at(self.keys()[1]).unwrap();
 
         let diff = v0.origin.inverse().multiply(&v1.origin);
-        let d = (self.origin.inverse().multiply(&diff)).log();
+        let diff = (self.origin.inverse().multiply(&diff)).log();
         {
-            self.error.borrow_mut().copy_from(&d.cast::<R>());
+            self.error.borrow_mut().copy_from(&diff.cast::<R>());
         }
         self.error.borrow()
     }
