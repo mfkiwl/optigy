@@ -15,7 +15,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     let container = ().and_factor::<BetweenFactor<GaussianLoss>>();
     let mut factors = Factors::new(container);
     println!("current dir {:?}", current_dir().unwrap());
-    let filename = "/mnt/d/development/test-projects/optigy/examples/data/input_M3500_g2o.g2o";
+    let filename = current_dir()
+        .unwrap()
+        .join("examples")
+        .join("data")
+        .join("input_M3500_g2o.g2o");
     for line in read_to_string(filename).unwrap().lines() {
         let mut l = line.split_whitespace();
         let strhead = l.next().unwrap();
