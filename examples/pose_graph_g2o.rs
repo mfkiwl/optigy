@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::time::Instant;
 use std::{env::current_dir, fs::read_to_string};
 
 use nalgebra::{Matrix2x3, Matrix3};
@@ -64,7 +65,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         // println!("line: {}", line);
     }
     let mut optimizer = NonlinearOptimizer::default();
+    let start = Instant::now();
     let opt_res = optimizer.optimize(&factors, &mut variables);
     println!("opt_res {:?}", opt_res);
+    let duration = start.elapsed();
+    println!("optimize time: {:?}", duration);
     Ok(())
 }
