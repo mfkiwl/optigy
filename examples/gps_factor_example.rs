@@ -10,6 +10,7 @@ use nalgebra::{DMatrix, DVector, RealField};
 use num::Float;
 use optigy::core::factor::ErrorReturn;
 use optigy::core::factor::Jacobians;
+use optigy::core::loss_function::DiagonalLoss;
 use optigy::core::loss_function::ScaleLoss;
 use optigy::nonlinear::levenberg_marquardt_optimizer::LevenbergMarquardtOptimizer;
 use optigy::nonlinear::levenberg_marquardt_optimizer::LevenbergMarquardtOptimizerParams;
@@ -32,13 +33,14 @@ where
     pub error: RefCell<DVector<R>>,
     pub jacobians: RefCell<Jacobians<R>>,
     pub keys: Vec<Key>,
-    pose: Vector2<R>,
+    pub pose: Vector2<R>,
+    pub loss: DiagonalLoss<R>,
 }
 impl<R> GPSPositionFactor<R>
 where
     R: RealField + Float,
 {
-    pub fn new(key: Key, pose: Vector2<R>) -> Self {
+    pub fn new(key: Key, pose: Vector2<R>, sigmas: Vector2<R>) -> Self {
         let mut jacobians = Vec::<DMatrix<R>>::with_capacity(2);
         jacobians.resize_with(1, || DMatrix::identity(2, 3));
         let keys = vec![key];
@@ -47,6 +49,7 @@ where
             jacobians: RefCell::new(jacobians),
             keys,
             pose,
+            loss: DiagonalLoss::sigmas(&sigmas.as_view()),
         }
     }
 }
@@ -54,7 +57,7 @@ impl<R> Factor<R> for GPSPositionFactor<R>
 where
     R: RealField + Float,
 {
-    type L = GaussianLoss;
+    type L = DiagonalLoss<R>;
     fn error<C>(&self, variables: &Variables<R, C>) -> ErrorReturn<R>
     where
         C: VariablesContainer<R>,
@@ -85,7 +88,7 @@ where
     }
 
     fn loss_function(&self) -> Option<&Self::L> {
-        None
+        Some(&self.loss)
     }
 }
 
@@ -112,9 +115,21 @@ fn main() {
             .and_factor::<BetweenFactor<ScaleLoss>>();
     let mut factors = Factors::new(container);
 
-    factors.add(GPSPositionFactor::new(Key(1), Vector2::new(0.0, 0.0)));
-    factors.add(GPSPositionFactor::new(Key(2), Vector2::new(5.0, 0.0)));
-    factors.add(GPSPositionFactor::new(Key(3), Vector2::new(10.0, 0.0)));
+    factors.add(GPSPositionFactor::new(
+        Key(1),
+        Vector2::new(0.0, 0.0),
+        Vector2::new(2.0, 2.0),
+    ));
+    factors.add(GPSPositionFactor::new(
+        Key(2),
+        Vector2::new(5.0, 0.0),
+        Vector2::new(2.0, 2.0),
+    ));
+    factors.add(GPSPositionFactor::new(
+        Key(3),
+        Vector2::new(10.0, 0.0),
+        Vector2::new(2.0, 2.0),
+    ));
     factors.add(BetweenFactor::new(
         Key(1),
         Key(2),
@@ -122,7 +137,7 @@ fn main() {
         0.0,
         0.0,
         // Some(GaussianLoss {}),
-        Some(ScaleLoss::new(10.0)),
+        Some(ScaleLoss::scale(1.0)),
     ));
     factors.add(BetweenFactor::new(
         Key(2),
@@ -130,7 +145,7 @@ fn main() {
         5.0,
         0.0,
         0.0,
-        Some(ScaleLoss::new(10.0)),
+        Some(ScaleLoss::scale(1.0)),
     ));
 
     // factors.add(BetweenFactor::<GaussianLoss>::new(

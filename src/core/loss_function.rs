@@ -1,7 +1,7 @@
 use std::ops::MulAssign;
 
-use nalgebra::{DMatrixViewMut, DVectorViewMut, RealField};
-use num::Float;
+use nalgebra::{DMatrixViewMut, DVector, DVectorView, DVectorViewMut, RealField};
+use num::{traits::real::Real, Float};
 
 use super::factor::JacobiansErrorReturn;
 
@@ -51,7 +51,7 @@ impl<R> ScaleLoss<R>
 where
     R: RealField + Float,
 {
-    pub fn new(s: R) -> Self {
+    pub fn scale(s: R) -> Self {
         ScaleLoss { inv_sigma: s }
     }
 }
@@ -66,11 +66,54 @@ where
     fn weight_jacobians_error_in_place(
         &self,
         mut error: DVectorViewMut<R>,
-        mut jacobians: &mut [DMatrixViewMut<R>],
+        jacobians: &mut [DMatrixViewMut<R>],
     ) {
         error.mul_assign(self.inv_sigma);
         for j in jacobians {
             j.mul_assign(self.inv_sigma);
+        }
+    }
+}
+#[derive(Clone)]
+pub struct DiagonalLoss<R = f64>
+where
+    R: RealField + Float,
+{
+    sqrt_info_diag: DVector<R>,
+}
+impl<R> DiagonalLoss<R>
+where
+    R: RealField + Float,
+{
+    pub fn variances(v_diag: &DVectorView<R>) -> Self {
+        let sqrt_info_diag = v_diag.to_owned();
+        let sqrt_info_diag = sqrt_info_diag.map(|d| (<R as Float>::sqrt(R::one() / d)));
+        DiagonalLoss { sqrt_info_diag }
+    }
+    pub fn sigmas(v_diag: &DVectorView<R>) -> Self {
+        let sqrt_info_diag = v_diag.to_owned();
+        let sqrt_info_diag = sqrt_info_diag.map(|d| (R::one() / d));
+        DiagonalLoss { sqrt_info_diag }
+    }
+}
+impl<R> LossFunction<R> for DiagonalLoss<R>
+where
+    R: RealField + Float,
+{
+    fn weight_error_in_place(&self, mut error: DVectorViewMut<R>) {
+        error.component_mul_assign(&self.sqrt_info_diag)
+    }
+
+    fn weight_jacobians_error_in_place(
+        &self,
+        mut error: DVectorViewMut<R>,
+        jacobians: &mut [DMatrixViewMut<R>],
+    ) {
+        error.component_mul_assign(&self.sqrt_info_diag);
+        for J in jacobians {
+            for i in 0..J.nrows() {
+                J.row_mut(i).mul_assign(self.sqrt_info_diag[i])
+            }
         }
     }
 }

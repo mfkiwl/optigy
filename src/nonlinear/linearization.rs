@@ -472,11 +472,10 @@ mod tests {
             dmatrix![1.0, 2.0; 2.0, 3.0],
             dmatrix![3.0, 4.0, 5.0; 6.0, 7.0, 8.0],
         ];
-        // let view_vec: JacobiansView<f64> = mats.into_iter().map(|m| m.as_view()).collect();
-        // let stack = stack_matrix_col(&view_vec);
-        // assert_matrix_eq!(
-        //     stack,
-        //     dmatrix![1.0, 2.0, 3.0, 4.0, 5.0;2.0, 3.0, 6.0, 7.0, 8.0]
-        // );
+        let stack = stack_matrix_col(&mats);
+        assert_matrix_eq!(
+            stack,
+            dmatrix![1.0, 2.0, 3.0, 4.0, 5.0;2.0, 3.0, 6.0, 7.0, 8.0]
+        );
     }
 }
