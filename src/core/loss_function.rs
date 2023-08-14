@@ -1,6 +1,8 @@
 use std::ops::MulAssign;
 
-use nalgebra::{DMatrixViewMut, DVector, DVectorView, DVectorViewMut, RealField};
+use nalgebra::{
+    DMatrix, DMatrixView, DMatrixViewMut, DVector, DVectorView, DVectorViewMut, RealField,
+};
 use num::{traits::real::Real, Float};
 
 use super::factor::JacobiansErrorReturn;
@@ -22,22 +24,40 @@ where
     );
 }
 #[derive(Clone)]
-pub struct GaussianLoss {}
-
-impl<R> LossFunction<R> for GaussianLoss
+pub struct GaussianLoss<R = f64> {
+    pub sqrt_info: DMatrix<R>,
+}
+impl<R> GaussianLoss<R>
 where
     R: RealField,
 {
-    fn weight_error_in_place(&self, _b: DVectorViewMut<R>) {
-        todo!()
+    #[allow(non_snake_case)]
+    pub fn information(I: DMatrixView<R>) -> Self {
+        assert_eq!(I.nrows(), I.ncols(), "non-square information matrix");
+        let lt = I.clone().cholesky().unwrap().l().transpose();
+        GaussianLoss { sqrt_info: lt }
+    }
+}
+impl<R> LossFunction<R> for GaussianLoss<R>
+where
+    R: RealField,
+{
+    fn weight_error_in_place(&self, mut error: DVectorViewMut<R>) {
+        let m = self.sqrt_info.clone() * error.clone_owned();
+        error.copy_from(&m);
     }
 
     fn weight_jacobians_error_in_place(
         &self,
-        error: DVectorViewMut<R>,
+        mut error: DVectorViewMut<R>,
         jacobians: &mut [DMatrixViewMut<R>],
     ) {
-        todo!()
+        let m = self.sqrt_info.clone() * error.clone_owned();
+        error.copy_from(&m);
+        for j in jacobians {
+            let m = self.sqrt_info.clone() * j.clone_owned();
+            j.copy_from(&m);
+        }
     }
 }
 #[derive(Clone)]
