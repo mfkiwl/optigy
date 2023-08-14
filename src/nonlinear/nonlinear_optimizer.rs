@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, time::Instant};
 
 use nalgebra::{DVector, RealField};
 use nalgebra_sparse::{pattern::SparsityPattern, CscMatrix};
@@ -14,7 +14,7 @@ use crate::{
 };
 
 use super::{
-    linearization::linearzation_lower_hessian,
+    linearization::linearization_lower_hessian,
     sparsity_pattern::{
         construct_lower_hessian_sparsity, JacobianSparsityPattern, LowerHessianSparsityPattern,
     },
@@ -236,6 +236,7 @@ where
         let A_rows: usize;
         // let A_cols: usize;
         let mut A_values = Vec::<R>::new();
+        let start = Instant::now();
         if self.opt.linear_solver().is_normal() {
             self.sparsity = OptimizerSpasityPattern::LowerHessian(
                 construct_lower_hessian_sparsity(factors, variables, &variable_ordering),
@@ -268,6 +269,8 @@ where
                 A_values.resize(sparsity.total_nnz_AtA_cols, R::from_f64(0.0).unwrap());
             }
         }
+        let duration = start.elapsed();
+        println!("build starsity time: {:?}", duration);
         // init vars and errors
         self.iterations = 0;
         self.last_err_squared_norm = 0.5 * factors.error_squared_norm(variables);
@@ -280,6 +283,7 @@ where
         while self.iterations < params.max_iterations {
             b.fill(R::zero());
             A_values.fill(R::zero());
+            let start = Instant::now();
             match &self.sparsity {
                 OptimizerSpasityPattern::Jacobian(_sparsity) => {
                     // jacobian linearization
@@ -289,7 +293,7 @@ where
                 OptimizerSpasityPattern::LowerHessian(sparsity) => {
                     if self.opt.linear_solver().is_normal_lower() {
                         // lower hessian linearization
-                        linearzation_lower_hessian(
+                        linearization_lower_hessian(
                             factors,
                             variables,
                             sparsity,
@@ -303,12 +307,15 @@ where
                     }
                 }
             }
+            let duration = start.elapsed();
+            println!("linearize time: {:?}", duration);
             let A = CscMatrix::try_from_pattern_and_values(csc_pattern.clone(), A_values.clone())
                 .expect("CSC data must conform to format specifications");
             // initiailize the linear solver if needed at first iteration
             if self.iterations == 0 {
                 self.opt.linear_solver().initialize(&A);
             }
+            let start = Instant::now();
             // iterate through
             let iterate_result = self.opt.iterate(
                 factors,
@@ -316,6 +323,8 @@ where
                 &variable_ordering,
                 LinSysWrapper::new(&A, &b),
             );
+            let duration = start.elapsed();
+            println!("opt iterate time: {:?}", duration);
             self.iterations += 1;
 
             //TODO: do better
@@ -328,6 +337,7 @@ where
             self.err_uptodate = iter_data.err_uptodate;
             self.err_squared_norm = iter_data.err_squared_norm;
             // check error for stop condition
+            let start = Instant::now();
             let curr_err: f64;
             if self.err_uptodate {
                 // err has be updated by iterate()
@@ -336,6 +346,8 @@ where
             } else {
                 curr_err = 0.5 * factors.error_squared_norm(variables);
             }
+            let duration = start.elapsed();
+            println!("compute error time: {:?}", duration);
 
             if params.verbosity_level >= NonlinearOptimizerVerbosityLevel::Iteration {
                 println!("iteration: {}, error: {}", self.iterations, curr_err);

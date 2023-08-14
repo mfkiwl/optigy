@@ -258,7 +258,7 @@ fn linearzation_lower_hessian_single_factor<R, VC, FC>(
 }
 
 #[allow(non_snake_case)]
-pub fn linearzation_lower_hessian<R, VC, FC>(
+pub fn linearization_lower_hessian<R, VC, FC>(
     factors: &Factors<R, FC>,
     variables: &Variables<R, VC>,
     sparsity: &LowerHessianSparsityPattern,
@@ -313,7 +313,7 @@ mod tests {
             variables_container::VariablesContainer,
         },
         nonlinear::{
-            linearization::{linearzation_jacobian, linearzation_lower_hessian, stack_matrix_col},
+            linearization::{linearization_lower_hessian, linearzation_jacobian, stack_matrix_col},
             sparsity_pattern::{construct_jacobian_sparsity, construct_lower_hessian_sparsity},
         },
     };
@@ -392,7 +392,7 @@ mod tests {
         let mut AtA_values = Vec::<f64>::with_capacity(sparsity.total_nnz_AtA_cols);
         AtA_values.resize(sparsity.total_nnz_AtA_cols, 0.0);
         let mut Atb = DVector::<f64>::zeros(sparsity.base.A_cols);
-        linearzation_lower_hessian(&factors, &variables, &sparsity, &mut AtA_values, &mut Atb);
+        linearization_lower_hessian(&factors, &variables, &sparsity, &mut AtA_values, &mut Atb);
         // println!("Atb {}", Atb);
         // println!("AtA_values {:?}", AtA_values);
 
@@ -451,7 +451,7 @@ mod tests {
             let mut AtA_values = Vec::<f64>::with_capacity(sparsity.total_nnz_AtA_cols);
             AtA_values.resize(sparsity.total_nnz_AtA_cols, 0.0);
             let mut Atb = DVector::<f64>::zeros(sparsity.base.A_cols);
-            linearzation_lower_hessian(&factors, &variables, &sparsity, &mut AtA_values, &mut Atb);
+            linearization_lower_hessian(&factors, &variables, &sparsity, &mut AtA_values, &mut Atb);
 
             let minor_indices = sparsity.inner_index;
             let major_offsets = sparsity.outer_index;

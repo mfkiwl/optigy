@@ -95,7 +95,7 @@ mod tests {
         },
         nonlinear::{
             gauss_newton_optimizer::GaussNewtonOptimizer,
-            linearization::linearzation_lower_hessian,
+            linearization::linearization_lower_hessian,
             nonlinear_optimizer::{LinSysWrapper, OptIterate},
             sparsity_pattern::construct_lower_hessian_sparsity,
         },
@@ -122,7 +122,7 @@ mod tests {
         let mut A_values = Vec::<Real>::new();
         A_values.resize(sparsity.total_nnz_AtA_cols, 0.0);
         let mut b: DVector<Real> = DVector::zeros(A_rows);
-        linearzation_lower_hessian(&factors, &variables, &sparsity, &mut A_values, &mut b);
+        linearization_lower_hessian(&factors, &variables, &sparsity, &mut A_values, &mut b);
         let csc_pattern = SparsityPattern::try_from_offsets_and_indices(
             sparsity.base.A_cols,
             sparsity.base.A_cols,
