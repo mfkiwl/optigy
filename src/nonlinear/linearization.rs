@@ -124,12 +124,14 @@ fn linearzation_lower_hessian_single_factor<R, VC, FC>(
         local_col += sparsity.base.var_dim[key_idx];
     }
 
-    let mut error: DVector<R> = DVector::zeros(f_dim);
-    let mut jacobians = Vec::<DMatrix<R>>::with_capacity(f_len);
-    jacobians.resize_with(f_len, || DMatrix::zeros(f_dim, 10));
+    // let mut error: DVector<R> = DVector::zeros(f_dim);
+    // let mut jacobians = Vec::<DMatrix<R>>::with_capacity(f_len);
+    // jacobians.resize_with(f_len, || DMatrix::zeros(f_dim, 10));
     let wht_Js_err = factors.jacobians_error_at(variables, f_index).unwrap();
     let wht_Js = wht_Js_err.jacobians;
     let wht_err = wht_Js_err.error;
+    let mut error = wht_err.to_owned();
+    let mut jacobians = wht_Js.to_owned();
     let mut jacobians_view: Vec<DMatrixViewMut<R>> =
         jacobians.iter_mut().map(|m| m.as_view_mut()).collect();
     factors.weight_jacobians_error_in_place_at(
@@ -138,7 +140,8 @@ fn linearzation_lower_hessian_single_factor<R, VC, FC>(
         &mut jacobians_view,
         f_index,
     );
-
+    let wht_Js = jacobians;
+    let wht_err = error;
     let stackJ = stack_matrix_col(&wht_Js);
 
     let mut stackJtJ = DMatrix::<R>::zeros(stackJ.ncols(), stackJ.ncols());
