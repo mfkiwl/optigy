@@ -48,13 +48,24 @@ where
         &self,
         variables: &Variables<R, VC>,
         error: DVectorViewMut<R>,
-        jacobians: &[DMatrixViewMut<R>],
+        jacobians: &mut [DMatrixViewMut<R>],
         index: usize,
     ) where
         VC: VariablesContainer<R>,
     {
         self.container
             .weight_jacobians_error_in_place_at(variables, error, jacobians, index, 0)
+    }
+    pub fn weight_error_in_place_at<VC>(
+        &self,
+        variables: &Variables<R, VC>,
+        error: DVectorViewMut<R>,
+        index: usize,
+    ) where
+        VC: VariablesContainer<R>,
+    {
+        self.container
+            .weight_error_in_place_at(variables, error, index, 0)
     }
     pub fn jacobians_error_at<VC>(
         &self,
@@ -96,7 +107,9 @@ where
         for f_index in 0..self.len() {
             // let werr = self.weighted_error_at(variables, f_index).unwrap();
             let error = self.error_at(variables, f_index).unwrap();
-            //TODO: do weighting
+            let mut error = error.to_owned();
+            //TODO: do optimal. copy not needed without
+            self.weight_error_in_place_at(variables, error.as_view_mut(), f_index);
             err_squared_norm += error.norm_squared().to_f64().unwrap();
         }
         err_squared_norm

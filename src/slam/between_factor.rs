@@ -17,23 +17,23 @@ use crate::core::{
 
 use super::se3::SE2;
 
-pub struct BetweenFactor<L = GaussianLoss, R = f64>
+pub struct BetweenFactor<LF = GaussianLoss, R = f64>
 where
     R: RealField + Float,
-    L: LossFunction<R>,
+    LF: LossFunction<R>,
 {
     pub error: RefCell<DVector<R>>,
     pub jacobians: RefCell<Jacobians<R>>,
     pub keys: Vec<Key>,
     pub origin: Isometry2,
-    pub loss: Option<L>,
+    pub loss: Option<LF>,
 }
-impl<L, R> BetweenFactor<L, R>
+impl<LF, R> BetweenFactor<LF, R>
 where
     R: RealField + Float,
-    L: LossFunction<R>,
+    LF: LossFunction<R>,
 {
-    pub fn new(key0: Key, key1: Key, x: f64, y: f64, theta: f64, loss: Option<L>) -> Self {
+    pub fn new(key0: Key, key1: Key, x: f64, y: f64, theta: f64, loss: Option<LF>) -> Self {
         let mut jacobians = Vec::<DMatrix<R>>::with_capacity(2);
         jacobians.resize_with(2, || DMatrix::identity(3, 3));
         let keys = vec![key0, key1];
@@ -51,12 +51,12 @@ where
         }
     }
 }
-impl<L, R> Factor<R> for BetweenFactor<L, R>
+impl<LF, R> Factor<R> for BetweenFactor<LF, R>
 where
     R: RealField + Float,
-    L: LossFunction<R>,
+    LF: LossFunction<R>,
 {
-    type L = GaussianLoss;
+    type L = LF;
     fn error<C>(&self, variables: &Variables<R, C>) -> ErrorReturn<R>
     where
         C: VariablesContainer<R>,
@@ -98,6 +98,6 @@ where
     }
 
     fn loss_function(&self) -> Option<&Self::L> {
-        None
+        self.loss.as_ref()
     }
 }

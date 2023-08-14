@@ -130,12 +130,12 @@ fn linearzation_lower_hessian_single_factor<R, VC, FC>(
     let wht_Js_err = factors.jacobians_error_at(variables, f_index).unwrap();
     let wht_Js = wht_Js_err.jacobians;
     let wht_err = wht_Js_err.error;
-    let jacobians_view: Vec<DMatrixViewMut<R>> =
+    let mut jacobians_view: Vec<DMatrixViewMut<R>> =
         jacobians.iter_mut().map(|m| m.as_view_mut()).collect();
     factors.weight_jacobians_error_in_place_at(
         variables,
         error.as_view_mut(),
-        &jacobians_view,
+        &mut jacobians_view,
         f_index,
     );
 

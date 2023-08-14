@@ -115,39 +115,40 @@ fn main() {
     factors.add(GPSPositionFactor::new(Key(1), Vector2::new(0.0, 0.0)));
     factors.add(GPSPositionFactor::new(Key(2), Vector2::new(5.0, 0.0)));
     factors.add(GPSPositionFactor::new(Key(3), Vector2::new(10.0, 0.0)));
-    // factors.add(BetweenFactor::new(
-    //     Key(1),
-    //     Key(2),
-    //     5.0,
-    //     0.0,
-    //     0.0,
-    //     Some(GaussianLoss {}),
-    // ));
-    // factors.add(BetweenFactor::new(
-    //     Key(2),
-    //     Key(3),
-    //     5.0,
-    //     0.0,
-    //     0.0,
-    //     Some(ScaleLoss::new(2.0)),
-    // ));
-
-    factors.add(BetweenFactor::<GaussianLoss>::new(
+    factors.add(BetweenFactor::new(
         Key(1),
         Key(2),
         5.0,
         0.0,
         0.0,
-        None,
+        // Some(GaussianLoss {}),
+        Some(ScaleLoss::new(10.0)),
     ));
-    factors.add(BetweenFactor::<GaussianLoss>::new(
+    factors.add(BetweenFactor::new(
         Key(2),
         Key(3),
         5.0,
         0.0,
         0.0,
-        None,
+        Some(ScaleLoss::new(10.0)),
     ));
+
+    // factors.add(BetweenFactor::<GaussianLoss>::new(
+    //     Key(1),
+    //     Key(2),
+    //     5.0,
+    //     0.0,
+    //     0.0,
+    //     None,
+    // ));
+    // factors.add(BetweenFactor::<GaussianLoss>::new(
+    //     Key(2),
+    //     Key(3),
+    //     5.0,
+    //     0.0,
+    //     0.0,
+    //     None,
+    // ));
 
     variables.add(Key(1), SE2::new(0.2, -0.3, 0.2));
     variables.add(Key(2), SE2::new(5.1, 0.3, -0.1));

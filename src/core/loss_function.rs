@@ -1,3 +1,5 @@
+use std::ops::MulAssign;
+
 use nalgebra::{DMatrixViewMut, DVectorViewMut, RealField};
 use num::Float;
 
@@ -9,14 +11,14 @@ where
 {
     /// weight error: apply loss function
     /// in place operation to avoid excessive memory operation
-    fn weight_in_place(&self, b: DVectorViewMut<R>) -> DVectorViewMut<R>;
+    fn weight_error_in_place(&self, error: DVectorViewMut<R>);
 
     /// weight jacobian matrices and error: apply loss function
     /// in place operation to avoid excessive memory operation
-    fn weight_in_place_jacobians_error(
+    fn weight_jacobians_error_in_place(
         &self,
         error: DVectorViewMut<R>,
-        jacobians: &[DMatrixViewMut<R>],
+        jacobians: &mut [DMatrixViewMut<R>],
     );
 }
 #[derive(Clone)]
@@ -26,14 +28,14 @@ impl<R> LossFunction<R> for GaussianLoss
 where
     R: RealField,
 {
-    fn weight_in_place(&self, _b: DVectorViewMut<R>) -> DVectorViewMut<R> {
+    fn weight_error_in_place(&self, _b: DVectorViewMut<R>) {
         todo!()
     }
 
-    fn weight_in_place_jacobians_error(
+    fn weight_jacobians_error_in_place(
         &self,
         error: DVectorViewMut<R>,
-        jacobians: &[DMatrixViewMut<R>],
+        jacobians: &mut [DMatrixViewMut<R>],
     ) {
         todo!()
     }
@@ -57,15 +59,18 @@ impl<R> LossFunction<R> for ScaleLoss<R>
 where
     R: RealField + Float,
 {
-    fn weight_in_place(&self, _b: DVectorViewMut<R>) -> DVectorViewMut<R> {
-        todo!()
+    fn weight_error_in_place(&self, mut error: DVectorViewMut<R>) {
+        error.mul_assign(self.inv_sigma)
     }
 
-    fn weight_in_place_jacobians_error(
+    fn weight_jacobians_error_in_place(
         &self,
-        error: DVectorViewMut<R>,
-        jacobians: &[DMatrixViewMut<R>],
+        mut error: DVectorViewMut<R>,
+        mut jacobians: &mut [DMatrixViewMut<R>],
     ) {
-        todo!()
+        error.mul_assign(self.inv_sigma);
+        for j in jacobians {
+            j.mul_assign(self.inv_sigma);
+        }
     }
 }

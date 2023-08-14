@@ -66,7 +66,16 @@ where
         &self,
         variables: &Variables<R, C>,
         error: DVectorViewMut<R>,
-        jacobians: &[DMatrixViewMut<R>],
+        jacobians: &mut [DMatrixViewMut<R>],
+        index: usize,
+        init: usize,
+    ) where
+        C: VariablesContainer<R>;
+    /// weight factor error in-place
+    fn weight_error_in_place_at<C>(
+        &self,
+        variables: &Variables<R, C>,
+        error: DVectorViewMut<R>,
         index: usize,
         init: usize,
     ) where
@@ -125,7 +134,17 @@ where
         &self,
         variables: &Variables<R, C>,
         error: DVectorViewMut<R>,
-        jacobians: &[DMatrixViewMut<R>],
+        jacobians: &mut [DMatrixViewMut<R>],
+        index: usize,
+        init: usize,
+    ) where
+        C: VariablesContainer<R>,
+    {
+    }
+    fn weight_error_in_place_at<C>(
+        &self,
+        variables: &Variables<R, C>,
+        error: DVectorViewMut<R>,
         index: usize,
         init: usize,
     ) where
@@ -233,7 +252,7 @@ where
         &self,
         variables: &Variables<R, C>,
         error: DVectorViewMut<R>,
-        jacobians: &[DMatrixViewMut<R>],
+        jacobians: &mut [DMatrixViewMut<R>],
         index: usize,
         init: usize,
     ) where
@@ -243,7 +262,7 @@ where
             let loss = self.data.get(index - init).unwrap().loss_function();
             if loss.is_some() {
                 let loss = loss.unwrap();
-                loss.weight_in_place_jacobians_error(error, jacobians);
+                loss.weight_jacobians_error_in_place(error, jacobians);
             }
         } else {
             self.parent.weight_jacobians_error_in_place_at(
@@ -253,6 +272,26 @@ where
                 index,
                 init + self.data.len(),
             )
+        }
+    }
+    fn weight_error_in_place_at<C>(
+        &self,
+        variables: &Variables<R, C>,
+        error: DVectorViewMut<R>,
+        index: usize,
+        init: usize,
+    ) where
+        C: VariablesContainer<R>,
+    {
+        if (init..(init + self.data.len())).contains(&index) {
+            let loss = self.data.get(index - init).unwrap().loss_function();
+            if loss.is_some() {
+                let loss = loss.unwrap();
+                loss.weight_error_in_place(error);
+            }
+        } else {
+            self.parent
+                .weight_error_in_place_at(variables, error, index, init + self.data.len())
         }
     }
     fn error_at<C>(
