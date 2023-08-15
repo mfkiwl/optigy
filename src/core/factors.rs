@@ -1,4 +1,4 @@
-use nalgebra::{DMatrixViewMut, DVector, DVectorViewMut, RealField};
+use nalgebra::{DMatrix, DMatrixViewMut, DVector, DVectorViewMut, RealField};
 use num::Float;
 
 use crate::core::variables::Variables;
@@ -48,7 +48,7 @@ where
         &self,
         variables: &Variables<R, VC>,
         error: DVectorViewMut<R>,
-        jacobians: &mut [DMatrixViewMut<R>],
+        jacobians: &mut Vec<DMatrix<R>>,
         index: usize,
     ) where
         VC: VariablesContainer<R>,

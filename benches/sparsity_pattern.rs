@@ -7,126 +7,37 @@ use optigy::{
         factor::JacobiansReturn, factors::Factors, factors_container::FactorsContainer,
         loss_function::GaussianLoss, variables_container::VariablesContainer,
     },
-    nonlinear::sparsity_pattern::construct_lower_hessian_sparsity,
+    nonlinear::{
+        linearization::linearization_lower_hessian,
+        sparsity_pattern::construct_lower_hessian_sparsity,
+    },
     prelude::{Factor, Key, Variable, Variables},
+    slam::{between_factor::BetweenFactor, se3::SE2},
 };
 
-pub struct E2<R = f64>
-where
-    R: RealField,
-{
-    pose: Vector2<R>,
-}
-
-impl<R> Variable<R> for E2<R>
-where
-    R: RealField,
-{
-    fn local(&self, value: &Self) -> DVector<R>
-    where
-        R: RealField,
-    {
-        let d = self.pose.clone() - value.pose.clone();
-        let l = DVector::<R>::from_column_slice(d.as_slice());
-        l
-    }
-
-    fn retract(&mut self, delta: DVectorView<R>)
-    where
-        R: RealField,
-    {
-        self.pose = self.pose.clone() + delta.clone();
-    }
-
-    fn dim(&self) -> usize {
-        2
-    }
-}
-impl<R> E2<R>
-where
-    R: RealField,
-{
-    fn new(pose: Vector2<R>) -> Self {
-        E2 { pose }
-    }
-}
-
-struct GPSPositionFactor<R = f64>
-where
-    R: RealField,
-{
-    pub error: RefCell<DVector<R>>,
-    pub jacobians: RefCell<JacobiansReturn<R>>,
-    pub keys: Vec<Key>,
-    pose: Vector2<R>,
-}
-impl<R> GPSPositionFactor<R>
-where
-    R: RealField,
-{
-    pub fn new(key: Key, pose: Vector2<R>) -> Self {
-        let mut jacobians = Vec::<DMatrix<R>>::with_capacity(2);
-        jacobians.resize_with(1, || DMatrix::identity(2, 2));
-        let keys = vec![key];
-        GPSPositionFactor {
-            error: RefCell::new(DVector::zeros(2)),
-            jacobians: RefCell::new(jacobians),
-            keys,
-            pose,
-        }
-    }
-}
-impl<R> Factor<R> for GPSPositionFactor<R>
-where
-    R: RealField,
-{
-    type L = GaussianLoss;
-    fn error<C>(&self, variables: &Variables<R, C>) -> RefMut<DVector<R>>
-    where
-        C: VariablesContainer<R>,
-    {
-        let v0: &E2<R> = variables.at(self.keys()[0]).unwrap();
-        {
-            let d = v0.pose.clone() - self.pose.clone();
-            let l = DVector::<R>::from_column_slice(d.as_slice());
-            *self.error.borrow_mut() = l;
-        }
-        self.error.borrow_mut()
-    }
-
-    fn jacobians<C>(&self, _variables: &Variables<R, C>) -> RefMut<JacobiansReturn<R>>
-    where
-        C: VariablesContainer<R>,
-    {
-        self.jacobians.borrow_mut()
-    }
-
-    fn dim(&self) -> usize {
-        3
-    }
-
-    fn keys(&self) -> &[Key] {
-        &self.keys
-    }
-
-    fn loss_function(&self) -> Option<&Self::L> {
-        None
-    }
-}
 fn lower_hessian_sparsity(c: &mut Criterion) {
-    let container = ().and_variable::<E2>();
+    let container = ().and_variable::<SE2>();
     let mut variables = Variables::new(container);
     let vcnt = 5000;
 
     for i in 0..vcnt {
-        variables.add(Key(i), E2::new(Vector2::new(0.0, 0.0)));
+        variables.add(Key(i), SE2::new(0.0, 0.0, 0.0));
     }
 
-    let container = ().and_factor::<GPSPositionFactor>();
+    let container = ().and_factor::<BetweenFactor>();
     let mut factors = Factors::new(container);
 
     for i in 0..vcnt {
-        factors.add(GPSPositionFactor::new(Key(i), Vector2::new(0.0, 0.0)));
+        for j in 1..6 {
+            factors.add(BetweenFactor::new(
+                Key(i),
+                Key((i + j) % vcnt),
+                0.0,
+                0.0,
+                0.0,
+                Option::<GaussianLoss>::None,
+            ));
+        }
     }
     let variable_ordering = variables.default_variable_ordering();
     c.bench_function("lower_hessian_sparsity", |b| {
@@ -134,5 +45,42 @@ fn lower_hessian_sparsity(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, lower_hessian_sparsity);
+fn lower_hessian_linearization(c: &mut Criterion) {
+    let container = ().and_variable::<SE2>();
+    let mut variables = Variables::new(container);
+    let vcnt = 5000;
+
+    for i in 0..vcnt {
+        variables.add(Key(i), SE2::new(0.0, 0.0, 0.0));
+    }
+
+    let container = ().and_factor::<BetweenFactor>();
+    let mut factors = Factors::new(container);
+
+    for i in 0..vcnt {
+        for j in 1..6 {
+            factors.add(BetweenFactor::new(
+                Key(i),
+                Key((i + j) % vcnt),
+                0.0,
+                0.0,
+                0.0,
+                Option::<GaussianLoss>::None,
+            ));
+        }
+    }
+    let variable_ordering = variables.default_variable_ordering();
+    let sparsity = construct_lower_hessian_sparsity(&factors, &variables, &variable_ordering);
+    let mut a_values = Vec::<f64>::new();
+    let a_rows = sparsity.base.A_cols;
+    // A_cols = sparsity.base.A_cols;
+    a_values.resize(sparsity.total_nnz_AtA_cols, 0.0);
+    let mut atb: DVector<f64> = DVector::zeros(a_rows);
+    c.bench_function("lower_hessian_linearization", |b| {
+        b.iter(|| {
+            linearization_lower_hessian(&factors, &variables, &sparsity, &mut a_values, &mut atb)
+        })
+    });
+}
+criterion_group!(benches, lower_hessian_sparsity, lower_hessian_linearization);
 criterion_main!(benches);

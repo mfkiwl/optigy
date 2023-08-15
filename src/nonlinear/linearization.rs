@@ -128,24 +128,19 @@ fn linearzation_lower_hessian_single_factor<R, VC, FC>(
     // let mut jacobians = Vec::<DMatrix<R>>::with_capacity(f_len);
     // jacobians.resize_with(f_len, || DMatrix::zeros(f_dim, 10));
     let wht_Js_err = factors.jacobians_error_at(variables, f_index).unwrap();
-    let wht_Js = wht_Js_err.jacobians;
-    let wht_err = wht_Js_err.error;
-    let mut error = wht_err.to_owned();
-    let mut jacobians = wht_Js.to_owned();
-    let mut jacobians_view: Vec<DMatrixViewMut<R>> =
-        jacobians.iter_mut().map(|m| m.as_view_mut()).collect();
+    let mut error = wht_Js_err.error.to_owned();
+    let mut jacobians = wht_Js_err.jacobians.to_owned();
     factors.weight_jacobians_error_in_place_at(
         variables,
         error.as_view_mut(),
-        &mut jacobians_view,
+        &mut jacobians,
         f_index,
     );
-    let wht_Js = jacobians;
-    let wht_err = error;
-    let stackJ = stack_matrix_col(&wht_Js);
+    // let jacobians = jacobians;
+    // let error = error;
+    let stackJ = stack_matrix_col(&jacobians);
 
-    let mut stackJtJ = DMatrix::<R>::zeros(stackJ.ncols(), stackJ.ncols());
-
+    // let mut stackJtJ = DMatrix::<R>::zeros(stackJ.ncols(), stackJ.ncols());
     // adaptive multiply for better speed
     // if stackJ.ncols() > 12 {
     //     // memset(stackJtJ.data(), 0, stackJ.cols() * stackJ.cols() * sizeof(double));
@@ -156,18 +151,18 @@ fn linearzation_lower_hessian_single_factor<R, VC, FC>(
     //     let sTs = stackJ.transpose() * stackJ.clone();
     //     stackJtJ.copy_from(&sTs);
     // }
-    let sts = stackJ.transpose() * stackJ.clone();
-    stackJtJ.copy_from(&sts);
+    // let sts = ;
+    // stackJtJ.copy_from(&(stackJ.transpose() * stackJ.clone()));
 
-    let stackJtb = stackJ.transpose() * wht_err.clone();
-    // stackJtb.neg_mut();
+    let stackJtb = stackJ.transpose() * error;
+    let stackJtJ = stackJ.transpose() * stackJ;
     // #ifdef MINISAM_WITH_MULTI_THREADS
     //   mutex_b.lock();
     // #endif
 
-    for j_idx in 0..wht_Js.len() {
-        Atb.rows_mut(jacobian_col[j_idx], wht_Js[j_idx].ncols())
-            .sub_assign(&stackJtb.rows(jacobian_col_local[j_idx], wht_Js[j_idx].ncols()));
+    for j_idx in 0..jacobians.len() {
+        Atb.rows_mut(jacobian_col[j_idx], jacobians[j_idx].ncols())
+            .sub_assign(&stackJtb.rows(jacobian_col_local[j_idx], jacobians[j_idx].ncols()));
     }
 
     // #ifdef MINISAM_WITH_MULTI_THREADS
@@ -175,18 +170,18 @@ fn linearzation_lower_hessian_single_factor<R, VC, FC>(
     //   mutex_A.lock();
     // #endif
 
-    for j_idx in 0..wht_Js.len() {
+    for j_idx in 0..jacobians.len() {
         // scan by row
         let nnz_AtA_vars_accum_var = sparsity.nnz_AtA_vars_accum[var_idx[j_idx]];
         let mut value_idx: usize = nnz_AtA_vars_accum_var;
-        for j in 0..wht_Js[j_idx].ncols() {
-            for i in j..wht_Js[j_idx].ncols() {
+        for j in 0..jacobians[j_idx].ncols() {
+            for i in j..jacobians[j_idx].ncols() {
                 AtA_values[value_idx] +=
                     stackJtJ[(jacobian_col_local[j_idx] + i, jacobian_col_local[j_idx] + j)];
                 value_idx += 1;
             }
             let offset: i64 = sparsity.nnz_AtA_cols[jacobian_col[j_idx] + j] as i64
-                - wht_Js[j_idx].ncols() as i64
+                - jacobians[j_idx].ncols() as i64
                 + j as i64;
             // value_idx += sparsity.nnz_AtA_cols[jacobian_col[j_idx] + j] - wht_Js[j_idx].ncols() + j;
             if offset < 0 {
@@ -202,8 +197,8 @@ fn linearzation_lower_hessian_single_factor<R, VC, FC>(
     // #endif
 
     // update lower non-diag hessian blocks
-    for j1_idx in 0..wht_Js.len() {
-        for j2_idx in 0..wht_Js.len() {
+    for j1_idx in 0..jacobians.len() {
+        for j2_idx in 0..jacobians.len() {
             // we know var_idx[j1_idx] != var_idx[j2_idx]
             // assume var_idx[j1_idx] > var_idx[j2_idx]
             // insert to block location (j1_idx, j2_idx)
@@ -222,8 +217,8 @@ fn linearzation_lower_hessian_single_factor<R, VC, FC>(
                 // #endif
 
                 if j1_idx > j2_idx {
-                    for j in 0..wht_Js[j2_idx].ncols() {
-                        for i in 0..wht_Js[j1_idx].ncols() {
+                    for j in 0..jacobians[j2_idx].ncols() {
+                        for i in 0..jacobians[j1_idx].ncols() {
                             AtA_values[value_idx] += stackJtJ[(
                                 jacobian_col_local[j1_idx] + i,
                                 jacobian_col_local[j2_idx] + j,
@@ -232,11 +227,11 @@ fn linearzation_lower_hessian_single_factor<R, VC, FC>(
                         }
                         value_idx += sparsity.nnz_AtA_cols[jacobian_col[j2_idx] + j]
                             - 1
-                            - wht_Js[j1_idx].ncols();
+                            - jacobians[j1_idx].ncols();
                     }
                 } else {
-                    for j in 0..wht_Js[j2_idx].ncols() {
-                        for i in 0..wht_Js[j1_idx].ncols() {
+                    for j in 0..jacobians[j2_idx].ncols() {
+                        for i in 0..jacobians[j1_idx].ncols() {
                             AtA_values[value_idx] += stackJtJ[(
                                 jacobian_col_local[j2_idx] + j,
                                 jacobian_col_local[j1_idx] + i,
@@ -245,7 +240,7 @@ fn linearzation_lower_hessian_single_factor<R, VC, FC>(
                         }
                         value_idx += sparsity.nnz_AtA_cols[jacobian_col[j2_idx] + j]
                             - 1
-                            - wht_Js[j1_idx].ncols();
+                            - jacobians[j1_idx].ncols();
                     }
                 }
 

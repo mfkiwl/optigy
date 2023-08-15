@@ -2,7 +2,7 @@ use crate::core::factor::Factor;
 use core::any::TypeId;
 use core::cell::RefMut;
 use core::mem;
-use nalgebra::{DMatrixViewMut, DVector, DVectorViewMut, RealField};
+use nalgebra::{DMatrix, DMatrixViewMut, DVector, DVectorViewMut, RealField};
 
 use super::factor::{ErrorReturn, JacobiansErrorReturn};
 use super::key::Key;
@@ -66,7 +66,7 @@ where
         &self,
         variables: &Variables<R, C>,
         error: DVectorViewMut<R>,
-        jacobians: &mut [DMatrixViewMut<R>],
+        jacobians: &mut Vec<DMatrix<R>>,
         index: usize,
         init: usize,
     ) where
@@ -134,7 +134,7 @@ where
         &self,
         _variables: &Variables<R, C>,
         _error: DVectorViewMut<R>,
-        _jacobians: &mut [DMatrixViewMut<R>],
+        _jacobians: &mut Vec<DMatrix<R>>,
         _index: usize,
         _init: usize,
     ) where
@@ -215,14 +215,14 @@ where
     }
     fn dim_at(&self, index: usize, init: usize) -> Option<usize> {
         if (init..(init + self.data.len())).contains(&index) {
-            Some(self.data.get(index - init).unwrap().dim())
+            Some(self.data[index - init].dim())
         } else {
             self.parent.dim_at(index, init + self.data.len())
         }
     }
     fn keys_at(&self, index: usize, init: usize) -> Option<&[Key]> {
         if (init..(init + self.data.len())).contains(&index) {
-            Some(self.data.get(index - init).unwrap().keys())
+            Some(self.data[index - init].keys())
         } else {
             self.parent.keys_at(index, init + self.data.len())
         }
@@ -237,12 +237,7 @@ where
         C: VariablesContainer<R>,
     {
         if (init..(init + self.data.len())).contains(&index) {
-            Some(
-                self.data
-                    .get(index - init)
-                    .unwrap()
-                    .jacobians_error(variables),
-            )
+            Some(self.data[index - init].jacobians_error(variables))
         } else {
             self.parent
                 .jacobians_error_at(variables, index, init + self.data.len())
@@ -252,14 +247,14 @@ where
         &self,
         variables: &Variables<R, C>,
         error: DVectorViewMut<R>,
-        jacobians: &mut [DMatrixViewMut<R>],
+        jacobians: &mut Vec<DMatrix<R>>,
         index: usize,
         init: usize,
     ) where
         C: VariablesContainer<R>,
     {
         if (init..(init + self.data.len())).contains(&index) {
-            let loss = self.data.get(index - init).unwrap().loss_function();
+            let loss = self.data[index - init].loss_function();
             if loss.is_some() {
                 let loss = loss.unwrap();
                 loss.weight_jacobians_error_in_place(error, jacobians);
@@ -284,7 +279,7 @@ where
         C: VariablesContainer<R>,
     {
         if (init..(init + self.data.len())).contains(&index) {
-            let loss = self.data.get(index - init).unwrap().loss_function();
+            let loss = self.data[index - init].loss_function();
             if loss.is_some() {
                 let loss = loss.unwrap();
                 loss.weight_error_in_place(error);
@@ -304,7 +299,7 @@ where
         C: VariablesContainer<R>,
     {
         if (init..(init + self.data.len())).contains(&index) {
-            Some(self.data.get(index - init).unwrap().error(variables))
+            Some(self.data[index - init].error(variables))
         } else {
             self.parent
                 .error_at(variables, index, init + self.data.len())

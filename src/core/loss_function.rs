@@ -20,7 +20,7 @@ where
     fn weight_jacobians_error_in_place(
         &self,
         error: DVectorViewMut<R>,
-        jacobians: &mut [DMatrixViewMut<R>],
+        jacobians: &mut Vec<DMatrix<R>>,
     );
 }
 #[derive(Clone)]
@@ -50,7 +50,7 @@ where
     fn weight_jacobians_error_in_place(
         &self,
         mut error: DVectorViewMut<R>,
-        jacobians: &mut [DMatrixViewMut<R>],
+        jacobians: &mut Vec<DMatrix<R>>,
     ) {
         let m = self.sqrt_info.clone() * error.clone_owned();
         error.copy_from(&m);
@@ -86,7 +86,7 @@ where
     fn weight_jacobians_error_in_place(
         &self,
         mut error: DVectorViewMut<R>,
-        jacobians: &mut [DMatrixViewMut<R>],
+        jacobians: &mut Vec<DMatrix<R>>,
     ) {
         error.mul_assign(self.inv_sigma);
         for j in jacobians {
@@ -127,7 +127,7 @@ where
     fn weight_jacobians_error_in_place(
         &self,
         mut error: DVectorViewMut<R>,
-        jacobians: &mut [DMatrixViewMut<R>],
+        jacobians: &mut Vec<DMatrix<R>>,
     ) {
         error.component_mul_assign(&self.sqrt_info_diag);
         for J in jacobians {
