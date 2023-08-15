@@ -82,8 +82,6 @@ where
             let hinv = -v0.origin.adj();
             let hcmp1 = v1.origin.inverse().adj();
             let j = (hcmp1 * hinv).cast::<R>();
-            // let sm = Matrix3::identity();
-            // let m: DMatrix<f64> = Hcmp1
             self.jacobians.borrow_mut()[0].copy_from(&j);
         }
         self.jacobians.borrow()

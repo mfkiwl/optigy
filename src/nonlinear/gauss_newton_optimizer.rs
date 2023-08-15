@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use nalgebra::{DMatrix, DVector, RealField};
 use num::Float;
 
@@ -55,11 +57,14 @@ where
         let mut dx: DVector<R> = DVector::zeros(variables.dim());
         //WARN sparse cholesky solver not working for lower triangular matrices
         let linear_solver_status = self.linear_solver.solve(lin_sys.A, lin_sys.b, &mut dx);
-        let mut A = DMatrix::<R>::from(lin_sys.A);
-        A.fill_upper_triangle_with_lower_triangle();
-        dx = A.clone().cholesky().unwrap().solve(lin_sys.b);
+        // let mut A = DMatrix::<R>::from(lin_sys.A);
+        // A.fill_upper_triangle_with_lower_triangle();
+        // dx = A.clone().cholesky().unwrap().solve(lin_sys.b);
         if linear_solver_status == LinearSolverStatus::Success {
+            let start = Instant::now();
             variables.retract(dx.as_view(), variable_ordering);
+            let duration = start.elapsed();
+            println!("retract time: {:?}", duration);
             Ok(IterationData::new(false, 0.0))
         } else if linear_solver_status == LinearSolverStatus::RankDeficiency {
             println!("Warning: linear system has rank deficiency");

@@ -1,7 +1,7 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, time::Instant};
 
 use nalgebra::{DVector, RealField};
-use nalgebra_sparse::{factorization::CscCholesky, CscMatrix};
+use nalgebra_sparse::{factorization::CscCholesky, CooMatrix, CscMatrix};
 use num::Float;
 
 use super::linear_solver::{LinearSolverStatus, SparseLinearSolver};
@@ -25,7 +25,22 @@ where
         //     }
         //     None => LinearSolverStatus::RankDeficiency,
         // }
+        let start = Instant::now();
+        let mut coo = CooMatrix::<R>::zeros(A.nrows(), A.ncols());
+        for (i, j, v) in A.triplet_iter() {
+            coo.push(i, j, *v);
+            if i != j {
+                //make symmetry
+                coo.push(j, i, *v);
+            }
+        }
+        let A = &CscMatrix::from(&coo);
+        let duration = start.elapsed();
+        println!("cholesky prepare time: {:?}", duration);
+        let start = Instant::now();
         let chol = CscCholesky::factor(A);
+        let duration = start.elapsed();
+        println!("cholesky solve time: {:?}", duration);
         match chol {
             Ok(chol) => {
                 x.copy_from(&chol.solve(b));

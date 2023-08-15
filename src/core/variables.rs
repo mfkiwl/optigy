@@ -40,7 +40,6 @@ where
 
     pub fn retract(&mut self, delta: DVectorView<R>, variable_ordering: &VariableOrdering) {
         assert_eq!(delta.nrows(), self.dim());
-        assert_eq!(delta.ncols(), 1);
         let mut d: usize = 0;
         for i in 0..variable_ordering.len() {
             let key = variable_ordering.key(i).unwrap();
