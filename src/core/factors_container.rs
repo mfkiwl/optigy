@@ -132,21 +132,21 @@ where
     }
     fn weight_jacobians_error_in_place_at<C>(
         &self,
-        variables: &Variables<R, C>,
-        error: DVectorViewMut<R>,
-        jacobians: &mut [DMatrixViewMut<R>],
-        index: usize,
-        init: usize,
+        _variables: &Variables<R, C>,
+        _error: DVectorViewMut<R>,
+        _jacobians: &mut [DMatrixViewMut<R>],
+        _index: usize,
+        _init: usize,
     ) where
         C: VariablesContainer<R>,
     {
     }
     fn weight_error_in_place_at<C>(
         &self,
-        variables: &Variables<R, C>,
-        error: DVectorViewMut<R>,
-        index: usize,
-        init: usize,
+        _variables: &Variables<R, C>,
+        _error: DVectorViewMut<R>,
+        _index: usize,
+        _init: usize,
     ) where
         C: VariablesContainer<R>,
     {
@@ -304,12 +304,7 @@ where
         C: VariablesContainer<R>,
     {
         if (init..(init + self.data.len())).contains(&index) {
-            Some(
-                self.data
-                    .get(index - init)
-                    .unwrap()
-                    .weighted_error(variables),
-            )
+            Some(self.data.get(index - init).unwrap().error(variables))
         } else {
             self.parent
                 .error_at(variables, index, init + self.data.len())

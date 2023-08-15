@@ -39,29 +39,11 @@ where
     fn error<C>(&self, variables: &Variables<R, C>) -> ErrorReturn<R>
     where
         C: VariablesContainer<R>;
-
-    /// whiten error
-    fn weighted_error<C>(&self, variables: &Variables<R, C>) -> ErrorReturn<R>
-    where
-        C: VariablesContainer<R>,
-    {
-        // match self.loss_function() {
-        //     Some(loss) => {
-        //         let mut e = self.error(variables).as_view_mut();
-        //         loss.weight_in_place(e.as_view_mut())
-        //     }
-        //     None => self.error(variables),
-        // }
-
-        self.error(variables)
-    }
-
     /// jacobians function
     /// jacobians vector sequence meets key list, size error.dim x var.dim
     fn jacobians<C>(&self, variables: &Variables<R, C>) -> JacobiansReturn<R>
     where
         C: VariablesContainer<R>;
-
     ///  jacobian matrix
     fn jacobians_error<C>(&self, variables: &Variables<R, C>) -> JacobiansErrorReturn<R>
     where
@@ -69,7 +51,6 @@ where
     {
         JacobiansErrorReturn::new(self.jacobians(variables), self.error(variables))
     }
-
     /// error dimension is dim of noisemodel
     fn dim(&self) -> usize;
     /// size (number of variables connected)
@@ -79,10 +60,8 @@ where
     fn is_empty(&self) -> bool {
         self.keys().is_empty()
     }
-
     /// access of keys
     fn keys(&self) -> &[Key];
-
     // const access of noisemodel
     fn loss_function(&self) -> Option<&Self::L>;
 }
@@ -99,7 +78,7 @@ pub(crate) mod tests {
     };
     use core::cell::RefCell;
     use core::cell::RefMut;
-    use nalgebra::{DMatrix, DMatrixView, DVector, DVectorView, RealField};
+    use nalgebra::{DMatrix, DMatrixView, DVector, DVectorView, Matrix3, RealField};
     use rand::Rng;
     use std::ops::Deref;
 
@@ -108,7 +87,7 @@ pub(crate) mod tests {
         R: RealField,
     {
         pub orig: DVector<R>,
-        pub loss: Option<GaussianLoss>,
+        pub loss: Option<GaussianLoss<R>>,
         pub error: RefCell<DVector<R>>,
         pub jacobians: RefCell<Vec<DMatrix<R>>>,
         pub keys: Vec<Key>,
@@ -117,7 +96,7 @@ pub(crate) mod tests {
     where
         R: RealField,
     {
-        pub fn new(v: R, loss: Option<GaussianLoss>, var0: Key, var1: Key) -> Self {
+        pub fn new(v: R, loss: Option<GaussianLoss<R>>, var0: Key, var1: Key) -> Self {
             let mut jacobians = Vec::<DMatrix<R>>::with_capacity(2);
             jacobians.resize_with(2, || DMatrix::zeros(3, 3));
             let keys = vec![var0, var1];
@@ -135,7 +114,7 @@ pub(crate) mod tests {
     where
         R: RealField,
     {
-        type L = GaussianLoss;
+        type L = GaussianLoss<R>;
         fn error<C>(&self, variables: &Variables<R, C>) -> ErrorReturn<R>
         where
             C: VariablesContainer<R>,
@@ -181,7 +160,7 @@ pub(crate) mod tests {
         R: RealField,
     {
         pub orig: DVector<R>,
-        pub loss: Option<GaussianLoss>,
+        pub loss: Option<GaussianLoss<R>>,
         pub error: RefCell<DVector<R>>,
         pub jacobians: RefCell<Vec<DMatrix<R>>>,
         pub keys: Vec<Key>,
@@ -190,7 +169,7 @@ pub(crate) mod tests {
     where
         R: RealField,
     {
-        pub fn new(v: R, loss: Option<GaussianLoss>, var0: Key, var1: Key) -> Self {
+        pub fn new(v: R, loss: Option<GaussianLoss<R>>, var0: Key, var1: Key) -> Self {
             let mut jacobians = Vec::<DMatrix<R>>::with_capacity(2);
             jacobians.resize_with(2, || DMatrix::zeros(3, 3));
             let keys = vec![var0, var1];
@@ -207,7 +186,7 @@ pub(crate) mod tests {
     where
         R: RealField,
     {
-        type L = GaussianLoss;
+        type L = GaussianLoss<R>;
         fn error<C>(&self, variables: &Variables<R, C>) -> ErrorReturn<R>
         where
             C: VariablesContainer<R>,
@@ -250,7 +229,7 @@ pub(crate) mod tests {
     where
         R: RealField,
     {
-        pub loss: Option<GaussianLoss>,
+        pub loss: Option<GaussianLoss<R>>,
         pub error: RefCell<DVector<R>>,
         pub jacobians: RefCell<Jacobians<R>>,
         pub keys: Vec<Key>,
@@ -278,7 +257,7 @@ pub(crate) mod tests {
     where
         R: RealField,
     {
-        type L = GaussianLoss;
+        type L = GaussianLoss<R>;
         fn error<C>(&self, variables: &Variables<R, C>) -> ErrorReturn<R>
         where
             C: VariablesContainer<R>,
@@ -317,7 +296,7 @@ pub(crate) mod tests {
         let mut variables = Variables::new(container);
         variables.add(Key(0), VariableA::<Real>::new(4.0));
         variables.add(Key(1), VariableB::<Real>::new(2.0));
-        let loss = GaussianLoss {};
+        let loss = GaussianLoss::information(Matrix3::identity().as_view());
         let f0 = FactorA::new(1.0, Some(loss), Key(0), Key(1));
         {
             let e0 = f0.error(&variables).to_owned();

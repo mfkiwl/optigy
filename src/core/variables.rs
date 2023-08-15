@@ -82,8 +82,13 @@ where
     where
         V: Variable<R> + 'static,
     {
-        // self.container.get_mut::<V>().unwrap().insert(key, var);
-        self.container
+        #[cfg(not(debug_assertions))]
+        {
+            self.container.get_mut::<V>().unwrap().insert(key, var);
+        }
+        #[cfg(debug_assertions)]
+        {
+            self.container
             .get_mut::<V>()
             .expect(
                 format!(
@@ -94,6 +99,7 @@ where
                 .as_str(),
             )
             .insert(key, var);
+        }
     }
     pub fn dim_at(&self, key: Key) -> Option<usize> {
         self.container.dim_at(key)

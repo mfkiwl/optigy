@@ -119,18 +119,24 @@ where
         F: Factor<R> + 'static,
         R: RealField,
     {
-        // self.container.get_mut::<F>().unwrap().push(f)
-        self.container
-            .get_mut::<F>()
-            .expect(
-                format!(
+        #[cfg(not(debug_assertions))]
+        {
+            self.container.get_mut::<F>().unwrap().push(f)
+        }
+        #[cfg(debug_assertions)]
+        {
+            self.container
+                .get_mut::<F>()
+                .expect(
+                    format!(
                     "type {} should be registered in factors container. use ().and_factor::<{}>()",
                     tynm::type_name::<F>(),
                     tynm::type_name::<F>()
                 )
-                .as_str(),
-            )
-            .push(f)
+                    .as_str(),
+                )
+                .push(f)
+        }
     }
 }
 #[cfg(test)]
@@ -220,7 +226,7 @@ mod tests {
         variables.add(Key(1), VariableB::<Real>::new(0.0));
         assert_eq!(
             FactorA::new(1.0, None, Key(0), Key(1))
-                .weighted_error(&variables)
+                .error(&variables)
                 .norm_squared(),
             3.0
         );

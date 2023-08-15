@@ -215,18 +215,24 @@ where
     C: VariablesContainer<R>,
     V: Variable<R> + 'static,
 {
-    container.get::<V>().unwrap().get(&key)
-    // container
-    //     .get::<V>()
-    //     .expect(
-    //         format!(
-    //             "type {} should be registered in variables container. use ().and_variable::<{}>()",
-    //             tynm::type_name::<V>(),
-    //             tynm::type_name::<V>()
-    //         )
-    //         .as_str(),
-    //     )
-    //     .get(&key)
+    #[cfg(not(debug_assertions))]
+    {
+        container.get::<V>().unwrap().get(&key)
+    }
+    #[cfg(debug_assertions)]
+    {
+        container
+            .get::<V>()
+            .expect(
+                format!(
+                "type {} should be registered in variables container. use ().and_variable::<{}>()",
+                tynm::type_name::<V>(),
+                tynm::type_name::<V>()
+            )
+                .as_str(),
+            )
+            .get(&key)
+    }
 }
 pub fn get_variable_mut<R, C, V>(container: &mut C, key: Key) -> Option<&mut V>
 where
@@ -234,18 +240,24 @@ where
     C: VariablesContainer<R>,
     V: Variable<R> + 'static,
 {
-    // container.get_mut::<V>().unwrap().get_mut(&key)
-    container
-        .get_mut::<V>()
-        .expect(
-            format!(
+    #[cfg(not(debug_assertions))]
+    {
+        container.get_mut::<V>().unwrap().get_mut(&key)
+    }
+    #[cfg(debug_assertions)]
+    {
+        container
+            .get_mut::<V>()
+            .expect(
+                format!(
                 "type {} should be registered in variables container. use ().and_variable::<{}>()",
                 tynm::type_name::<V>(),
                 tynm::type_name::<V>()
             )
-            .as_str(),
-        )
-        .get_mut(&key)
+                .as_str(),
+            )
+            .get_mut(&key)
+    }
 }
 #[cfg(test)]
 mod tests {
