@@ -1,7 +1,10 @@
-use std::{marker::PhantomData, time::Instant};
+use std::{cell::RefCell, marker::PhantomData, time::Instant};
 
 use super::linear_solver::{LinearSolverStatus, SparseLinearSolver};
-use clarabel::{algebra, qdldl::QDLDLFactorisation};
+use clarabel::{
+    algebra,
+    qdldl::{QDLDLFactorisation, QDLDLSettingsBuilder},
+};
 use nalgebra::{DVector, RealField};
 use nalgebra_sparse::{CooMatrix, CscMatrix};
 use num::Float;
@@ -11,6 +14,7 @@ where
     R: RealField + Float + Default,
 {
     __marker: PhantomData<R>,
+    factors: RefCell<Option<QDLDLFactorisation>>,
 }
 
 impl<R> SparseLinearSolver<R> for SparseCholeskySolver<R>
@@ -67,19 +71,31 @@ where
             A.ncols(),
             patt.major_offsets().to_vec(),
             patt.minor_indices().to_vec(),
-            fvals,
+            fvals.clone(),
         );
         let duration = start.elapsed();
         println!("cholesky prepare time: {:?}", duration);
         assert!(A.check_format().is_ok());
         let start = Instant::now();
-        let mut factors = QDLDLFactorisation::new(&A, None);
+        // let mut factors = QDLDLFactorisation::new(&A, None);
         let mut bv = Vec::<f64>::new();
         for i in 0..b.nrows() {
             bv.push(b[i].to_f64().unwrap());
         }
         //solves in place
-        factors.solve(&mut bv);
+        // factors.solve(&mut bv);
+        {
+            self.factors.borrow_mut().as_mut().unwrap().update_values(
+                Vec::<usize>::from_iter(0..fvals.len()).as_slice(),
+                fvals.as_slice(),
+            );
+        }
+        {
+            self.factors.borrow_mut().as_mut().unwrap().refactor();
+        }
+        {
+            self.factors.borrow_mut().as_mut().unwrap().solve(&mut bv);
+        }
 
         let duration = start.elapsed();
         println!("cholesky factor time: {:?}", duration);
@@ -95,6 +111,34 @@ where
 
     fn is_normal_lower(&self) -> bool {
         true
+    }
+
+    fn initialize(&self, A: &CscMatrix<R>) -> LinearSolverStatus {
+        let opts = QDLDLSettingsBuilder::default()
+            .logical(true)
+            .build()
+            .unwrap();
+
+        let mut coo = CooMatrix::<R>::zeros(A.nrows(), A.ncols());
+        for (i, j, v) in A.triplet_iter() {
+            //lower to upper
+            coo.push(j, i, *v);
+        }
+        let A = &CscMatrix::from(&coo);
+        let (patt, vals) = A.clone().into_pattern_and_values();
+        let mut fvals = Vec::<f64>::new();
+        for v in vals {
+            fvals.push(v.to_f64().unwrap());
+        }
+        let A = algebra::CscMatrix::new(
+            A.nrows(),
+            A.ncols(),
+            patt.major_offsets().to_vec(),
+            patt.minor_indices().to_vec(),
+            fvals,
+        );
+        *self.factors.borrow_mut() = Some(QDLDLFactorisation::new(&A, Some(opts)));
+        LinearSolverStatus::Success
     }
 }
 #[cfg(test)]
