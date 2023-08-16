@@ -3,6 +3,8 @@ use std::{marker::PhantomData, time::Instant};
 use nalgebra::{DVector, RealField};
 use nalgebra_sparse::{factorization::CscCholesky, CooMatrix, CscMatrix};
 use num::Float;
+use sprs::{CsMat, FillInReduction, SymmetryCheck, TriMat};
+use sprs_ldl::Ldl;
 
 use super::linear_solver::{LinearSolverStatus, SparseLinearSolver};
 #[derive(Default)]
@@ -25,29 +27,59 @@ where
         //     }
         //     None => LinearSolverStatus::RankDeficiency,
         // }
+        // let start = Instant::now();
+        // let mut coo = CooMatrix::<R>::zeros(A.nrows(), A.ncols());
+        // for (i, j, v) in A.triplet_iter() {
+        //     coo.push(i, j, *v);
+        //     if i != j {
+        //         //make symmetry
+        //         coo.push(j, i, *v);
+        //     }
+        // }
+        // let A = &CscMatrix::from(&coo);
+        // let duration = start.elapsed();
+        // println!("cholesky prepare time: {:?}", duration);
+        // let start = Instant::now();
+        // let chol = CscCholesky::factor(A);
+        // let duration = start.elapsed();
+        // println!("cholesky solve time: {:?}", duration);
+        // match chol {
+        //     Ok(chol) => {
+        //         x.copy_from(&chol.solve(b));
+        //         LinearSolverStatus::Success
+        //     }
+        //     Err(_) => LinearSolverStatus::RankDeficiency,
+        // }
         let start = Instant::now();
-        let mut coo = CooMatrix::<R>::zeros(A.nrows(), A.ncols());
+        let mut tri = TriMat::new((A.nrows(), A.ncols()));
         for (i, j, v) in A.triplet_iter() {
-            coo.push(i, j, *v);
+            let v = v.to_f64().unwrap();
+            tri.add_triplet(i, j, v);
+            //make symmetry
             if i != j {
-                //make symmetry
-                coo.push(j, i, *v);
+                tri.add_triplet(j, i, v);
             }
         }
-        let A = &CscMatrix::from(&coo);
+        let A: CsMat<_> = tri.to_csc();
         let duration = start.elapsed();
         println!("cholesky prepare time: {:?}", duration);
         let start = Instant::now();
-        let chol = CscCholesky::factor(A);
+        let ldlt = Ldl::new()
+            .check_symmetry(SymmetryCheck::DontCheckSymmetry)
+            .fill_in_reduction(FillInReduction::ReverseCuthillMcKee)
+            .numeric(A.view())
+            .unwrap();
         let duration = start.elapsed();
-        println!("cholesky solve time: {:?}", duration);
-        match chol {
-            Ok(chol) => {
-                x.copy_from(&chol.solve(b));
-                LinearSolverStatus::Success
-            }
-            Err(_) => LinearSolverStatus::RankDeficiency,
+        println!("cholesky factor time: {:?}", duration);
+        let mut bv = Vec::<f64>::new();
+        for i in 0..b.nrows() {
+            bv.push(b[i].to_f64().unwrap());
         }
+        let sol = ldlt.solve(bv.as_slice());
+        for i in 0..sol.len() {
+            x[i] = R::from_f64(sol[i]).unwrap();
+        }
+        LinearSolverStatus::Success
     }
 
     fn is_normal(&self) -> bool {
