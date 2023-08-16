@@ -3,17 +3,21 @@ use std::time::Instant;
 use std::{env::current_dir, fs::read_to_string};
 
 use nalgebra::{Matrix2x3, Matrix3};
+use optigy::core::loss_function::ScaleLoss;
 use optigy::core::variables;
 use optigy::prelude::{
     Factors, FactorsContainer, GaussianLoss, Key, NonlinearOptimizer, Variables, VariablesContainer,
 };
 use optigy::slam::between_factor::BetweenFactor;
+use optigy::slam::prior_factor::PriorFactor;
 use optigy::slam::se3::SE2;
 fn main() -> Result<(), Box<dyn Error>> {
     let container = ().and_variable::<SE2>();
     let mut variables = Variables::new(container);
 
-    let container = ().and_factor::<BetweenFactor<GaussianLoss>>();
+    let container =
+        ().and_factor::<BetweenFactor<GaussianLoss>>()
+            .and_factor::<PriorFactor<ScaleLoss>>();
     let mut factors = Factors::new(container);
     println!("current dir {:?}", current_dir().unwrap());
     let filename = current_dir()
@@ -64,6 +68,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
         // println!("line: {}", line);
     }
+    let v0: &SE2 = variables.at(Key(0)).unwrap();
+    factors.add(PriorFactor::from_se2(
+        Key(0),
+        v0.origin,
+        Some(ScaleLoss::scale(1.0)),
+    ));
+
     let mut optimizer = NonlinearOptimizer::default();
     let start = Instant::now();
     let opt_res = optimizer.optimize(&factors, &mut variables);

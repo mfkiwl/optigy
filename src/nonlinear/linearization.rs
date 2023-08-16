@@ -74,7 +74,7 @@ pub(crate) fn stack_matrix_col<R>(mats: &Vec<DMatrix<R>>) -> DMatrix<R>
 where
     R: RealField,
 {
-    assert!(!mats.is_empty());
+    debug_assert!(!mats.is_empty());
     let mut H_stack_cols: usize = 0;
     for H in mats {
         H_stack_cols += H.ncols();
@@ -83,7 +83,7 @@ where
     let mut H_stack = DMatrix::<R>::zeros(rows, H_stack_cols);
     H_stack_cols = 0;
     for H in mats {
-        assert_eq!(H.nrows(), rows);
+        debug_assert_eq!(H.nrows(), rows);
         H_stack.columns_mut(H_stack_cols, H.ncols()).copy_from(H);
         H_stack_cols += H.ncols();
     }
@@ -104,7 +104,7 @@ fn linearzation_lower_hessian_single_factor<R, VC, FC>(
     FC: FactorsContainer<R>,
 {
     let f_keys = factors.keys_at(f_index).unwrap();
-    assert!(has_unique_elements(f_keys));
+    debug_assert!(has_unique_elements(f_keys));
     let f_len = f_keys.len();
     let f_dim: usize = factors.dim_at(f_index).unwrap();
     //  whiten err and jacobians
@@ -124,12 +124,14 @@ fn linearzation_lower_hessian_single_factor<R, VC, FC>(
         local_col += sparsity.base.var_dim[key_idx];
     }
 
-    // let mut error: DVector<R> = DVector::zeros(f_dim);
-    // let mut jacobians = Vec::<DMatrix<R>>::with_capacity(f_len);
-    // jacobians.resize_with(f_len, || DMatrix::zeros(f_dim, 10));
     let wht_Js_err = factors.jacobians_error_at(variables, f_index).unwrap();
     let mut error = wht_Js_err.error.to_owned();
     let mut jacobians = wht_Js_err.jacobians.to_owned();
+
+    debug_assert_eq!(error.nrows(), f_dim);
+    debug_assert_eq!(jacobians[0].nrows(), f_dim);
+    debug_assert_eq!(jacobians.len(), f_len);
+
     factors.weight_jacobians_error_in_place_at(
         variables,
         error.as_view_mut(),
