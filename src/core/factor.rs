@@ -242,7 +242,8 @@ pub(crate) mod tests {
             let mut rng = rand::thread_rng();
             let mut jacobians = Vec::<DMatrix<R>>::with_capacity(2);
             jacobians.resize_with(2, || {
-                DMatrix::from_fn(3, 3, |_i, _j| R::from_f64(rng.gen::<f64>()).unwrap())
+                // DMatrix::from_fn(3, 3, |_i, _j| R::from_f64(rng.gen::<f64>()).unwrap())
+                DMatrix::from_fn(3, 3, |_i, _j| R::one())
             });
             let keys = vec![var0, var1];
             RandomBlockFactor {

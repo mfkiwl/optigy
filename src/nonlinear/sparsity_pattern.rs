@@ -126,7 +126,7 @@ where
     sparsity
 }
 
-enum HessianTriangle {
+pub enum HessianTriangle {
     Upper,
     Lower,
 }
@@ -143,7 +143,7 @@ where
     VC: VariablesContainer<R>,
     FC: FactorsContainer<R>,
 {
-    let tri = HessianTriangle::Lower;
+    let tri = HessianTriangle::Upper;
     let mut sparsity = LowerHessianSparsityPattern::default();
 
     // A size
@@ -254,7 +254,6 @@ where
             out_counter += sparsity.nnz_AtA_cols[i + sparsity.base.var_col[var_idx]];
             *outer_index_ptr.next().unwrap() = out_counter;
 
-            // non-self
             let fill_non_self = |ptr: &mut IterMut<usize>| {
                 for corl_idx in &sparsity.corl_vars[var_idx] {
                     for j in 0..sparsity.base.var_dim[*corl_idx] {
@@ -263,7 +262,6 @@ where
                 }
             };
             let fill_self = |ptr: &mut IterMut<usize>| {
-                // self
                 let j_range = match tri {
                     HessianTriangle::Upper => 0..i + 1,
                     HessianTriangle::Lower => i..sparsity.base.var_dim[var_idx],

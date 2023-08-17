@@ -9,15 +9,14 @@ use optigy::prelude::{
     Factors, FactorsContainer, GaussianLoss, Key, NonlinearOptimizer, Variables, VariablesContainer,
 };
 use optigy::slam::between_factor::BetweenFactor;
-use optigy::slam::prior_factor::PriorFactor;
+// use optigy::slam::prior_factor::PriorFactor;
 use optigy::slam::se3::SE2;
 fn main() -> Result<(), Box<dyn Error>> {
     let container = ().and_variable::<SE2>();
     let mut variables = Variables::new(container);
 
-    let container =
-        ().and_factor::<BetweenFactor<GaussianLoss>>()
-            .and_factor::<PriorFactor<ScaleLoss>>();
+    let container = ().and_factor::<BetweenFactor<GaussianLoss>>();
+    // .and_factor::<PriorFactor<ScaleLoss>>();
     let mut factors = Factors::new(container);
     println!("current dir {:?}", current_dir().unwrap());
     let filename = current_dir()
@@ -68,12 +67,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
         // println!("line: {}", line);
     }
-    let v0: &SE2 = variables.at(Key(0)).unwrap();
-    factors.add(PriorFactor::from_se2(
-        Key(0),
-        v0.origin,
-        Some(ScaleLoss::scale(1.0)),
-    ));
+    // let v0: &SE2 = variables.at(Key(0)).unwrap();
+    // factors.add(PriorFactor::from_se2(
+    //     Key(0),
+    //     v0.origin,
+    //     Some(ScaleLoss::scale(1.0)),
+    // ));
 
     let mut optimizer = NonlinearOptimizer::default();
     let start = Instant::now();
