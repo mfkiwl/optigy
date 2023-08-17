@@ -85,7 +85,7 @@ impl Default for NonlinearOptimizerParams {
             min_rel_err_decrease: 1e-5,
             min_abs_err_decrease: 1e-5,
             linear_solver_type: LinearSolverType::Cholesky,
-            verbosity_level: NonlinearOptimizerVerbosityLevel::Warning,
+            verbosity_level: NonlinearOptimizerVerbosityLevel::Subiteration,
         }
     }
 }

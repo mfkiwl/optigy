@@ -5,8 +5,10 @@ use std::{env::current_dir, fs::read_to_string};
 use nalgebra::{Matrix2x3, Matrix3};
 use optigy::core::loss_function::ScaleLoss;
 use optigy::core::variables;
+use optigy::nonlinear::gauss_newton_optimizer::GaussNewtonOptimizerParams;
 use optigy::prelude::{
-    Factors, FactorsContainer, GaussianLoss, Key, NonlinearOptimizer, Variables, VariablesContainer,
+    Factors, FactorsContainer, GaussNewtonOptimizer, GaussianLoss, Key, NonlinearOptimizer,
+    NonlinearOptimizerVerbosityLevel, Variables, VariablesContainer,
 };
 use optigy::slam::between_factor::BetweenFactor;
 // use optigy::slam::prior_factor::PriorFactor;
@@ -73,8 +75,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     //     v0.origin,
     //     Some(ScaleLoss::scale(1.0)),
     // ));
-
-    let mut optimizer = NonlinearOptimizer::default();
+    let mut param = GaussNewtonOptimizerParams::default();
+    param.base.verbosity_level = NonlinearOptimizerVerbosityLevel::Subiteration;
+    let mut optimizer = NonlinearOptimizer::new(GaussNewtonOptimizer::default());
     let start = Instant::now();
     let opt_res = optimizer.optimize(&factors, &mut variables);
     println!("opt_res {:?}", opt_res);

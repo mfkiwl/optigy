@@ -180,34 +180,27 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
         // scan by row
         let nnz_AtA_vars_accum_var = sparsity.nnz_AtA_vars_accum[var_idx[j_idx]];
         let mut value_idx: usize = nnz_AtA_vars_accum_var;
-        match tri {
-            HessianTriangle::Upper => {
-                for j in 0..jacobians[j_idx].ncols() {
-                    value_idx += sparsity.nnz_AtA_cols[jacobian_col[j_idx] + j] - j - 1;
-
-                    for i in 0..j + 1 {
-                        AtA_values[value_idx] += stackJtJ
-                            [(jacobian_col_local[j_idx] + i, jacobian_col_local[j_idx] + j)];
-                        value_idx += 1;
-                    }
+        for j in 0..jacobians[j_idx].ncols() {
+            let i_range = match tri {
+                HessianTriangle::Upper => 0..j + 1,
+                HessianTriangle::Lower => j..jacobians[j_idx].ncols(),
+            };
+            let fill = |values: &mut [R], idx: &mut usize| {
+                for i in i_range.clone() {
+                    values[*idx] +=
+                        stackJtJ[(jacobian_col_local[j_idx] + i, jacobian_col_local[j_idx] + j)];
+                    *idx += 1;
                 }
-            }
-            HessianTriangle::Lower => {
-                for j in 0..jacobians[j_idx].ncols() {
-                    for i in j..jacobians[j_idx].ncols() {
-                        AtA_values[value_idx] += stackJtJ
-                            [(jacobian_col_local[j_idx] + i, jacobian_col_local[j_idx] + j)];
-                        value_idx += 1;
-                    }
-                    // value_idx += sparsity.nnz_AtA_cols[jacobian_col[j_idx] + j] - wht_Js[j_idx].ncols() + j;
-                    let offset: i64 = sparsity.nnz_AtA_cols[jacobian_col[j_idx] + j] as i64
-                        - jacobians[j_idx].ncols() as i64
-                        + j as i64;
-                    if offset < 0 {
-                        value_idx -= (-offset) as usize;
-                    } else {
-                        value_idx += offset as usize;
-                    }
+            };
+            match tri {
+                HessianTriangle::Upper => {
+                    value_idx += sparsity.nnz_AtA_cols[jacobian_col[j_idx] + j] - j - 1;
+                    fill(AtA_values, &mut value_idx);
+                }
+                HessianTriangle::Lower => {
+                    fill(AtA_values, &mut value_idx);
+                    value_idx += sparsity.nnz_AtA_cols[jacobian_col[j_idx] + j] + j
+                        - jacobians[j_idx].ncols();
                 }
             }
         }
@@ -219,20 +212,22 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
 
     // update lower/upper non-diag hessian blocks
     for j1_idx in 0..jacobians.len() {
+        let j1_var_idx = var_idx[j1_idx];
         for j2_idx in 0..jacobians.len() {
+            let j2_var_idx = var_idx[j2_idx];
             let comp = match tri {
-                HessianTriangle::Upper => var_idx[j1_idx] < var_idx[j2_idx],
-                HessianTriangle::Lower => var_idx[j1_idx] > var_idx[j2_idx],
+                HessianTriangle::Upper => j1_var_idx < j2_var_idx,
+                HessianTriangle::Lower => j1_var_idx > j2_var_idx,
             };
             // we know var_idx[j1_idx] != var_idx[j2_idx]
             // assume var_idx[j1_idx] >(lower) <(upper) var_idx[j2_idx]
             // insert to block location (j1_idx, j2_idx)
             if comp {
-                let nnz_AtA_vars_accum_var2 = sparsity.nnz_AtA_vars_accum[var_idx[j2_idx]];
-                let var2_dim = sparsity.base.var_dim[var_idx[j2_idx]];
+                let nnz_AtA_vars_accum_var2 = sparsity.nnz_AtA_vars_accum[j2_var_idx];
+                let var2_dim = sparsity.base.var_dim[j2_var_idx];
 
-                let inner_insert_var2_var1 = sparsity.inner_insert_map[var_idx[j2_idx]]
-                    .get(&var_idx[j1_idx])
+                let inner_insert_var2_var1 = sparsity.inner_insert_map[j2_var_idx]
+                    .get(&j1_var_idx)
                     .unwrap();
                 let mut value_idx: usize;
                 let val_offset: usize;
