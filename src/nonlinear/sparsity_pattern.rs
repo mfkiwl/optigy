@@ -199,12 +199,15 @@ where
     for var_idx in 0..variable_ordering.len() {
         let self_dim = sparsity.base.var_dim[var_idx];
         let self_col = sparsity.base.var_col[var_idx];
-        // self: lower triangular part
+        // self: lower/upper triangular part
         last_nnz_AtA_vars_accum += ((1 + self_dim) * self_dim) / 2;
         for i in 0..self_dim {
             let col = self_col + i;
-            // sparsity.nnz_AtA_cols[col] += self_dim - i;
-            sparsity.nnz_AtA_cols[col] += i + 1;
+            let nnz = match tri {
+                HessianTriangle::Upper => i + 1,
+                HessianTriangle::Lower => self_dim - i,
+            };
+            sparsity.nnz_AtA_cols[col] += nnz;
         }
         // non-self
         for corl_var_idx in &sparsity.corl_vars[var_idx] {

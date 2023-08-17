@@ -122,8 +122,7 @@ where
         let mut coo = CooMatrix::<R>::zeros(A.nrows(), A.ncols());
         for (i, j, v) in A.triplet_iter() {
             //lower to upper
-            // coo.push(j, i, *v)
-            coo.push(i, j, *v)
+            coo.push(j, i, *v);
         }
         let A = &CscMatrix::from(&coo);
         let (patt, vals) = A.clone().into_pattern_and_values();
