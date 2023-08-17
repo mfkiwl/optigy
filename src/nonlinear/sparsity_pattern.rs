@@ -45,7 +45,7 @@ pub struct JacobianSparsityPattern {
 #[cfg_attr(debug_assertions, derive(Debug))]
 #[allow(non_snake_case)]
 #[derive(Default)]
-pub struct LowerHessianSparsityPattern {
+pub struct HessianSparsityPattern {
     pub base: SparsityPatternBase,
     /// number of non-zeros count for each col of AtA (each row of A)
     /// use for Eigen sparse matrix AtA reserve
@@ -68,6 +68,8 @@ pub struct LowerHessianSparsityPattern {
     pub inner_index: Vec<usize>,
     pub inner_nnz_index: Vec<usize>,
     pub outer_index: Vec<usize>,
+    /// lower/upper hessian triangular part
+    pub tri: HessianTriangle,
 }
 /// construct Ax = b sparsity pattern cache from a factor graph and a set of
 /// variables
@@ -126,25 +128,32 @@ where
     sparsity
 }
 
+#[derive(Debug, Copy, Clone)]
 pub enum HessianTriangle {
     Upper,
     Lower,
 }
+impl Default for HessianTriangle {
+    fn default() -> Self {
+        HessianTriangle::Upper
+    }
+}
 /// construct A'Ax = A'b sparsity pattern cache from a factor graph and a set of
 /// variables
 #[allow(non_snake_case)]
-pub fn construct_lower_hessian_sparsity<R, VC, FC>(
+pub fn construct_hessian_sparsity<R, VC, FC>(
     factors: &Factors<R, FC>,
     variables: &Variables<R, VC>,
     variable_ordering: &VariableOrdering,
-) -> LowerHessianSparsityPattern
+    tri: HessianTriangle,
+) -> HessianSparsityPattern
 where
     R: RealField + Float,
     VC: VariablesContainer<R>,
     FC: FactorsContainer<R>,
 {
-    let tri = HessianTriangle::Upper;
-    let mut sparsity = LowerHessianSparsityPattern::default();
+    let mut sparsity = HessianSparsityPattern::default();
+    sparsity.tri = tri;
 
     // A size
     sparsity.base.A_rows = factors.dim();
@@ -301,7 +310,7 @@ mod tests {
             variables_container::VariablesContainer,
         },
         nonlinear::sparsity_pattern::{
-            construct_jacobian_sparsity, construct_lower_hessian_sparsity,
+            construct_hessian_sparsity, construct_jacobian_sparsity, HessianTriangle,
         },
     };
 
@@ -505,7 +514,12 @@ mod tests {
         factors.add(FactorB::new(2.0, None, Key(0), Key(1)));
         factors.add(FactorB::new(3.0, None, Key(0), Key(1)));
         let variable_ordering = variables.default_variable_ordering();
-        let pattern = construct_lower_hessian_sparsity(&factors, &variables, &variable_ordering);
+        let pattern = construct_hessian_sparsity(
+            &factors,
+            &variables,
+            &variable_ordering,
+            HessianTriangle::Lower,
+        );
         assert_eq!(pattern.base.A_rows, 9);
         assert_eq!(pattern.base.A_cols, 6);
         assert_eq!(pattern.base.var_dim.len(), 2);

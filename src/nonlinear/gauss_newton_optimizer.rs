@@ -61,10 +61,7 @@ where
         // A.fill_upper_triangle_with_lower_triangle();
         // dx = A.clone().cholesky().unwrap().solve(lin_sys.b);
         if linear_solver_status == LinearSolverStatus::Success {
-            let start = Instant::now();
             variables.retract(dx.as_view(), variable_ordering);
-            let duration = start.elapsed();
-            println!("retract time: {:?}", duration);
             Ok(IterationData::new(false, 0.0))
         } else if linear_solver_status == LinearSolverStatus::RankDeficiency {
             println!("Warning: linear system has rank deficiency");
@@ -100,9 +97,9 @@ mod tests {
         },
         nonlinear::{
             gauss_newton_optimizer::GaussNewtonOptimizer,
-            linearization::linearization_lower_hessian,
+            linearization::linearization_hessian,
             nonlinear_optimizer::{LinSysWrapper, OptIterate},
-            sparsity_pattern::construct_lower_hessian_sparsity,
+            sparsity_pattern::{construct_hessian_sparsity, HessianTriangle},
         },
     };
 
@@ -122,12 +119,13 @@ mod tests {
         factors.add(FactorB::new(2.0, None, Key(1), Key(2)));
         let variable_ordering = variables.default_variable_ordering();
         let optimizer = GaussNewtonOptimizer::<Real>::default();
-        let sparsity = construct_lower_hessian_sparsity(&factors, &variables, &variable_ordering);
+        let tri = HessianTriangle::Upper;
+        let sparsity = construct_hessian_sparsity(&factors, &variables, &variable_ordering, tri);
         let A_rows: usize = sparsity.base.A_cols;
         let mut A_values = Vec::<Real>::new();
         A_values.resize(sparsity.total_nnz_AtA_cols, 0.0);
         let mut b: DVector<Real> = DVector::zeros(A_rows);
-        linearization_lower_hessian(&factors, &variables, &sparsity, &mut A_values, &mut b);
+        linearization_hessian(&factors, &variables, &sparsity, &mut A_values, &mut b);
         let csc_pattern = SparsityPattern::try_from_offsets_and_indices(
             sparsity.base.A_cols,
             sparsity.base.A_cols,

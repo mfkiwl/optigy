@@ -8,8 +8,8 @@ use optigy::{
         loss_function::GaussianLoss, variables_container::VariablesContainer,
     },
     nonlinear::{
-        linearization::linearization_lower_hessian,
-        sparsity_pattern::construct_lower_hessian_sparsity,
+        linearization::linearization_hessian,
+        sparsity_pattern::{construct_hessian_sparsity, HessianTriangle},
     },
     prelude::{Factor, Key, Variable, Variables},
     slam::{between_factor::BetweenFactor, se3::SE2},
@@ -41,7 +41,14 @@ fn lower_hessian_sparsity(c: &mut Criterion) {
     }
     let variable_ordering = variables.default_variable_ordering();
     c.bench_function("lower_hessian_sparsity", |b| {
-        b.iter(|| construct_lower_hessian_sparsity(&factors, &variables, &variable_ordering))
+        b.iter(|| {
+            construct_hessian_sparsity(
+                &factors,
+                &variables,
+                &variable_ordering,
+                HessianTriangle::Upper,
+            );
+        })
     });
 }
 
@@ -70,16 +77,15 @@ fn lower_hessian_linearization(c: &mut Criterion) {
         }
     }
     let variable_ordering = variables.default_variable_ordering();
-    let sparsity = construct_lower_hessian_sparsity(&factors, &variables, &variable_ordering);
+    let tri = HessianTriangle::Upper;
+    let sparsity = construct_hessian_sparsity(&factors, &variables, &variable_ordering, tri);
     let mut a_values = Vec::<f64>::new();
     let a_rows = sparsity.base.A_cols;
     // A_cols = sparsity.base.A_cols;
     a_values.resize(sparsity.total_nnz_AtA_cols, 0.0);
     let mut atb: DVector<f64> = DVector::zeros(a_rows);
     c.bench_function("lower_hessian_linearization", |b| {
-        b.iter(|| {
-            linearization_lower_hessian(&factors, &variables, &sparsity, &mut a_values, &mut atb)
-        })
+        b.iter(|| linearization_hessian(&factors, &variables, &sparsity, &mut a_values, &mut atb))
     });
 }
 criterion_group!(benches, lower_hessian_sparsity, lower_hessian_linearization);
