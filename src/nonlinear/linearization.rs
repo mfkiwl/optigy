@@ -177,19 +177,22 @@ fn linearzation_lower_hessian_single_factor<R, VC, FC>(
         let nnz_AtA_vars_accum_var = sparsity.nnz_AtA_vars_accum[var_idx[j_idx]];
         let mut value_idx: usize = nnz_AtA_vars_accum_var;
         for j in 0..jacobians[j_idx].ncols() {
-            for i in j..jacobians[j_idx].ncols() {
-                AtA_values[value_idx] +=
-                    stackJtJ[(jacobian_col_local[j_idx] + i, jacobian_col_local[j_idx] + j)];
-                value_idx += 1;
-            }
+            // for i in j..jacobians[j_idx].ncols() {
             let offset: i64 = sparsity.nnz_AtA_cols[jacobian_col[j_idx] + j] as i64
                 - jacobians[j_idx].ncols() as i64
                 + j as i64;
             // value_idx += sparsity.nnz_AtA_cols[jacobian_col[j_idx] + j] - wht_Js[j_idx].ncols() + j;
-            if offset < 0 {
-                value_idx -= (-offset) as usize;
-            } else {
-                value_idx += offset as usize;
+            // if offset < 0 {
+            //     value_idx -= (-offset) as usize;
+            // } else {
+            //     value_idx += offset as usize;
+            // }
+            value_idx += sparsity.nnz_AtA_cols[jacobian_col[j_idx] + j] - j - 1;
+            //swap
+            for i in 0..j + 1 {
+                AtA_values[value_idx] +=
+                    stackJtJ[(jacobian_col_local[j_idx] + i, jacobian_col_local[j_idx] + j)];
+                value_idx += 1;
             }
         }
     }
@@ -204,7 +207,8 @@ fn linearzation_lower_hessian_single_factor<R, VC, FC>(
             // we know var_idx[j1_idx] != var_idx[j2_idx]
             // assume var_idx[j1_idx] > var_idx[j2_idx]
             // insert to block location (j1_idx, j2_idx)
-            if var_idx[j1_idx] > var_idx[j2_idx] {
+            // if var_idx[j1_idx] > var_idx[j2_idx] {
+            if var_idx[j1_idx] < var_idx[j2_idx] {
                 let nnz_AtA_vars_accum_var2 = sparsity.nnz_AtA_vars_accum[var_idx[j2_idx]];
                 let var2_dim = sparsity.base.var_dim[var_idx[j2_idx]];
 
@@ -212,13 +216,15 @@ fn linearzation_lower_hessian_single_factor<R, VC, FC>(
                     .get(&var_idx[j1_idx])
                     .unwrap();
 
-                let mut value_idx = nnz_AtA_vars_accum_var2 + var2_dim + inner_insert_var2_var1;
+                // let mut value_idx = nnz_AtA_vars_accum_var2 + var2_dim + inner_insert_var2_var1;
+                let mut value_idx = nnz_AtA_vars_accum_var2 + inner_insert_var2_var1;
 
                 // #ifdef MINISAM_WITH_MULTI_THREADS
                 //         mutex_A.lock();
                 // #endif
 
                 if j1_idx > j2_idx {
+                    // if j1_idx < j2_idx {
                     for j in 0..jacobians[j2_idx].ncols() {
                         for i in 0..jacobians[j1_idx].ncols() {
                             AtA_values[value_idx] += stackJtJ[(

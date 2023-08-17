@@ -126,6 +126,10 @@ where
     sparsity
 }
 
+enum HessianTriangle {
+    Upper,
+    Lower,
+}
 /// construct A'Ax = A'b sparsity pattern cache from a factor graph and a set of
 /// variables
 #[allow(non_snake_case)]
@@ -139,6 +143,7 @@ where
     VC: VariablesContainer<R>,
     FC: FactorsContainer<R>,
 {
+    let tri = HessianTriangle::Lower;
     let mut sparsity = LowerHessianSparsityPattern::default();
 
     // A size
@@ -173,8 +178,11 @@ where
         }
         for i in &factor_key_order_idx {
             for j in &factor_key_order_idx {
-                // only lower part
-                if i < j {
+                let comp = match tri {
+                    HessianTriangle::Upper => i > j,
+                    HessianTriangle::Lower => i < j,
+                };
+                if comp {
                     sparsity.corl_vars[*i].insert(*j);
                 };
             }
@@ -195,7 +203,8 @@ where
         last_nnz_AtA_vars_accum += ((1 + self_dim) * self_dim) / 2;
         for i in 0..self_dim {
             let col = self_col + i;
-            sparsity.nnz_AtA_cols[col] += self_dim - i;
+            // sparsity.nnz_AtA_cols[col] += self_dim - i;
+            sparsity.nnz_AtA_cols[col] += i + 1;
         }
         // non-self
         for corl_var_idx in &sparsity.corl_vars[var_idx] {
@@ -228,26 +237,44 @@ where
     sparsity.outer_index.resize(sparsity.base.A_cols + 1, 0);
 
     let mut inner_index_ptr = sparsity.inner_index.iter_mut();
-    let mut inner_nnz_ptr = sparsity.inner_nnz_index.iter_mut();
+    // let mut inner_nnz_ptr = sparsity.inner_nnz_index.iter_mut();
     let mut outer_index_ptr = sparsity.outer_index.iter_mut();
     let mut out_counter: usize = 0;
     *outer_index_ptr.next().unwrap() = 0;
 
     for var_idx in 0..sparsity.base.var_dim.len() {
+        let self_dim = sparsity.base.var_dim[var_idx];
         for i in 0..sparsity.base.var_dim[var_idx] {
-            *inner_nnz_ptr.next().unwrap() =
-                sparsity.nnz_AtA_cols[i + sparsity.base.var_col[var_idx]];
+            //inner_nnz not used (just for original eigen impl)
+            // *inner_nnz_ptr.next().unwrap() =
+            //     sparsity.nnz_AtA_cols[i + sparsity.base.var_col[var_idx]];
             out_counter += sparsity.nnz_AtA_cols[i + sparsity.base.var_col[var_idx]];
             *outer_index_ptr.next().unwrap() = out_counter;
 
-            // self
-            for ii in i..sparsity.base.var_dim[var_idx] {
-                *inner_index_ptr.next().unwrap() = sparsity.base.var_col[var_idx] + ii;
-            }
             // non-self
-            for corl_idx in &sparsity.corl_vars[var_idx] {
-                for j in 0..sparsity.base.var_dim[*corl_idx] {
-                    *inner_index_ptr.next().unwrap() = j + sparsity.base.var_col[*corl_idx];
+            let mut fill_non_self = || {
+                for corl_idx in &sparsity.corl_vars[var_idx] {
+                    for j in 0..sparsity.base.var_dim[*corl_idx] {
+                        *inner_index_ptr.next().unwrap() = sparsity.base.var_col[*corl_idx] + j;
+                    }
+                }
+            };
+            let mut fill_self = || {
+                // self
+                // for j in i..sparsity.base.var_dim[var_idx] {
+                for j in 0..i + 1 {
+                    *inner_index_ptr.next().unwrap() = sparsity.base.var_col[var_idx] + j;
+                }
+            };
+
+            match tri {
+                HessianTriangle::Upper => {
+                    fill_non_self();
+                    fill_self()
+                }
+                HessianTriangle::Lower => {
+                    fill_self();
+                    fill_non_self()
                 }
             }
         }
