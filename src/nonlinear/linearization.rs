@@ -239,33 +239,22 @@ fn linearzation_lower_hessian_single_factor<R, VC, FC>(
                 //         mutex_A.lock();
                 // #endif
 
-                if j1_idx > j2_idx {
-                    // if j1_idx < j2_idx {
-                    for j in 0..jacobians[j2_idx].ncols() {
-                        for i in 0..jacobians[j1_idx].ncols() {
-                            AtA_values[value_idx] += stackJtJ[(
-                                jacobian_col_local[j1_idx] + i,
-                                jacobian_col_local[j2_idx] + j,
-                            )];
-                            value_idx += 1;
+                for j in 0..jacobians[j2_idx].ncols() {
+                    for i in 0..jacobians[j1_idx].ncols() {
+                        let (mut r, mut c) = (
+                            jacobian_col_local[j1_idx] + i,
+                            jacobian_col_local[j2_idx] + j,
+                        );
+                        // to access only lower part (if only lower computed)
+                        if j1_idx <= j2_idx {
+                            (r, c) = (c, r);
                         }
-                        value_idx += sparsity.nnz_AtA_cols[jacobian_col[j2_idx] + j]
-                            - 1
-                            - jacobians[j1_idx].ncols();
+                        AtA_values[value_idx] += stackJtJ[(r, c)];
+                        value_idx += 1;
                     }
-                } else {
-                    for j in 0..jacobians[j2_idx].ncols() {
-                        for i in 0..jacobians[j1_idx].ncols() {
-                            AtA_values[value_idx] += stackJtJ[(
-                                jacobian_col_local[j2_idx] + j,
-                                jacobian_col_local[j1_idx] + i,
-                            )];
-                            value_idx += 1;
-                        }
-                        value_idx += sparsity.nnz_AtA_cols[jacobian_col[j2_idx] + j]
-                            - 1
-                            - jacobians[j1_idx].ncols();
-                    }
+                    value_idx += sparsity.nnz_AtA_cols[jacobian_col[j2_idx] + j]
+                        - 1
+                        - jacobians[j1_idx].ncols();
                 }
 
                 // #ifdef MINISAM_WITH_MULTI_THREADS
