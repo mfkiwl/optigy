@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, slice::IterMut};
 
 use crate::core::{
     factors::Factors, factors_container::FactorsContainer, variable_ordering::VariableOrdering,
@@ -252,29 +252,32 @@ where
             *outer_index_ptr.next().unwrap() = out_counter;
 
             // non-self
-            let mut fill_non_self = || {
+            let fill_non_self = |ptr: &mut IterMut<usize>| {
                 for corl_idx in &sparsity.corl_vars[var_idx] {
                     for j in 0..sparsity.base.var_dim[*corl_idx] {
-                        *inner_index_ptr.next().unwrap() = sparsity.base.var_col[*corl_idx] + j;
+                        *ptr.next().unwrap() = sparsity.base.var_col[*corl_idx] + j;
                     }
                 }
             };
-            let mut fill_self = || {
+            let fill_self = |ptr: &mut IterMut<usize>| {
                 // self
-                // for j in i..sparsity.base.var_dim[var_idx] {
-                for j in 0..i + 1 {
-                    *inner_index_ptr.next().unwrap() = sparsity.base.var_col[var_idx] + j;
+                let j_range = match tri {
+                    HessianTriangle::Upper => 0..i + 1,
+                    HessianTriangle::Lower => i..sparsity.base.var_dim[var_idx],
+                };
+                for j in j_range {
+                    *ptr.next().unwrap() = sparsity.base.var_col[var_idx] + j;
                 }
             };
 
             match tri {
                 HessianTriangle::Upper => {
-                    fill_non_self();
-                    fill_self()
+                    fill_non_self(&mut inner_index_ptr);
+                    fill_self(&mut inner_index_ptr)
                 }
                 HessianTriangle::Lower => {
-                    fill_self();
-                    fill_non_self()
+                    fill_self(&mut inner_index_ptr);
+                    fill_non_self(&mut inner_index_ptr);
                 }
             }
         }
