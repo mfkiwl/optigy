@@ -222,15 +222,17 @@ where
     /// - if something else is returned, the value of opt_values may be undefined
     /// (depends on solver implementaion)
     #[allow(non_snake_case)]
-    pub fn optimize<VC, FC>(
+    pub fn optimize<VC, FC, BC>(
         &mut self,
         factors: &Factors<R, FC>,
         variables: &mut Variables<R, VC>,
+        callback: Option<BC>,
     ) -> Result<(), NonlinearOptimizationError>
     where
         R: RealField,
-        VC: VariablesContainer<R>,
         FC: FactorsContainer<R>,
+        VC: VariablesContainer<R>,
+        BC: Fn(usize, f64, &Factors<R, FC>, &Variables<R, VC>),
     {
         let tri = HessianTriangle::Upper;
         // linearization sparsity pattern
@@ -318,7 +320,7 @@ where
                 // println!("linear_solver().initialize time: {:?}", duration);
             }
             let start = Instant::now();
-            // iterate through
+            //iterate through
             let iterate_result = self.opt.iterate(
                 factors,
                 variables,
@@ -347,6 +349,9 @@ where
                 self.err_uptodate = false;
             } else {
                 curr_err = 0.5 * factors.error_squared_norm(variables);
+            }
+            if callback.is_some() {
+                callback.as_ref().unwrap()(self.iterations, curr_err, factors, variables);
             }
             let duration = start.elapsed();
             // println!("compute error time: {:?}", duration);

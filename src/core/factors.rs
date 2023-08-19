@@ -10,6 +10,7 @@ use super::{
     key::Key,
     variables_container::VariablesContainer,
 };
+#[derive(Clone)]
 pub struct Factors<R, C>
 where
     R: RealField + Float,
