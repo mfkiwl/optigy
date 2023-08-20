@@ -67,6 +67,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     dth,
                     Some(GaussianLoss::information(I.as_view())),
                 ));
+                // factors.add(BetweenFactor::new(Key(ido), Key(idi), dx, dy, dth, None));
             }
             &_ => (),
         }
