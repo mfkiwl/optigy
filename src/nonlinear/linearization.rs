@@ -71,29 +71,8 @@ pub fn linearzation_jacobian<R, VC, FC>(
     todo!()
 }
 
-// data struct for sort key in
 #[allow(non_snake_case)]
-pub(crate) fn stack_matrix_col<R>(mats: &Vec<DMatrix<R>>) -> DMatrix<R>
-where
-    R: RealField,
-{
-    debug_assert!(!mats.is_empty());
-    let mut H_stack_cols: usize = 0;
-    for H in mats {
-        H_stack_cols += H.ncols();
-    }
-    let rows = mats[0].nrows();
-    let mut H_stack = DMatrix::<R>::zeros(rows, H_stack_cols);
-    H_stack_cols = 0;
-    for H in mats {
-        debug_assert_eq!(H.nrows(), rows);
-        H_stack.columns_mut(H_stack_cols, H.ncols()).copy_from(H);
-        H_stack_cols += H.ncols();
-    }
-    H_stack
-}
-
-#[allow(non_snake_case)]
+#[inline(always)]
 fn linearzation_hessian_single_factor<R, VC, FC>(
     f_index: usize,
     factors: &Factors<R, FC>,
@@ -111,7 +90,6 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
     debug_assert!(has_unique_elements(f_keys));
     let f_len = f_keys.len();
     let f_dim: usize = factors.dim_at(f_index).unwrap();
-    //  whiten err and jacobians
     let mut var_idx = Vec::<usize>::new();
     let mut jacobian_col = Vec::<usize>::new();
     let mut jacobian_col_local = Vec::<usize>::new();
@@ -140,6 +118,7 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
     debug_assert_eq!(jacobians.nrows(), f_dim);
     debug_assert_eq!(jacobians.len(), f_len);
 
+    //  whiten err and jacobians
     factors.weight_jacobians_error_in_place_at(
         variables,
         error.as_view_mut(),
@@ -148,8 +127,6 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
     );
     // let jacobians = jacobians;
     // let error = error;
-    // let stackJ = stack_matrix_col(&jacobians);
-    let stackJ = jacobians;
 
     // let mut stackJtJ = DMatrix::<R>::zeros(stackJ.ncols(), stackJ.ncols());
     // adaptive multiply for better speed
@@ -165,8 +142,8 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
     // let sts = ;
     // stackJtJ.copy_from(&(stackJ.transpose() * stackJ.clone()));
 
-    let stackJtb = stackJ.transpose() * error;
-    let stackJtJ = stackJ.transpose() * stackJ;
+    let stackJtb = jacobians.transpose() * error;
+    let stackJtJ = jacobians.transpose() * jacobians;
     // #ifdef MINISAM_WITH_MULTI_THREADS
     //   mutex_b.lock();
     // #endif
@@ -330,7 +307,7 @@ mod tests {
             variables_container::VariablesContainer,
         },
         nonlinear::{
-            linearization::{linearization_hessian, linearzation_jacobian, stack_matrix_col},
+            linearization::{linearization_hessian, linearzation_jacobian},
             sparsity_pattern::{
                 construct_hessian_sparsity, construct_jacobian_sparsity, HessianTriangle,
             },
@@ -492,17 +469,5 @@ mod tests {
             assert_matrix_eq!(AtA, JAtA.lower_triangle(), comp = abs, tol = 1e-9);
             assert_matrix_eq!(Atb, JAtb, comp = abs, tol = 1e-9);
         }
-    }
-    #[test]
-    fn stack_matrix() {
-        let mats = vec![
-            dmatrix![1.0, 2.0; 2.0, 3.0],
-            dmatrix![3.0, 4.0, 5.0; 6.0, 7.0, 8.0],
-        ];
-        let stack = stack_matrix_col(&mats);
-        assert_matrix_eq!(
-            stack,
-            dmatrix![1.0, 2.0, 3.0, 4.0, 5.0;2.0, 3.0, 6.0, 7.0, 8.0]
-        );
     }
 }
