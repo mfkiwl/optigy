@@ -89,7 +89,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     param.base.verbosity_level = NonlinearOptimizerVerbosityLevel::Subiteration;
     let mut optimizer = NonlinearOptimizer::new(GaussNewtonOptimizer::default());
     let start = Instant::now();
-    let opt_res = optimizer.optimize(
+    let opt_res = optimizer.optimize_with_callback(
         &factors,
         &mut variables,
         Some(

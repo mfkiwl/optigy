@@ -41,9 +41,8 @@ where
     R: RealField + Float,
 {
     pub fn new(key: Key, pose: Vector2<R>, sigmas: Vector2<R>) -> Self {
-        let mut jacobians = Vec::<DMatrix<R>>::with_capacity(2);
-        jacobians.resize_with(1, || DMatrix::identity(2, 3));
         let keys = vec![key];
+        let jacobians = DMatrix::identity(2, 3 * keys.len());
         GPSPositionFactor {
             error: RefCell::new(DVector::zeros(2)),
             jacobians: RefCell::new(jacobians),

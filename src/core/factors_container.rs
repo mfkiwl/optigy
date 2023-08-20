@@ -519,7 +519,7 @@ pub(crate) mod tests {
             let fc1 = container.get_mut::<FactorB<Real>>().unwrap();
             fc1.push(FactorB::new(2.0, None, Key(0), Key(1)));
         }
-        let mut jacobians = DMatrix::<Real>::identity(3, 3 * 2);
+        let mut jacobians = DMatrix::<Real>::zeros(3, 3 * 2);
         jacobians.column_mut(0).fill(1.0);
         jacobians.column_mut(4).fill(2.0);
         assert_eq!(

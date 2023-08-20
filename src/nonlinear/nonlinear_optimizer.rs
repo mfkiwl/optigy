@@ -222,7 +222,7 @@ where
     /// - if something else is returned, the value of opt_values may be undefined
     /// (depends on solver implementaion)
     #[allow(non_snake_case)]
-    pub fn optimize<VC, FC, BC>(
+    pub fn optimize_with_callback<VC, FC, BC>(
         &mut self,
         factors: &Factors<R, FC>,
         variables: &mut Variables<R, VC>,
@@ -375,6 +375,22 @@ where
             self.last_err_squared_norm = curr_err;
         }
         Err(NonlinearOptimizationError::MaxIteration)
+    }
+    pub fn optimize<VC, FC>(
+        &mut self,
+        factors: &Factors<R, FC>,
+        variables: &mut Variables<R, VC>,
+    ) -> Result<(), NonlinearOptimizationError>
+    where
+        R: RealField,
+        FC: FactorsContainer<R>,
+        VC: VariablesContainer<R>,
+    {
+        self.optimize_with_callback(
+            factors,
+            variables,
+            None::<fn(usize, f64, &Factors<R, FC>, &Variables<R, VC>) -> ()>,
+        )
     }
     /// default stop condition using error threshold
     /// return true if stop condition meets
