@@ -137,18 +137,19 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
     let mut jacobians = wht_Js_err.jacobians.to_owned();
 
     debug_assert_eq!(error.nrows(), f_dim);
-    debug_assert_eq!(jacobians[0].nrows(), f_dim);
+    debug_assert_eq!(jacobians.nrows(), f_dim);
     debug_assert_eq!(jacobians.len(), f_len);
 
     factors.weight_jacobians_error_in_place_at(
         variables,
         error.as_view_mut(),
-        &mut jacobians,
+        jacobians.as_view_mut(),
         f_index,
     );
     // let jacobians = jacobians;
     // let error = error;
-    let stackJ = stack_matrix_col(&jacobians);
+    // let stackJ = stack_matrix_col(&jacobians);
+    let stackJ = jacobians;
 
     // let mut stackJtJ = DMatrix::<R>::zeros(stackJ.ncols(), stackJ.ncols());
     // adaptive multiply for better speed
@@ -170,7 +171,7 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
     //   mutex_b.lock();
     // #endif
 
-    for j_idx in 0..jacobians.len() {
+    for j_idx in 0..f_len {
         Atb.rows_mut(jacobian_col[j_idx], jacobian_ncols[j_idx])
             .sub_assign(&stackJtb.rows(jacobian_col_local[j_idx], jacobian_ncols[j_idx]));
     }
@@ -180,7 +181,7 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
     //   mutex_A.lock();
     // #endif
 
-    for j_idx in 0..jacobians.len() {
+    for j_idx in 0..f_len {
         // scan by row
         let nnz_AtA_vars_accum_var = sparsity.nnz_AtA_vars_accum[var_idx[j_idx]];
         let mut value_idx: usize = nnz_AtA_vars_accum_var;

@@ -94,6 +94,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &mut variables,
         Some(
             |iteration, error, factors2: &Factors<_, _>, variables2: &Variables<_, _>| {
+                return;
                 let mut min_x = f64::MAX;
                 let mut max_x = f64::MIN;
                 let mut min_y = f64::MAX;

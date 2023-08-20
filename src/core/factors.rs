@@ -49,7 +49,7 @@ where
         &self,
         variables: &Variables<R, VC>,
         error: DVectorViewMut<R>,
-        jacobians: &mut Vec<DMatrix<R>>,
+        jacobians: DMatrixViewMut<R>,
         index: usize,
     ) where
         VC: VariablesContainer<R>,

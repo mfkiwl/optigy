@@ -11,9 +11,9 @@ use nalgebra::DVectorView;
 use nalgebra::RealField;
 
 use super::variables_container::VariablesContainer;
-pub type JacobiansReturn<'a, R> = Ref<'a, Vec<DMatrix<R>>>;
+pub type JacobiansReturn<'a, R> = Ref<'a, DMatrix<R>>;
 pub type ErrorReturn<'a, R> = Ref<'a, DVector<R>>;
-pub type Jacobians<R> = Vec<DMatrix<R>>;
+pub type Jacobians<R> = DMatrix<R>;
 pub struct JacobiansErrorReturn<'a, R>
 where
     R: RealField,
@@ -89,7 +89,7 @@ pub(crate) mod tests {
         pub orig: DVector<R>,
         pub loss: Option<GaussianLoss<R>>,
         pub error: RefCell<DVector<R>>,
-        pub jacobians: RefCell<Vec<DMatrix<R>>>,
+        pub jacobians: RefCell<DMatrix<R>>,
         pub keys: Vec<Key>,
     }
     impl<R> FactorA<R>
@@ -97,9 +97,8 @@ pub(crate) mod tests {
         R: RealField,
     {
         pub fn new(v: R, loss: Option<GaussianLoss<R>>, var0: Key, var1: Key) -> Self {
-            let mut jacobians = Vec::<DMatrix<R>>::with_capacity(2);
-            jacobians.resize_with(2, || DMatrix::zeros(3, 3));
             let keys = vec![var0, var1];
+            let jacobians = DMatrix::<R>::zeros(3, 3 * keys.len());
             FactorA {
                 orig: DVector::from_element(3, v),
                 loss,
@@ -135,8 +134,8 @@ pub(crate) mod tests {
             let v1: &VariableB<R> = variables.at(Key(1)).unwrap();
             {
                 let mut js = self.jacobians.borrow_mut();
-                js[0].column_mut(0).copy_from(&v0.val);
-                js[1].column_mut(1).copy_from(&v1.val);
+                js.column_mut(0).copy_from(&v0.val);
+                js.column_mut(4).copy_from(&v1.val);
             }
             self.jacobians.borrow()
         }
@@ -162,7 +161,7 @@ pub(crate) mod tests {
         pub orig: DVector<R>,
         pub loss: Option<GaussianLoss<R>>,
         pub error: RefCell<DVector<R>>,
-        pub jacobians: RefCell<Vec<DMatrix<R>>>,
+        pub jacobians: RefCell<DMatrix<R>>,
         pub keys: Vec<Key>,
     }
     impl<R> FactorB<R>
@@ -171,8 +170,8 @@ pub(crate) mod tests {
     {
         pub fn new(v: R, loss: Option<GaussianLoss<R>>, var0: Key, var1: Key) -> Self {
             let mut jacobians = Vec::<DMatrix<R>>::with_capacity(2);
-            jacobians.resize_with(2, || DMatrix::zeros(3, 3));
             let keys = vec![var0, var1];
+            let jacobians = DMatrix::<R>::zeros(3, 3 * keys.len());
             FactorB {
                 orig: DVector::from_element(3, v),
                 loss,
@@ -206,8 +205,8 @@ pub(crate) mod tests {
             let v1: &VariableB<R> = variables.at(Key(1)).unwrap();
             {
                 let mut js = self.jacobians.borrow_mut();
-                js[0].column_mut(0).copy_from(&v0.val);
-                js[1].column_mut(1).copy_from(&v1.val);
+                js.column_mut(0).copy_from(&v0.val);
+                js.column_mut(4).copy_from(&v1.val);
             }
             self.jacobians.borrow()
         }
@@ -241,11 +240,8 @@ pub(crate) mod tests {
         pub fn new(var0: Key, var1: Key) -> Self {
             let mut rng = rand::thread_rng();
             let mut jacobians = Vec::<DMatrix<R>>::with_capacity(2);
-            jacobians.resize_with(2, || {
-                // DMatrix::from_fn(3, 3, |_i, _j| R::from_f64(rng.gen::<f64>()).unwrap())
-                DMatrix::from_fn(3, 3, |_i, _j| R::one())
-            });
             let keys = vec![var0, var1];
+            let jacobians = DMatrix::<R>::from_fn(3, 3 * keys.len(), |_i, _j| R::one());
             RandomBlockFactor {
                 loss: None,
                 error: RefCell::new(DVector::zeros(3)),

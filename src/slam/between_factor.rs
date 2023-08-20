@@ -34,9 +34,9 @@ where
     LF: LossFunction<R>,
 {
     pub fn new(key0: Key, key1: Key, x: f64, y: f64, theta: f64, loss: Option<LF>) -> Self {
-        let mut jacobians = Vec::<DMatrix<R>>::with_capacity(2);
-        jacobians.resize_with(2, || DMatrix::identity(3, 3));
         let keys = vec![key0, key1];
+        let mut jacobians = DMatrix::<R>::zeros(3, 3 * keys.len());
+        jacobians.columns_mut(3, 3).fill_diagonal(R::one());
         BetweenFactor {
             error: RefCell::new(DVector::zeros(3)),
             jacobians: RefCell::new(jacobians),
@@ -82,7 +82,7 @@ where
             let hinv = -v0.origin.adj();
             let hcmp1 = v1.origin.inverse().adj();
             let j = (hcmp1 * hinv).cast::<R>();
-            self.jacobians.borrow_mut()[0].copy_from(&j);
+            self.jacobians.borrow_mut().columns_mut(0, 3).copy_from(&j);
         }
         self.jacobians.borrow()
     }

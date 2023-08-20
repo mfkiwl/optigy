@@ -34,9 +34,8 @@ where
     LF: LossFunction<R>,
 {
     pub fn new(key: Key, x: f64, y: f64, theta: f64, loss: Option<LF>) -> Self {
-        let mut jacobians = Vec::<DMatrix<R>>::with_capacity(1);
-        jacobians.resize_with(1, || DMatrix::identity(3, 3));
         let keys = vec![key];
+        let jacobians = DMatrix::<R>::identity(3, 3 * keys.len());
         PriorFactor {
             error: RefCell::new(DVector::zeros(3)),
             jacobians: RefCell::new(jacobians),
@@ -51,9 +50,8 @@ where
         }
     }
     pub fn from_se2(key: Key, origin: Isometry2, loss: Option<LF>) -> Self {
-        let mut jacobians = Vec::<DMatrix<R>>::with_capacity(1);
-        jacobians.resize_with(1, || DMatrix::identity(3, 3));
         let keys = vec![key];
+        let jacobians = DMatrix::<R>::identity(3, 3 * keys.len());
         PriorFactor {
             error: RefCell::new(DVector::zeros(3)),
             jacobians: RefCell::new(jacobians),

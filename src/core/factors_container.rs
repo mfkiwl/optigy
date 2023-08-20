@@ -66,7 +66,7 @@ where
         &self,
         variables: &Variables<R, C>,
         error: DVectorViewMut<R>,
-        jacobians: &mut Vec<DMatrix<R>>,
+        jacobians: DMatrixViewMut<R>,
         index: usize,
         init: usize,
     ) where
@@ -134,7 +134,7 @@ where
         &self,
         _variables: &Variables<R, C>,
         _error: DVectorViewMut<R>,
-        _jacobians: &mut Vec<DMatrix<R>>,
+        _jacobians: DMatrixViewMut<R>,
         _index: usize,
         _init: usize,
     ) where
@@ -247,7 +247,7 @@ where
         &self,
         variables: &Variables<R, C>,
         error: DVectorViewMut<R>,
-        jacobians: &mut Vec<DMatrix<R>>,
+        jacobians: DMatrixViewMut<R>,
         index: usize,
         init: usize,
     ) where
@@ -519,10 +519,9 @@ pub(crate) mod tests {
             let fc1 = container.get_mut::<FactorB<Real>>().unwrap();
             fc1.push(FactorB::new(2.0, None, Key(0), Key(1)));
         }
-        let mut jacobians = Vec::<DMatrix<Real>>::with_capacity(2);
-        jacobians.resize_with(2, || DMatrix::zeros(3, 3));
-        jacobians[0].column_mut(0).fill(1.0);
-        jacobians[1].column_mut(1).fill(2.0);
+        let mut jacobians = DMatrix::<Real>::identity(3, 3 * 2);
+        jacobians.column_mut(0).fill(1.0);
+        jacobians.column_mut(4).fill(2.0);
         assert_eq!(
             container
                 .jacobians_error_at(&variables, 0, 0)
