@@ -115,9 +115,11 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
     let mut var_idx = Vec::<usize>::new();
     let mut jacobian_col = Vec::<usize>::new();
     let mut jacobian_col_local = Vec::<usize>::new();
+    let mut jacobian_ncols = Vec::<usize>::new();
     var_idx.reserve(f_len);
     jacobian_col.reserve(f_len);
     jacobian_col_local.reserve(f_len);
+    jacobian_ncols.reserve(f_len);
     let mut local_col: usize = 0;
     for key in f_keys {
         // A col start index
@@ -131,6 +133,9 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
     let wht_Js_err = factors.jacobians_error_at(variables, f_index).unwrap();
     let mut error = wht_Js_err.error.to_owned();
     let mut jacobians = wht_Js_err.jacobians.to_owned();
+    for j_idx in 0..f_len {
+        jacobian_ncols.push(jacobians[j_idx].ncols());
+    }
 
     debug_assert_eq!(error.nrows(), f_dim);
     debug_assert_eq!(jacobians[0].nrows(), f_dim);
@@ -167,8 +172,8 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
     // #endif
 
     for j_idx in 0..jacobians.len() {
-        Atb.rows_mut(jacobian_col[j_idx], jacobians[j_idx].ncols())
-            .sub_assign(&stackJtb.rows(jacobian_col_local[j_idx], jacobians[j_idx].ncols()));
+        Atb.rows_mut(jacobian_col[j_idx], jacobian_ncols[j_idx])
+            .sub_assign(&stackJtb.rows(jacobian_col_local[j_idx], jacobian_ncols[j_idx]));
     }
 
     // #ifdef MINISAM_WITH_MULTI_THREADS
@@ -180,10 +185,10 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
         // scan by row
         let nnz_AtA_vars_accum_var = sparsity.nnz_AtA_vars_accum[var_idx[j_idx]];
         let mut value_idx: usize = nnz_AtA_vars_accum_var;
-        for j in 0..jacobians[j_idx].ncols() {
+        for j in 0..jacobian_ncols[j_idx] {
             let i_range = match tri {
                 HessianTriangle::Upper => 0..j + 1,
-                HessianTriangle::Lower => j..jacobians[j_idx].ncols(),
+                HessianTriangle::Lower => j..jacobian_ncols[j_idx],
             };
             let fill = |values: &mut [R], idx: &mut usize| {
                 for i in i_range.clone() {
@@ -199,8 +204,8 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
                 }
                 HessianTriangle::Lower => {
                     fill(AtA_values, &mut value_idx);
-                    value_idx += sparsity.nnz_AtA_cols[jacobian_col[j_idx] + j] + j
-                        - jacobians[j_idx].ncols();
+                    value_idx +=
+                        sparsity.nnz_AtA_cols[jacobian_col[j_idx] + j] + j - jacobian_ncols[j_idx];
                 }
             }
         }
@@ -211,9 +216,9 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
     // #endif
 
     // update lower/upper non-diag hessian blocks
-    for j1_idx in 0..jacobians.len() {
+    for j1_idx in 0..f_len {
         let j1_var_idx = var_idx[j1_idx];
-        for j2_idx in 0..jacobians.len() {
+        for j2_idx in 0..f_len {
             let j2_var_idx = var_idx[j2_idx];
             let comp = match tri {
                 HessianTriangle::Upper => j1_var_idx < j2_var_idx,
@@ -245,8 +250,8 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
                 //         mutex_A.lock();
                 // #endif
 
-                for j in 0..jacobians[j2_idx].ncols() {
-                    for i in 0..jacobians[j1_idx].ncols() {
+                for j in 0..jacobian_ncols[j2_idx] {
+                    for i in 0..jacobian_ncols[j1_idx] {
                         let (mut r, mut c) = (
                             jacobian_col_local[j1_idx] + i,
                             jacobian_col_local[j2_idx] + j,
@@ -260,7 +265,7 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
                     }
                     value_idx += sparsity.nnz_AtA_cols[jacobian_col[j2_idx] + j]
                         - val_offset
-                        - jacobians[j1_idx].ncols();
+                        - jacobian_ncols[j1_idx];
                 }
 
                 // #ifdef MINISAM_WITH_MULTI_THREADS
