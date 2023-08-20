@@ -146,8 +146,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         )
         .as_ref(),
     );
-    root.present().expect("Unable to write result to file, please make sure 'plotters-doc-data' dir exists under current dir");
     let duration = start.elapsed();
+    root.present().expect("Unable to write result to file, please make sure 'plotters-doc-data' dir exists under current dir");
     println!("optimize time: {:?}", duration);
     println!("opt_res {:?}", opt_res);
     Ok(())
