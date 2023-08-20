@@ -127,15 +127,14 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
         var_idx.push(key_idx);
         jacobian_col.push(sparsity.base.var_col[key_idx]);
         jacobian_col_local.push(local_col);
-        local_col += sparsity.base.var_dim[key_idx];
+        let var_dim = sparsity.base.var_dim[key_idx];
+        jacobian_ncols.push(var_dim);
+        local_col += var_dim;
     }
 
     let wht_Js_err = factors.jacobians_error_at(variables, f_index).unwrap();
     let mut error = wht_Js_err.error.to_owned();
     let mut jacobians = wht_Js_err.jacobians.to_owned();
-    for j_idx in 0..f_len {
-        jacobian_ncols.push(jacobians[j_idx].ncols());
-    }
 
     debug_assert_eq!(error.nrows(), f_dim);
     debug_assert_eq!(jacobians[0].nrows(), f_dim);
