@@ -90,14 +90,10 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
     debug_assert!(has_unique_elements(f_keys));
     let f_len = f_keys.len();
     let f_dim: usize = factors.dim_at(f_index).unwrap();
-    let mut var_idx = Vec::<usize>::new();
-    let mut jacobian_col = Vec::<usize>::new();
-    let mut jacobian_col_local = Vec::<usize>::new();
-    let mut jacobian_ncols = Vec::<usize>::new();
-    var_idx.reserve(f_len);
-    jacobian_col.reserve(f_len);
-    jacobian_col_local.reserve(f_len);
-    jacobian_ncols.reserve(f_len);
+    let mut var_idx = Vec::<usize>::with_capacity(f_len);
+    let mut jacobian_col = Vec::<usize>::with_capacity(f_len);
+    let mut jacobian_col_local = Vec::<usize>::with_capacity(f_len);
+    let mut jacobian_ncols = Vec::<usize>::with_capacity(f_len);
     let mut local_col: usize = 0;
     for key in f_keys {
         // A col start index
@@ -162,27 +158,28 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
         // scan by row
         let nnz_AtA_vars_accum_var = sparsity.nnz_AtA_vars_accum[var_idx[j_idx]];
         let mut value_idx: usize = nnz_AtA_vars_accum_var;
-        for j in 0..jacobian_ncols[j_idx] {
+        let j_col_local = jacobian_col_local[j_idx];
+        let j_ncols = jacobian_ncols[j_idx];
+        let j_col = jacobian_col[j_idx];
+        for j in 0..j_ncols {
             let i_range = match tri {
                 HessianTriangle::Upper => 0..j + 1,
-                HessianTriangle::Lower => j..jacobian_ncols[j_idx],
+                HessianTriangle::Lower => j..j_ncols,
             };
             let fill = |values: &mut [R], idx: &mut usize| {
                 for i in i_range.clone() {
-                    values[*idx] +=
-                        stackJtJ[(jacobian_col_local[j_idx] + i, jacobian_col_local[j_idx] + j)];
+                    values[*idx] += stackJtJ[(j_col_local + i, j_col_local + j)];
                     *idx += 1;
                 }
             };
             match tri {
                 HessianTriangle::Upper => {
-                    value_idx += sparsity.nnz_AtA_cols[jacobian_col[j_idx] + j] - j - 1;
+                    value_idx += sparsity.nnz_AtA_cols[j_col + j] - j - 1;
                     fill(AtA_values, &mut value_idx);
                 }
                 HessianTriangle::Lower => {
                     fill(AtA_values, &mut value_idx);
-                    value_idx +=
-                        sparsity.nnz_AtA_cols[jacobian_col[j_idx] + j] + j - jacobian_ncols[j_idx];
+                    value_idx += sparsity.nnz_AtA_cols[j_col + j] + j - j_ncols;
                 }
             }
         }

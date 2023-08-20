@@ -86,7 +86,7 @@ where
         // println!("cholesky prepare time: {:?}", duration);
         // assert!(A.check_format().is_ok());
 
-        let mut vals = Vec::<f64>::new();
+        let mut vals = Vec::<f64>::with_capacity(A.nnz());
         for v in A.values() {
             vals.push(v.to_f64().unwrap());
         }
