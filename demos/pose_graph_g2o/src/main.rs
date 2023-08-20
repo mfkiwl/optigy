@@ -88,65 +88,67 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut param = GaussNewtonOptimizerParams::default();
     param.base.verbosity_level = NonlinearOptimizerVerbosityLevel::Subiteration;
+    // let mut optimizer = NonlinearOptimizer::new(GaussNewtonOptimizer::default());
+    // let start = Instant::now();
+    // let opt_res = optimizer.optimize_with_callback(
+    //     &factors,
+    //     &mut variables,
+    //     Some(
+    //         |iteration, error, factors2: &Factors<_, _>, variables2: &Variables<_, _>| {
+    //             let mut min_x = f64::MAX;
+    //             let mut max_x = f64::MIN;
+    //             let mut min_y = f64::MAX;
+    //             let mut max_y = f64::MIN;
+    //             for key in variables2.default_variable_ordering().keys() {
+    //                 let v: &SE2 = variables2.at(*key).unwrap();
+    //                 min_x = min_x.min(v.origin.params()[0]);
+    //                 max_x = max_x.max(v.origin.params()[0]);
+    //                 min_y = min_y.min(v.origin.params()[1]);
+    //                 max_y = max_y.max(v.origin.params()[1]);
+    //             }
+    //             let root =
+    //                 root.apply_coord_spec(Cartesian2d::<RangedCoordf64, RangedCoordf64>::new(
+    //                     min_x..max_x,
+    //                     min_y..max_y,
+    //                     (0..img_w, 0..img_h),
+    //                 ));
+    //             root.fill(&WHITE).unwrap();
+    //             // println!("iter {}", iteration);
+    //             for key in variables2.default_variable_ordering().keys() {
+    //                 let v: &SE2 = variables2.at(*key).unwrap();
+    //                 // Draw an circle on the drawing area
+    //                 root.draw(&Circle::new(
+    //                     (v.origin.params()[0], v.origin.params()[1]),
+    //                     3,
+    //                     Into::<ShapeStyle>::into(&GREEN).filled(),
+    //                 ))
+    //                 .unwrap();
+    //             }
+    //             for f_idx in 0..factors2.len() {
+    //                 let keys = factors2.keys_at(f_idx).unwrap();
+    //                 if keys.len() == 1 {
+    //                     continue;
+    //                 }
+
+    //                 let v0: &SE2 = variables2.at(keys[0]).unwrap();
+    //                 let v1: &SE2 = variables2.at(keys[1]).unwrap();
+    //                 root.draw(&PathElement::new(
+    //                     vec![
+    //                         (v0.origin.params()[0], v0.origin.params()[1]),
+    //                         (v1.origin.params()[0], v1.origin.params()[1]),
+    //                     ],
+    //                     &RED,
+    //                 ))
+    //                 .unwrap();
+    //             }
+    //             root.present().unwrap();
+    //         },
+    //     )
+    //     .as_ref(),
+    // );
     let mut optimizer = NonlinearOptimizer::new(GaussNewtonOptimizer::default());
     let start = Instant::now();
-    let opt_res = optimizer.optimize_with_callback(
-        &factors,
-        &mut variables,
-        Some(
-            |iteration, error, factors2: &Factors<_, _>, variables2: &Variables<_, _>| {
-                return;
-                let mut min_x = f64::MAX;
-                let mut max_x = f64::MIN;
-                let mut min_y = f64::MAX;
-                let mut max_y = f64::MIN;
-                for key in variables2.default_variable_ordering().keys() {
-                    let v: &SE2 = variables2.at(*key).unwrap();
-                    min_x = min_x.min(v.origin.params()[0]);
-                    max_x = max_x.max(v.origin.params()[0]);
-                    min_y = min_y.min(v.origin.params()[1]);
-                    max_y = max_y.max(v.origin.params()[1]);
-                }
-                let root =
-                    root.apply_coord_spec(Cartesian2d::<RangedCoordf64, RangedCoordf64>::new(
-                        min_x..max_x,
-                        min_y..max_y,
-                        (0..img_w, 0..img_h),
-                    ));
-                root.fill(&WHITE).unwrap();
-                // println!("iter {}", iteration);
-                for key in variables2.default_variable_ordering().keys() {
-                    let v: &SE2 = variables2.at(*key).unwrap();
-                    // Draw an circle on the drawing area
-                    root.draw(&Circle::new(
-                        (v.origin.params()[0], v.origin.params()[1]),
-                        3,
-                        Into::<ShapeStyle>::into(&GREEN).filled(),
-                    ))
-                    .unwrap();
-                }
-                for f_idx in 0..factors2.len() {
-                    let keys = factors2.keys_at(f_idx).unwrap();
-                    if keys.len() == 1 {
-                        continue;
-                    }
-
-                    let v0: &SE2 = variables2.at(keys[0]).unwrap();
-                    let v1: &SE2 = variables2.at(keys[1]).unwrap();
-                    root.draw(&PathElement::new(
-                        vec![
-                            (v0.origin.params()[0], v0.origin.params()[1]),
-                            (v1.origin.params()[0], v1.origin.params()[1]),
-                        ],
-                        &RED,
-                    ))
-                    .unwrap();
-                }
-                root.present().unwrap();
-            },
-        )
-        .as_ref(),
-    );
+    let opt_res = optimizer.optimize(&factors, &mut variables);
     let duration = start.elapsed();
     root.present().expect("Unable to write result to file, please make sure 'plotters-doc-data' dir exists under current dir");
     println!("optimize time: {:?}", duration);
