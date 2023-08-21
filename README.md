@@ -22,7 +22,7 @@ cargo build
 cd optigy/demos/pose_graph_g2o
 cargo run -- --do-viz
 ```
-![pose graph optimization](https://github.com/Lishen1/optigy/static/pose_graph.gif)
+![pose graph optimization](https://github.com/Lishen1/optigy/blob/master/static/pose_graph.gif)
 ## License
 GNU GPLv3
 
