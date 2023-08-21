@@ -112,7 +112,7 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
 
     debug_assert_eq!(error.nrows(), f_dim);
     debug_assert_eq!(jacobians.nrows(), f_dim);
-    debug_assert_eq!(jacobians.len(), f_len);
+    debug_assert_eq!(jacobians.ncols(), local_col);
 
     //  whiten err and jacobians
     factors.weight_jacobians_error_in_place_at(
