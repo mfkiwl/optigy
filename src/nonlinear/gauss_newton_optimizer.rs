@@ -36,6 +36,17 @@ where
     pub linear_solver: SparseCholeskySolver<R>,
     pub params: GaussNewtonOptimizerParams,
 }
+impl<R> GaussNewtonOptimizer<R>
+where
+    R: RealField + Float + Default,
+{
+    pub fn with_params(params: GaussNewtonOptimizerParams) -> Self {
+        GaussNewtonOptimizer {
+            linear_solver: SparseCholeskySolver::<R>::default(),
+            params,
+        }
+    }
+}
 impl<R> OptIterate<R> for GaussNewtonOptimizer<R>
 where
     R: RealField + Float + Default,

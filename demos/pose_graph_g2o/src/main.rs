@@ -1,11 +1,11 @@
-use std::collections::LinkedList;
 use std::error::Error;
 use std::time::Instant;
 use std::{env::current_dir, fs::read_to_string};
 
-use nalgebra::{Matrix2x3, Matrix3};
+use clap::Parser;
+use nalgebra::Matrix3;
 use optigy::core::loss_function::ScaleLoss;
-use optigy::core::variables;
+
 use optigy::nonlinear::gauss_newton_optimizer::GaussNewtonOptimizerParams;
 use optigy::prelude::{
     Factors, FactorsContainer, GaussNewtonOptimizer, GaussianLoss, Key, NonlinearOptimizer,
@@ -16,7 +16,19 @@ use optigy::slam::prior_factor::PriorFactor;
 use optigy::slam::se3::SE2;
 use plotters::coord::types::RangedCoordf64;
 use plotters::prelude::*;
+
+/// Simple program to greet a person
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// make gif animation
+    #[arg(short, long, action)]
+    do_viz: bool,
+}
+#[allow(non_snake_case)]
 fn main() -> Result<(), Box<dyn Error>> {
+    let args = Args::parse();
+
     let container = ().and_variable::<SE2>();
     let mut variables = Variables::new(container);
 
@@ -24,7 +36,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         ().and_factor::<BetweenFactor<GaussianLoss>>()
             .and_factor::<PriorFactor<ScaleLoss>>();
     let mut factors = Factors::new(container);
-    println!("current dir {:?}", current_dir().unwrap());
+    // println!("current dir {:?}", current_dir().unwrap());
     let filename = current_dir()
         .unwrap()
         .join("data")
@@ -80,86 +92,105 @@ fn main() -> Result<(), Box<dyn Error>> {
         Some(ScaleLoss::scale(1.0)),
     ));
 
-    let img_w = 1024 as i32;
-    let img_h = 768 as i32;
-    let root_screen = BitMapBackend::gif("pose_graph.gif", (img_w as u32, img_h as u32), 1000)
-        .unwrap()
-        .into_drawing_area();
+    const OUTPUT_GIF: &str = "pose_graph.gif";
 
-    let mut param = GaussNewtonOptimizerParams::default();
-    param.base.verbosity_level = NonlinearOptimizerVerbosityLevel::Subiteration;
-    let mut optimizer = NonlinearOptimizer::new(GaussNewtonOptimizer::default());
+    let mut params = GaussNewtonOptimizerParams::default();
+    params.base.verbosity_level = NonlinearOptimizerVerbosityLevel::Warning;
+    let mut optimizer = NonlinearOptimizer::new(GaussNewtonOptimizer::with_params(params));
     let start = Instant::now();
-    let opt_res = optimizer.optimize_with_callback(
-        &factors,
-        &mut variables,
-        Some(
-            |iteration, error, factors2: &Factors<_, _>, variables2: &Variables<_, _>| {
-                let mut min_x = f64::MAX;
-                let mut max_x = f64::MIN;
-                let mut min_y = f64::MAX;
-                let mut max_y = f64::MIN;
-                for key in variables2.default_variable_ordering().keys() {
-                    let v: &SE2 = variables2.at(*key).unwrap();
-                    min_x = min_x.min(v.origin.params()[0]);
-                    max_x = max_x.max(v.origin.params()[0]);
-                    min_y = min_y.min(v.origin.params()[1]);
-                    max_y = max_y.max(v.origin.params()[1]);
-                }
-                let root = root_screen.apply_coord_spec(Cartesian2d::<
-                    RangedCoordf64,
-                    RangedCoordf64,
-                >::new(
-                    min_x..max_x,
-                    min_y..max_y,
-                    (0..img_w, 0..img_h),
-                ));
-                root.fill(&WHITE).unwrap();
-                // println!("iter {}", iteration);
-                for key in variables2.default_variable_ordering().keys() {
-                    let v: &SE2 = variables2.at(*key).unwrap();
-                    // Draw an circle on the drawing area
-                    root.draw(&Circle::new(
-                        (v.origin.params()[0], v.origin.params()[1]),
-                        3,
-                        Into::<ShapeStyle>::into(&GREEN).filled(),
-                    ))
-                    .unwrap();
-                }
-                for f_idx in 0..factors2.len() {
-                    let keys = factors2.keys_at(f_idx).unwrap();
-                    if keys.len() == 1 {
-                        continue;
+    let opt_res = if args.do_viz {
+        let img_w = 1024 as i32;
+        let img_h = 768 as i32;
+        let root_screen = BitMapBackend::gif(OUTPUT_GIF, (img_w as u32, img_h as u32), 1000)
+            .unwrap()
+            .into_drawing_area();
+        let res = optimizer.optimize_with_callback(
+            &factors,
+            &mut variables,
+            Some(
+                |iteration, error, factors2: &Factors<_, _>, variables2: &Variables<_, _>| {
+                    let mut min_x = f64::MAX;
+                    let mut max_x = f64::MIN;
+                    let mut min_y = f64::MAX;
+                    let mut max_y = f64::MIN;
+                    for key in variables2.default_variable_ordering().keys() {
+                        let v: &SE2 = variables2.at(*key).unwrap();
+                        min_x = min_x.min(v.origin.params()[0]);
+                        max_x = max_x.max(v.origin.params()[0]);
+                        min_y = min_y.min(v.origin.params()[1]);
+                        max_y = max_y.max(v.origin.params()[1]);
                     }
+                    let root = root_screen.apply_coord_spec(Cartesian2d::<
+                        RangedCoordf64,
+                        RangedCoordf64,
+                    >::new(
+                        min_x..max_x,
+                        min_y..max_y,
+                        (0..img_w, 0..img_h),
+                    ));
+                    root.fill(&WHITE).unwrap();
+                    // println!("iter {}", iteration);
+                    for key in variables2.default_variable_ordering().keys() {
+                        let v: &SE2 = variables2.at(*key).unwrap();
+                        // Draw an circle on the drawing area
+                        root.draw(&Circle::new(
+                            (v.origin.params()[0], v.origin.params()[1]),
+                            3,
+                            Into::<ShapeStyle>::into(&GREEN).filled(),
+                        ))
+                        .unwrap();
+                    }
+                    for f_idx in 0..factors2.len() {
+                        let keys = factors2.keys_at(f_idx).unwrap();
+                        if keys.len() == 1 {
+                            continue;
+                        }
 
-                    let v0: &SE2 = variables2.at(keys[0]).unwrap();
-                    let v1: &SE2 = variables2.at(keys[1]).unwrap();
-                    root.draw(&PathElement::new(
-                        vec![
-                            (v0.origin.params()[0], v0.origin.params()[1]),
-                            (v1.origin.params()[0], v1.origin.params()[1]),
-                        ],
-                        &RED,
-                    ))
-                    .unwrap();
-                }
-                root_screen
-                    .draw(&Text::new(
-                        format!("iteration: {} error: {:.2}", iteration, error),
-                        (10, 5),
-                        ("sans-serif", 25.0).into_font(),
-                    ))
-                    .unwrap();
-                root.present().unwrap();
-            },
-        )
-        .as_ref(),
-    );
+                        let v0: &SE2 = variables2.at(keys[0]).unwrap();
+                        let v1: &SE2 = variables2.at(keys[1]).unwrap();
+                        root.draw(&PathElement::new(
+                            vec![
+                                (v0.origin.params()[0], v0.origin.params()[1]),
+                                (v1.origin.params()[0], v1.origin.params()[1]),
+                            ],
+                            &RED,
+                        ))
+                        .unwrap();
+                    }
+                    root_screen
+                        .draw(&Rectangle::new(
+                            [(6, 3), (300, 25)],
+                            ShapeStyle {
+                                color: RGBAColor(255, 165, 0, 1.0),
+                                filled: true,
+                                stroke_width: 2,
+                            },
+                        ))
+                        .unwrap();
+                    root_screen
+                        .draw(&Text::new(
+                            format!("iteration: {} error: {:.2}", iteration, error),
+                            (10, 5),
+                            ("sans-serif", 25.0).into_font(),
+                        ))
+                        .unwrap();
+                    root.present().unwrap();
+                },
+            )
+            .as_ref(),
+        );
+        root_screen
+            .present()
+            .expect("Unable to write result to file");
+        println!("{} saved!", OUTPUT_GIF);
+
+        res
+    } else {
+        optimizer.optimize(&factors, &mut variables)
+    };
     // let mut optimizer = NonlinearOptimizer::new(GaussNewtonOptimizer::default());
     // let start = Instant::now();
-    // let opt_res = optimizer.optimize(&factors, &mut variables);
     let duration = start.elapsed();
-    root_screen.present().expect("Unable to write result to file, please make sure 'plotters-doc-data' dir exists under current dir");
     println!("optimize time: {:?}", duration);
     println!("opt_res {:?}", opt_res);
     Ok(())
