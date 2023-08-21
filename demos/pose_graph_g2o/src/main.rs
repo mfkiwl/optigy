@@ -16,6 +16,7 @@ use optigy::slam::prior_factor::PriorFactor;
 use optigy::slam::se3::SE2;
 use plotters::coord::types::RangedCoordf64;
 use plotters::prelude::*;
+use plotters::style::full_palette::BLACK;
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -128,7 +129,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         min_y..max_y,
                         (0..img_w, 0..img_h),
                     ));
-                    root.fill(&WHITE).unwrap();
+                    root.fill(&BLACK).unwrap();
                     // println!("iter {}", iteration);
                     for key in variables2.default_variable_ordering().keys() {
                         let v: &SE2 = variables2.at(*key).unwrap();

@@ -1,5 +1,5 @@
 # OptiGy
-## _General factor graph optimizer framework_
+## _General purpose factor graph optimizer framework_
 
 OptiGy general purpose [factor graph] optimizer mostly suitable for SLAM tasks ~~copied~~ inspired by [miniSAM]
 >**Warning**
