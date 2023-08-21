@@ -1,2 +1,4 @@
 /target
 /Cargo.lock
+/demos/*/target
+/demos/*/*.gif

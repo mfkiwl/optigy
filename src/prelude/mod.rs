@@ -1,5 +1,14 @@
 pub use crate::core::factor::Factor;
+pub use crate::core::factor::JacobiansReturn;
+pub use crate::core::factors::Factors;
+pub use crate::core::factors_container::FactorsContainer;
 pub use crate::core::key::Key;
+pub use crate::core::loss_function::GaussianLoss;
 pub use crate::core::loss_function::LossFunction;
 pub use crate::core::variable::Variable;
 pub use crate::core::variables::Variables;
+pub use crate::core::variables_container::VariablesContainer;
+pub use crate::nonlinear::gauss_newton_optimizer::GaussNewtonOptimizer;
+pub use crate::nonlinear::nonlinear_optimizer::NonlinearOptimizationError;
+pub use crate::nonlinear::nonlinear_optimizer::NonlinearOptimizer;
+pub use crate::nonlinear::nonlinear_optimizer::NonlinearOptimizerVerbosityLevel;

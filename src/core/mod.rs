@@ -1,7 +1,9 @@
 pub mod factor;
-pub mod factor_graph;
+pub mod factors;
+pub mod factors_container;
 pub mod key;
 pub mod loss_function;
 pub mod variable;
 pub mod variable_ordering;
 pub mod variables;
+pub mod variables_container;

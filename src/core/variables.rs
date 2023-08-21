@@ -1,331 +1,254 @@
 use crate::core::key::Key;
 use crate::core::variable::Variable;
 use crate::core::variable_ordering::VariableOrdering;
-use faer_core::{Mat, RealField};
-pub trait VariableGetter<R, V>
+use crate::core::variables_container::{get_variable, get_variable_mut, VariablesContainer};
+use nalgebra::{DVector, DVectorView, RealField};
+
+use std::marker::PhantomData;
+
+#[derive(Clone)]
+pub struct Variables<R, C>
 where
-    V: Variable<R>,
     R: RealField,
+    C: VariablesContainer<R>,
 {
-    fn at(&self, key: Key) -> &V;
+    container: C,
+    phantom: PhantomData<R>,
 }
 
-pub trait VariableAdder<R, V>
-where
-    V: Variable<R>,
-    R: RealField,
-{
-    fn add(&mut self, key: Key, var: V);
-}
-pub trait Variables<R>
+impl<R, C> Variables<R, C>
 where
     R: RealField,
+    C: VariablesContainer<R>,
 {
-    /// dim (= A.cols)  
-    fn dim(&self) -> usize;
-    /// len
-    fn len(&self) -> usize;
-    fn retract(&mut self, delta: &Mat<R>, variable_ordering: &VariableOrdering);
-    fn local(&self, variables: &Self, variable_ordering: &VariableOrdering) -> Mat<R>;
-    fn default_variable_ordering(&self) -> VariableOrdering;
-}
+    pub fn new(container: C) -> Self {
+        Variables::<R, C> {
+            container,
+            phantom: PhantomData,
+        }
+    }
+    pub fn dim(&self) -> usize {
+        self.container.dim(0)
+    }
 
+    pub fn len(&self) -> usize {
+        self.container.len(0)
+    }
+    pub fn is_empty(&self) -> bool {
+        self.container.is_empty()
+    }
+
+    pub fn retract(&mut self, delta: DVectorView<R>, variable_ordering: &VariableOrdering) {
+        debug_assert_eq!(delta.nrows(), self.dim());
+        let mut d: usize = 0;
+        for i in 0..variable_ordering.len() {
+            let key = variable_ordering.key(i).unwrap();
+            d = self.container.retract(delta.clone(), key, d);
+        }
+    }
+
+    //TODO: return DVectorView
+    pub fn local(&self, variables: &Self, variable_ordering: &VariableOrdering) -> DVector<R> {
+        let mut delta = DVector::<R>::zeros(self.dim());
+        let mut d: usize = 0;
+        for i in 0..variable_ordering.len() {
+            let key = variable_ordering.key(i).unwrap();
+            d = self.container.local(variables, delta.as_view_mut(), key, d);
+        }
+        debug_assert_eq!(delta.nrows(), d);
+        delta
+    }
+
+    pub fn default_variable_ordering(&self) -> VariableOrdering {
+        VariableOrdering::new(&self.container.keys(Vec::new()))
+    }
+
+    pub fn at<V>(&self, key: Key) -> Option<&V>
+    where
+        V: Variable<R> + 'static,
+    {
+        get_variable(&self.container, key)
+    }
+
+    pub fn at_mut<V>(&mut self, key: Key) -> Option<&mut V>
+    where
+        V: Variable<R> + 'static,
+    {
+        get_variable_mut(&mut self.container, key)
+    }
+
+    pub fn add<V>(&mut self, key: Key, var: V)
+    where
+        V: Variable<R> + 'static,
+    {
+        #[cfg(not(debug_assertions))]
+        {
+            self.container.get_mut::<V>().unwrap().insert(key, var);
+        }
+        #[cfg(debug_assertions)]
+        {
+            self.container
+            .get_mut::<V>()
+            .expect(
+                format!(
+                    "type {} should be registered in variables container. use ().and_variable::<{}>()",
+                   tynm::type_name::<V>(),
+                   tynm::type_name::<V>()
+                )
+                .as_str(),
+            )
+            .insert(key, var);
+        }
+    }
+    pub fn dim_at(&self, key: Key) -> Option<usize> {
+        self.container.dim_at(key)
+    }
+}
 #[cfg(test)]
 mod tests {
-
-    use std::prelude::v1;
+    use crate::core::variable::tests::{VariableA, VariableB};
 
     use super::*;
-    use crate::core::factor::Factor;
-    use crate::core::variable_ordering;
-    use faer_core::{mat, Mat, MatRef};
-    use hashbrown::HashMap;
 
-    use seq_macro::seq;
-    #[derive(Debug, Clone)]
-    pub struct VarA<R>
-    where
-        R: RealField,
-    {
-        pub val: Mat<R>,
-    }
-
-    impl<R> Variable<R> for VarA<R>
-    where
-        R: RealField,
-    {
-        fn local(&self, value: &Self) -> Mat<R>
-        where
-            R: RealField,
-        {
-            todo!()
-        }
-
-        fn retract(&mut self, delta: &MatRef<R>)
-        where
-            R: RealField,
-        {
-            self.val = self.val.clone() + delta.to_owned();
-        }
-
-        fn dim(&self) -> usize {
-            3
-        }
-    }
-    #[derive(Debug, Clone)]
-    pub struct VarB<R>
-    where
-        R: RealField,
-    {
-        pub val: Mat<R>,
-    }
-
-    impl<R> Variable<R> for VarB<R>
-    where
-        R: RealField,
-    {
-        fn local(&self, value: &Self) -> Mat<R>
-        where
-            R: RealField,
-        {
-            todo!()
-        }
-
-        fn retract(&mut self, delta: &MatRef<R>)
-        where
-            R: RealField,
-        {
-            self.val = self.val.clone() + delta.to_owned();
-        }
-
-        fn dim(&self) -> usize {
-            3
-        }
-    }
-
-    pub struct SlamVariables<R>
-    where
-        R: RealField,
-    {
-        keyvalues: (HashMap<Key, VarA<R>>, HashMap<Key, VarB<R>>),
-    }
-
-    impl<R> SlamVariables<R> where R: RealField {}
-
-    impl<R> Variables<R> for SlamVariables<R>
-    where
-        R: RealField,
-    {
-        fn dim(&self) -> usize {
-            let mut d: usize = 0;
-            seq!(N in 0..2 {
-            d += self
-                    .keyvalues
-                    .N
-                    .values()
-                    .into_iter()
-                    .map(|f| f.dim())
-                    .sum::<usize>();
-                });
-            d
-        }
-
-        fn len(&self) -> usize {
-            let mut l: usize = 0;
-            seq!(N in 0..2 {
-                l += self.keyvalues.N.len();
-            });
-            l
-        }
-
-        fn retract(&mut self, delta: &Mat<R>, variable_ordering: &VariableOrdering) {
-            let mut d: usize = 0;
-            for i in 0..variable_ordering.len() {
-                let key = variable_ordering.key(i);
-
-                let mut found: bool = false;
-                seq!(N in 0..2 {
-                if !found {
-                    match self.keyvalues.N.get_mut(&key) {
-                        Some(var) => {
-                            found = true;
-                            let vd = var.dim();
-                            let var_delta = delta.as_ref().subrows(d, vd);
-                            var.retract(&var_delta);
-                            d += vd;
-                        }
-                        None => {}
-                    }
-                }
-                });
-            }
-        }
-
-        fn local(&self, variables: &Self, variable_ordering: &VariableOrdering) -> Mat<R> {
-            todo!()
-        }
-
-        fn default_variable_ordering(&self) -> VariableOrdering {
-            let mut ordering_list: Vec<Key> = Vec::new();
-            seq!(N in 0..2 {
-            ordering_list.extend(self.keyvalues.N.keys().map(|k| *k));
-            });
-            VariableOrdering::new(&ordering_list)
-        }
-    }
-    impl<R> VariableAdder<R, VarA<R>> for SlamVariables<R>
-    where
-        R: RealField,
-    {
-        fn add(&mut self, key: Key, var: VarA<R>) {
-            self.keyvalues.0.insert(key, var);
-        }
-    }
-
-    impl<R> VariableGetter<R, VarA<R>> for SlamVariables<R>
-    where
-        R: RealField,
-    {
-        fn at(&self, key: Key) -> &VarA<R> {
-            &self.keyvalues.0.get(&key).unwrap()
-        }
-    }
-    impl<R> VariableGetter<R, VarB<R>> for SlamVariables<R>
-    where
-        R: RealField,
-    {
-        fn at(&self, key: Key) -> &VarB<R> {
-            &self.keyvalues.1.get(&key).unwrap()
-        }
-    }
-    type Real = f64;
-    fn create_variables() -> SlamVariables<Real> {
-        let mut vars_a: HashMap<Key, VarA<Real>> = HashMap::default();
-        let mut vars_b: HashMap<Key, VarB<Real>> = HashMap::default();
-
-        let val_a: Mat<Real> = Mat::<Real>::zeros(3, 1);
-        vars_a.insert(Key(0), VarA { val: val_a.clone() });
-
-        let val_b: Mat<Real> = Mat::<Real>::zeros(3, 1);
-        vars_b.insert(Key(1), VarB { val: val_b });
-
-        let mut variables = SlamVariables::<Real> {
-            keyvalues: (vars_a, vars_b),
-        };
-        variables.add(Key(0), VarA { val: val_a.clone() });
-        variables
+    #[test]
+    fn add_variable() {
+        type Real = f64;
+        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
+        let mut variables = Variables::new(container);
+        variables.add(Key(0), VariableA::<Real>::new(0.0));
+        variables.add(Key(1), VariableB::<Real>::new(0.0));
     }
 
     #[test]
-    fn factor_impl() {
-        struct E3Factor<R>
-        where
-            R: RealField,
+    fn get_variable() {
+        type Real = f64;
+        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
+        let mut variables = Variables::new(container);
+        variables.add(Key(0), VariableA::<Real>::new(1.0));
+        variables.add(Key(1), VariableB::<Real>::new(2.0));
+        let _var_0: &VariableA<_> = variables.at(Key(0)).unwrap();
+        let _var_1: &VariableB<_> = variables.at(Key(1)).unwrap();
+    }
+    #[test]
+    fn get_mut_variable() {
+        type Real = f64;
+        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
+        let mut variables = Variables::new(container);
+        variables.add(Key(0), VariableA::<Real>::new(0.0));
+        variables.add(Key(1), VariableB::<Real>::new(0.0));
         {
-            orig: Mat<R>,
+            let var_0: &mut VariableA<_> = variables.at_mut(Key(0)).unwrap();
+            var_0.val.fill(1.0);
         }
-
-        impl<R> Factor<R> for E3Factor<R>
-        where
-            R: RealField,
         {
-            type Vs = SlamVariables<R>;
-            fn error(&self, variables: &Self::Vs) -> Mat<R> {
-                let v0: &VarA<R> = variables.at(Key(0));
-                let v1: &VarB<R> = variables.at(Key(1));
-                let d = v0.val.clone() - v1.val.clone() + self.orig.clone();
-                d
-                // todo!()
-            }
-
-            fn jacobians(&self, variables: &Self::Vs) -> Vec<Mat<R>> {
-                todo!()
-            }
-
-            fn dim(&self) -> usize {
-                todo!()
-            }
-
-            fn keys(&self) -> &Vec<Key> {
-                todo!()
-            }
-
-            fn loss_function(&self) -> Option<&dyn crate::core::loss_function::LossFunction<R>> {
-                todo!()
-            }
+            let var_1: &mut VariableB<_> = variables.at_mut(Key(1)).unwrap();
+            var_1.val.fill(2.0);
         }
-
-        struct E2Factor<R>
-        where
-            R: RealField,
+        let var_0: &VariableA<_> = variables.at(Key(0)).unwrap();
+        let var_1: &VariableB<_> = variables.at(Key(1)).unwrap();
+        assert_eq!(var_0.val, DVector::<Real>::from_element(3, 1.0));
+        assert_eq!(var_1.val, DVector::<Real>::from_element(3, 2.0));
+    }
+    #[test]
+    fn dim_at() {
+        type Real = f64;
+        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
+        let mut variables = Variables::new(container);
+        variables.add(Key(0), VariableA::<Real>::new(0.0));
+        variables.add(Key(1), VariableB::<Real>::new(0.0));
         {
-            orig: Mat<R>,
+            let var_0: &mut VariableA<_> = variables.at_mut(Key(0)).unwrap();
+            var_0.val.fill(1.0);
         }
-
-        impl<R> Factor<R> for E2Factor<R>
-        where
-            R: RealField,
         {
-            type Vs = SlamVariables<R>;
-            fn error(&self, variables: &Self::Vs) -> Mat<R> {
-                let v0: &VarA<R> = variables.at(Key(0));
-                let v1: &VarB<R> = variables.at(Key(1));
-                let d = v0.val.clone() - v1.val.clone() + self.orig.clone();
-                d
-                // todo!()
-            }
-
-            fn jacobians(&self, variables: &Self::Vs) -> Vec<Mat<R>> {
-                todo!()
-            }
-
-            fn dim(&self) -> usize {
-                todo!()
-            }
-
-            fn keys(&self) -> &Vec<Key> {
-                todo!()
-            }
-
-            fn loss_function(&self) -> Option<&dyn crate::core::loss_function::LossFunction<R>> {
-                todo!()
-            }
+            let var_1: &mut VariableB<_> = variables.at_mut(Key(1)).unwrap();
+            var_1.val.fill(2.0);
         }
-        let mut variables = create_variables();
+        assert_eq!(variables.dim_at(Key(0)).unwrap(), 3);
+        assert_eq!(variables.dim_at(Key(1)).unwrap(), 3);
+    }
+    #[test]
+    fn local() {
+        type Real = f64;
+        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
+        let mut variables = Variables::new(container);
+        variables.add(Key(0), VariableA::<Real>::new(0.0));
+        variables.add(Key(1), VariableB::<Real>::new(0.0));
+        let orig_variables = variables.clone();
+        {
+            let var_0: &mut VariableA<_> = variables.at_mut(Key(0)).unwrap();
+            var_0.val.fill(1.0);
+        }
+        {
+            let var_1: &mut VariableB<_> = variables.at_mut(Key(1)).unwrap();
+            var_1.val.fill(2.0);
+        }
+        let var_0: &VariableA<_> = variables.at(Key(0)).unwrap();
+        let var_1: &VariableB<_> = variables.at(Key(1)).unwrap();
+        assert_eq!(var_0.val, DVector::<Real>::from_element(3, 1.0));
+        assert_eq!(var_1.val, DVector::<Real>::from_element(3, 2.0));
 
-        let orig = Mat::<Real>::zeros(3, 1);
+        let delta = variables.local(&orig_variables, &variables.default_variable_ordering());
 
-        let mut f = E3Factor::<Real> { orig: orig.clone() };
-        let mut f2 = E2Factor::<Real> { orig: orig.clone() };
+        let dim_0 = variables.at::<VariableA<_>>(Key(0)).unwrap().dim();
+        let dim_1 = variables.at::<VariableB<_>>(Key(1)).unwrap().dim();
+        assert_eq!(
+            DVector::<Real>::from_element(dim_1, 2.0),
+            delta.rows(0, dim_0)
+        );
+        assert_eq!(
+            DVector::<Real>::from_element(dim_0, 1.0),
+            delta.rows(dim_0, dim_1)
+        );
+    }
 
-        let e = f.error(&variables);
+    #[test]
+    fn retract() {
+        type Real = f64;
+        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
+        let mut variables = Variables::new(container);
+        variables.add(Key(0), VariableA::<Real>::new(0.0));
+        variables.add(Key(1), VariableB::<Real>::new(0.0));
+        let mut delta = DVector::<Real>::zeros(variables.dim());
+        let dim_0 = variables.at::<VariableA<_>>(Key(0)).unwrap().dim();
+        let dim_1 = variables.at::<VariableB<_>>(Key(1)).unwrap().dim();
+        delta.fill(5.0);
+        delta.fill(1.0);
+        println!("delta {:?}", delta);
+        let variable_ordering = variables.default_variable_ordering(); // reversed
+        variables.retract(delta.as_view(), &variable_ordering);
+        let v0: &VariableA<Real> = variables.at(Key(0)).unwrap();
+        let v1: &VariableB<Real> = variables.at(Key(1)).unwrap();
+        assert_eq!(v1.val, delta.rows(0, dim_0));
+        assert_eq!(v0.val, delta.rows(dim_0, dim_1));
+    }
 
+    #[test]
+    fn dim() {
+        type Real = f64;
+        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
+        let mut variables = Variables::new(container);
+        variables.add(Key(0), VariableA::<Real>::new(0.0));
+        variables.add(Key(1), VariableB::<Real>::new(0.0));
         assert_eq!(variables.dim(), 6);
-        assert_eq!(variables.len(), 2);
-        let delta = mat![[1.0, 1.0, 1.0, 0.5, 0.5, 0.5]].transpose().to_owned();
-        let variable_ordering = variables.default_variable_ordering();
-        variables.retract(&delta, &variable_ordering);
-        let v0: &VarA<Real> = variables.at(Key(0));
-        let v1: &VarB<Real> = variables.at(Key(1));
-        println!("ordering 0 {:?}", variable_ordering.key(0));
-        println!("ordering 1 {:?}", variable_ordering.key(1));
-        println!("ordering len {:?}", variable_ordering.len());
-        println!("ordering keys {:?}", variable_ordering.keys());
-        assert_eq!(v0.val, mat![[1.0], [1.0], [1.0]]);
-        assert_eq!(v1.val, mat![[0.5], [0.5], [0.5]]);
     }
     #[test]
-    fn variables_at() {
-        let mut variables = create_variables();
-        let a: &VarA<Real> = variables.at(Key(0));
-        let b: &VarB<Real> = variables.at(Key(1));
-
-        let m0 = Mat::<Real>::new();
-
-        let m1 = Mat::<Real>::new();
-
-        let c = m0 * m1;
-        // print!("a {:?}", a.val);
-        // print!("b {:?}", b.val);
+    fn len() {
+        type Real = f64;
+        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
+        let mut variables = Variables::new(container);
+        variables.add(Key(0), VariableA::<Real>::new(0.0));
+        variables.add(Key(1), VariableB::<Real>::new(0.0));
+        assert_eq!(variables.len(), 2);
+    }
+    #[test]
+    fn is_empty() {
+        type Real = f64;
+        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
+        let mut variables = Variables::new(container);
+        assert!(variables.is_empty());
+        variables.add(Key(0), VariableA::<Real>::new(0.0));
+        variables.add(Key(1), VariableB::<Real>::new(0.0));
+        assert!(!variables.is_empty());
     }
 }
