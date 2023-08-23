@@ -1,5 +1,7 @@
 use core::cell::Ref;
 use core::cell::RefMut;
+use std::borrow::BorrowMut;
+use std::cell::RefCell;
 
 use crate::core::key::Key;
 use crate::core::loss_function::LossFunction;
@@ -44,6 +46,18 @@ where
     fn jacobians<C>(&self, variables: &Variables<R, C>) -> JacobiansReturn<R>
     where
         C: VariablesContainer<R>;
+    // fn jacobians<C>(&self, variables: &Variables<R, C>) -> JacobiansReturn<R>
+    // where
+    //     C: VariablesContainer<R>,
+    // {
+    //     todo!()
+    // let mut vars_cpy = variables.clone();
+    // for k in self.keys() {
+    //     // va
+    // }
+    // let jac: RefCell<DMatrix<R>> = RefCell::new(DMatrix::zeros(10, 10));
+    // jac.borrow()
+    // }
     ///  jacobian matrix
     fn jacobians_error<C>(&self, variables: &Variables<R, C>) -> JacobiansErrorReturn<R>
     where
