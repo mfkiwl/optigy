@@ -132,8 +132,8 @@ pub(crate) mod tests {
         where
             C: VariablesContainer<R>,
         {
-            let v0: &VariableA<R> = variables.at(Key(0)).unwrap();
-            let v1: &VariableB<R> = variables.at(Key(1)).unwrap();
+            let v0: &VariableA<R> = variables.at(self.keys()[0]).unwrap();
+            let v1: &VariableB<R> = variables.at(self.keys()[1]).unwrap();
             {
                 *self.error.borrow_mut() = v0.val.clone() - v1.val.clone() + self.orig.clone();
             }

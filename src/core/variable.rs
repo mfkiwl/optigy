@@ -1,5 +1,5 @@
 use nalgebra::{DVector, DVectorView, RealField};
-pub trait Variable<R>
+pub trait Variable<R>: Clone
 where
     R: RealField,
 {
@@ -7,11 +7,19 @@ where
     fn local(&self, value: &Self) -> DVector<R>
     where
         R: RealField;
-
     /// retract
     fn retract(&mut self, delta: DVectorView<R>)
     where
         R: RealField;
+    /// return retracted copy
+    fn retracted(&self, delta: DVectorView<R>) -> Self
+    where
+        R: RealField,
+    {
+        let mut var = self.clone();
+        var.retract(delta);
+        var
+    }
 
     fn dim(&self) -> usize;
 }
