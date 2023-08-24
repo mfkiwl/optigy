@@ -64,6 +64,7 @@ where
     fn compute_jacobian_for<F>(&self, factor: &F, key: Key, jacobian: DMatrixViewMut<R>)
     where
         F: Factor<R>;
+    fn empty_clone(&self) -> Self;
 }
 
 /// The base case for recursive variadics: no fields.
@@ -115,6 +116,27 @@ where
         F: Factor<R>,
     {
     }
+
+    fn empty_clone(&self) -> Self {
+        ()
+    }
+
+    fn and_variable<N: VariablesKey<R>>(self) -> VariablesEntry<N, Self, R>
+    where
+        Self: Sized,
+        N::Value: VariablesKey<R>,
+    {
+        match self.get::<N::Value>() {
+            Some(_) => panic!(
+                "type {} already present in VariablesContainer",
+                tynm::type_name::<N::Value>()
+            ),
+            None => VariablesEntry {
+                data: HashMap::<Key, N::Value>::default(),
+                parent: self,
+            },
+        }
+    }
 }
 
 /// Wraps some field data and a parent, which is either another Entry or Empty
@@ -127,11 +149,24 @@ where
     data: HashMap<Key, T::Value>,
     parent: P,
 }
+impl<T, P, R> Default for VariablesEntry<T, P, R>
+where
+    T: VariablesKey<R>,
+    R: RealField,
+    P: VariablesContainer<R> + Default,
+{
+    fn default() -> Self {
+        VariablesEntry::<T, P, R> {
+            data: HashMap::<Key, T::Value>::default(),
+            parent: P::default(),
+        }
+    }
+}
 
 impl<T, P, R> VariablesContainer<R> for VariablesEntry<T, P, R>
 where
     T: VariablesKey<R> + Clone,
-    P: VariablesContainer<R>,
+    P: VariablesContainer<R> + Default,
     R: RealField,
 {
     fn get<N: VariablesKey<R>>(&self) -> Option<&HashMap<Key, N::Value>> {
@@ -244,6 +279,10 @@ where
             }
             None => self.parent.compute_jacobian_for(factor, key, jacobian),
         }
+    }
+
+    fn empty_clone(&self) -> Self {
+        Self::default()
     }
 }
 
@@ -425,5 +464,22 @@ mod tests {
         container.compute_jacobian_for(&f, Key(3), jacobian.as_view_mut());
 
         assert!(!container.is_empty());
+    }
+
+    #[test]
+    fn empty_clone() {
+        type Real = f64;
+        let mut container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
+        let a = container.get_mut::<VariableA<Real>>();
+        a.unwrap().insert(Key(3), VariableA::new(4.0));
+        let a = container.get_mut::<VariableB<Real>>();
+        a.unwrap().insert(Key(4), VariableB::new(4.0));
+
+        let mut container2 = container.empty_clone();
+        assert!(container2.is_empty());
+        let a = container2.get_mut::<VariableA<Real>>();
+        a.unwrap().insert(Key(3), VariableA::new(4.0));
+        let a = container2.get_mut::<VariableB<Real>>();
+        a.unwrap().insert(Key(4), VariableB::new(4.0));
     }
 }
