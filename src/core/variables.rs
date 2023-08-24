@@ -12,7 +12,7 @@ where
     R: RealField,
     C: VariablesContainer<R>,
 {
-    container: C,
+    pub(crate) container: C,
     phantom: PhantomData<R>,
 }
 

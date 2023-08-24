@@ -61,9 +61,15 @@ where
     where
         C: VariablesContainer<R>;
     fn dim_at(&self, key: Key) -> Option<usize>;
-    fn compute_jacobian_for<F>(&self, factor: &F, key: Key, jacobian: DMatrixViewMut<R>)
-    where
-        F: Factor<R>;
+    fn compute_jacobian_for<F, C>(
+        &self,
+        factor: &F,
+        variables: &mut Variables<R, C>,
+        key: Key,
+        jacobian: DMatrixViewMut<R>,
+    ) where
+        F: Factor<R>,
+        C: VariablesContainer<R>;
     fn empty_clone(&self) -> Self;
 }
 
@@ -111,12 +117,17 @@ where
         None
     }
 
-    fn compute_jacobian_for<F>(&self, factor: &F, key: Key, jacobian: DMatrixViewMut<R>)
-    where
+    fn compute_jacobian_for<F, C>(
+        &self,
+        factor: &F,
+        variables: &mut Variables<R, C>,
+        key: Key,
+        jacobian: DMatrixViewMut<R>,
+    ) where
         F: Factor<R>,
+        C: VariablesContainer<R>,
     {
     }
-
     fn empty_clone(&self) -> Self {
         ()
     }
@@ -253,31 +264,49 @@ where
         }
     }
 
-    fn compute_jacobian_for<F>(&self, factor: &F, key: Key, mut jacobian: DMatrixViewMut<R>)
-    where
+    fn compute_jacobian_for<F, C>(
+        &self,
+        factor: &F,
+        variables: &mut Variables<R, C>,
+        key: Key,
+        mut jacobian: DMatrixViewMut<R>,
+    ) where
         F: Factor<R>,
+        C: VariablesContainer<R>,
     {
         let var = self.data.get(&key);
+        // let mut var_map = variables.container.get_mut::<T::Value>().unwrap();
         match var {
             Some(var) => {
+                // let factor_variables = Variables::new(variables.container.empty_clone());
                 let delta = R::from_f64(1e-3).unwrap();
                 for i in 0..var.dim() {
                     let mut dx = DVector::<R>::zeros(var.dim());
                     dx[i] = delta.clone();
-                    let dy0 = factor
-                        .error(&Variables::<R, Self>::new(self.clone()))
-                        .to_owned();
+                    let var_ret = var.retracted(dx.as_view());
+                    variables
+                        .container
+                        .get_mut::<T::Value>()
+                        .unwrap()
+                        .insert(key, var_ret);
+                    let dy0 = factor.error(variables).to_owned();
                     dx[i] = -delta.clone();
-                    let dy1 = factor
-                        .error(&Variables::<R, Self>::new(self.clone()))
-                        .to_owned();
+                    let var_ret = var.retracted(dx.as_view());
+                    variables
+                        .container
+                        .get_mut::<T::Value>()
+                        .unwrap()
+                        .insert(key, var_ret);
+                    let dy1 = factor.error(variables).to_owned();
                     jacobian
                         .column_mut(i)
                         .copy_from(&((dy0 - dy1) / (R::from_f64(2.0).unwrap() * delta.clone())));
                 }
                 jacobian.fill(R::one());
             }
-            None => self.parent.compute_jacobian_for(factor, key, jacobian),
+            None => self
+                .parent
+                .compute_jacobian_for(factor, variables, key, jacobian),
         }
     }
 
@@ -458,12 +487,21 @@ mod tests {
         a.unwrap().insert(Key(3), VariableA::new(4.0));
         let a = container.get_mut::<VariableB<Real>>();
         a.unwrap().insert(Key(4), VariableB::new(4.0));
+        assert!(!container.is_empty());
 
         let f: FactorA<Real> = FactorA::new(0.1, None, Key(3), Key(4));
         let mut jacobian = DMatrix::<Real>::zeros(3, 6);
-        container.compute_jacobian_for(&f, Key(3), jacobian.as_view_mut());
-
-        assert!(!container.is_empty());
+        let variables0 = Variables::new(container);
+        let mut variables = Variables::new(variables0.container.empty_clone());
+        let v: &VariableA<Real> = variables0.at(Key(3)).unwrap();
+        variables.add(Key(3), VariableA::new(4.0));
+        variables.add(Key(4), VariableB::new(4.0));
+        variables0.container.compute_jacobian_for(
+            &f,
+            &mut variables,
+            Key(3),
+            jacobian.as_view_mut(),
+        );
     }
 
     #[test]
