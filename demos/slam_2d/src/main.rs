@@ -1,15 +1,18 @@
+use std::cell::RefCell;
+use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::time::Instant;
 use std::{env::current_dir, fs::read_to_string};
 
 use clap::Parser;
-use nalgebra::{DVector, DVectorView, Matrix3, RealField, Vector2};
+use nalgebra::{DMatrix, DVector, DVectorView, Matrix3, RealField, Vector2};
+use optigy::core::factor::ErrorReturn;
 use optigy::core::loss_function::ScaleLoss;
 
 use optigy::nonlinear::gauss_newton_optimizer::GaussNewtonOptimizerParams;
 use optigy::prelude::{
-    Factors, FactorsContainer, GaussNewtonOptimizer, GaussianLoss, Key, NonlinearOptimizer,
-    NonlinearOptimizerVerbosityLevel, Variable, Variables, VariablesContainer,
+    Factor, Factors, FactorsContainer, GaussNewtonOptimizer, GaussianLoss, JacobiansReturn, Key,
+    NonlinearOptimizer, NonlinearOptimizerVerbosityLevel, Variable, Variables, VariablesContainer,
 };
 use optigy::slam::between_factor::BetweenFactor;
 use optigy::slam::prior_factor::PriorFactor;
@@ -60,6 +63,85 @@ where
         }
     }
 }
+struct VisionFactor {
+    keys: [Key; 2],
+    ray: Vector2<f64>,
+    error: RefCell<DVector<f64>>,
+    jacobians: RefCell<DMatrix<f64>>,
+}
+impl VisionFactor {
+    fn new(landmark_id: Key, pose_id: Key, ray: Vector2<f64>) -> Self {
+        VisionFactor {
+            keys: [landmark_id, pose_id],
+            ray,
+            error: RefCell::new(DVector::<f64>::zeros(2)),
+            jacobians: RefCell::new(DMatrix::<f64>::identity(2, 5)),
+        }
+    }
+}
+impl Factor<f64> for VisionFactor {
+    type L = GaussianLoss;
+
+    fn error<C>(&self, variables: &Variables<f64, C>) -> ErrorReturn<f64>
+    where
+        C: VariablesContainer<f64>,
+    {
+        let landmark_v: &E2 = variables.at(self.keys[0]).unwrap();
+        let pose_v: &SE2 = variables.at(self.keys[1]).unwrap();
+        let ray = pose_v
+            .origin
+            .inverse()
+            .transform(&landmark_v.val)
+            .normalize();
+        {
+            self.error.borrow_mut().copy_from(&(ray - self.ray));
+        }
+
+        self.error.borrow()
+    }
+
+    fn jacobians<C>(&self, variables: &Variables<f64, C>) -> JacobiansReturn<f64>
+    where
+        C: VariablesContainer<f64>,
+    {
+        self.jacobians.borrow()
+    }
+
+    fn dim(&self) -> usize {
+        2
+    }
+
+    fn keys(&self) -> &[Key] {
+        &self.keys
+    }
+
+    fn loss_function(&self) -> Option<&Self::L> {
+        None
+    }
+}
+
+struct Landmark {
+    id: Key,
+    // coord: E2,
+    // vision_factors_keys: Vec<Key>,
+}
+impl Landmark {
+    fn new<C>(variables: &mut Variables<f64, C>, id: Key, coord: Vector2<f64>) -> Self
+    where
+        C: VariablesContainer,
+    {
+        variables.add(id, E2::new(coord[0], coord[1]));
+        Landmark { id }
+    }
+    fn add_observation<C>(&mut self, factors: &mut Factors<f64, C>, pose_id: Key, ray: Vector2<f64>)
+    where
+        C: FactorsContainer,
+    {
+        factors.add(VisionFactor::new(self.id, pose_id, ray));
+        // self.vision_factors_keys
+        //     .push(VisionFactor::new(self.id, pose_id, ray));
+    }
+}
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -77,12 +159,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let container =
         ().and_factor::<BetweenFactor<GaussianLoss>>()
-            .and_factor::<PriorFactor<ScaleLoss>>();
+            .and_factor::<PriorFactor<ScaleLoss>>()
+            .and_factor::<VisionFactor>();
     let mut factors = Factors::new(container);
     // println!("current dir {:?}", current_dir().unwrap());
     let landmarks_filename = current_dir().unwrap().join("data").join("landmarks.txt");
     let observations_filename = current_dir().unwrap().join("data").join("observations.txt");
-    let mut landmarks = Vec::<Vector2<f64>>::new();
+    let mut landmarks_init = Vec::<Vector2<f64>>::new();
 
     for (id, line) in read_to_string(landmarks_filename)
         .unwrap()
@@ -92,9 +175,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         let mut l = line.split_whitespace();
         let x = l.next().unwrap().parse::<f64>()?;
         let y = l.next().unwrap().parse::<f64>()?;
-        variables.add(Key(id), E2::new(x, y));
-        landmarks.push(Vector2::new(x, y));
+        // variables.add(Key(id), E2::new(x, y));
+        landmarks_init.push(Vector2::new(x, y));
     }
+    let mut landmarks = HashMap::<Key, Landmark>::default();
     for (id, line) in read_to_string(observations_filename)
         .unwrap()
         .lines()
@@ -104,12 +188,23 @@ fn main() -> Result<(), Box<dyn Error>> {
         let x = l.next().unwrap().parse::<f64>()?;
         let y = l.next().unwrap().parse::<f64>()?;
         let th = l.next().unwrap().parse::<f64>()?;
-        variables.add(Key(id + landmarks.len()), SE2::new(x, y, th));
+        let pose_id = Key(id + landmarks_init.len());
+        variables.add(pose_id, SE2::new(x, y, th));
         let rays_cnt = l.next().unwrap().parse::<usize>()?;
         for _ in 0..rays_cnt {
             let id = l.next().unwrap().parse::<usize>()?;
             let rx = l.next().unwrap().parse::<f64>()?;
             let ry = l.next().unwrap().parse::<f64>()?;
+            landmarks.insert(
+                Key(id),
+                Landmark::new(&mut variables, Key(id), landmarks_init[id]),
+            );
+
+            landmarks.get_mut(&Key(id)).unwrap().add_observation(
+                &mut factors,
+                pose_id,
+                Vector2::<f64>::new(rx, ry),
+            );
         }
     }
 
@@ -198,23 +293,23 @@ fn main() -> Result<(), Box<dyn Error>> {
                             .unwrap();
                         }
                     }
-                    for f_idx in 0..factors2.len() {
-                        let keys = factors2.keys_at(f_idx).unwrap();
-                        if keys.len() == 1 {
-                            continue;
-                        }
+                    // for f_idx in 0..factors2.len() {
+                    //     let keys = factors2.keys_at(f_idx).unwrap();
+                    //     if keys.len() == 1 {
+                    //         continue;
+                    //     }
 
-                        let v0: &SE2 = variables2.at(keys[0]).unwrap();
-                        let v1: &SE2 = variables2.at(keys[1]).unwrap();
-                        root.draw(&PathElement::new(
-                            vec![
-                                (v0.origin.params()[0], v0.origin.params()[1]),
-                                (v1.origin.params()[0], v1.origin.params()[1]),
-                            ],
-                            &RED,
-                        ))
-                        .unwrap();
-                    }
+                    //     let v0: &SE2 = variables2.at(keys[0]).unwrap();
+                    //     let v1: &SE2 = variables2.at(keys[1]).unwrap();
+                    //     root.draw(&PathElement::new(
+                    //         vec![
+                    //             (v0.origin.params()[0], v0.origin.params()[1]),
+                    //             (v1.origin.params()[0], v1.origin.params()[1]),
+                    //         ],
+                    //         &RED,
+                    //     ))
+                    //     .unwrap();
+                    // }
                     root_screen
                         .draw(&Rectangle::new(
                             [(6, 3), (300, 25)],

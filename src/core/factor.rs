@@ -12,6 +12,7 @@ use nalgebra::DVector;
 use nalgebra::DVectorView;
 use nalgebra::RealField;
 
+use super::loss_function::GaussianLoss;
 use super::variables_container::VariablesContainer;
 pub type JacobiansReturn<'a, R> = Ref<'a, DMatrix<R>>;
 pub type ErrorReturn<'a, R> = Ref<'a, DVector<R>>;
