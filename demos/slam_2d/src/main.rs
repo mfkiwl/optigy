@@ -86,6 +86,7 @@ impl Factor<f64> for VisionFactor {
     where
         C: VariablesContainer<f64>,
     {
+        println!("err comp");
         let landmark_v: &E2 = variables.at(self.keys[0]).unwrap();
         let pose_v: &SE2 = variables.at(self.keys[1]).unwrap();
         let ray = pose_v
@@ -310,6 +311,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     //     ))
                     //     .unwrap();
                     // }
+
                     root_screen
                         .draw(&Rectangle::new(
                             [(6, 3), (300, 25)],
