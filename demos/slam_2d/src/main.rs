@@ -5,7 +5,7 @@ use std::time::Instant;
 use std::{env::current_dir, fs::read_to_string};
 
 use clap::Parser;
-use nalgebra::{DMatrix, DVector, DVectorView, Matrix3, RealField, Vector2};
+use nalgebra::{DMatrix, DVector, DVectorView, Matrix2, Matrix3, RealField, Vector2};
 use optigy::core::factor::ErrorReturn;
 use optigy::core::loss_function::ScaleLoss;
 
@@ -86,17 +86,17 @@ impl Factor<f64> for VisionFactor {
     where
         C: VariablesContainer<f64>,
     {
-        println!("err comp");
         let landmark_v: &E2 = variables.at(self.keys[0]).unwrap();
         let pose_v: &SE2 = variables.at(self.keys[1]).unwrap();
-        let ray = pose_v
-            .origin
-            .inverse()
-            .transform(&landmark_v.val)
-            .normalize();
+        let l0 = pose_v.origin.inverse().transform(&landmark_v.val);
+
+        let r = l0.normalize();
+
         {
-            self.error.borrow_mut().copy_from(&(ray - self.ray));
+            self.error.borrow_mut().copy_from(&(r - self.ray));
         }
+
+        // println!("err comp {}", self.error.borrow().norm());
 
         self.error.borrow()
     }
@@ -105,6 +105,41 @@ impl Factor<f64> for VisionFactor {
     where
         C: VariablesContainer<f64>,
     {
+        let landmark_v: &E2 = variables.at(self.keys[0]).unwrap();
+        let pose_v: &SE2 = variables.at(self.keys[1]).unwrap();
+        let l0 = pose_v.origin.inverse().transform(&landmark_v.val);
+
+        let r = l0.normalize();
+        let R_inv = pose_v.origin.inverse().matrix();
+
+        let R_inv = R_inv.fixed_view::<2, 2>(0, 0).to_owned();
+        // .clone()
+        // .view((0, 0), (2, 2))
+        // .to_owned();
+
+        let J_norm = (Matrix2::identity() - r * r.transpose()) / l0.norm();
+        {
+            self.jacobians
+                .borrow_mut()
+                .columns_mut(0, 2)
+                .copy_from(&(J_norm * R_inv));
+        }
+        {
+            self.jacobians
+                .borrow_mut()
+                .columns_mut(2, 2)
+                .copy_from(&(-J_norm));
+        }
+        {
+            let th = -pose_v.origin.params()[2];
+            let x = pose_v.origin.params()[0];
+            let y = pose_v.origin.params()[1];
+
+            self.jacobians
+                .borrow_mut()
+                .columns_mut(4, 1)
+                .copy_from(&(0.0 * J_norm * Vector2::new(-x * th.sin(), y * th.cos())));
+        }
         self.jacobians.borrow()
     }
 
@@ -123,8 +158,8 @@ impl Factor<f64> for VisionFactor {
 
 struct Landmark {
     id: Key,
-    // coord: E2,
-    // vision_factors_keys: Vec<Key>,
+    obs_cnt: usize, // coord: E2,
+                    // vision_factors_keys: Vec<Key>,
 }
 impl Landmark {
     fn new<C>(variables: &mut Variables<f64, C>, id: Key, coord: Vector2<f64>) -> Self
@@ -132,13 +167,14 @@ impl Landmark {
         C: VariablesContainer,
     {
         variables.add(id, E2::new(coord[0], coord[1]));
-        Landmark { id }
+        Landmark { id, obs_cnt: 0 }
     }
     fn add_observation<C>(&mut self, factors: &mut Factors<f64, C>, pose_id: Key, ray: Vector2<f64>)
     where
         C: FactorsContainer,
     {
         factors.add(VisionFactor::new(self.id, pose_id, ray));
+        self.obs_cnt += 1;
         // self.vision_factors_keys
         //     .push(VisionFactor::new(self.id, pose_id, ray));
     }
@@ -191,6 +227,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         let th = l.next().unwrap().parse::<f64>()?;
         let pose_id = Key(id + landmarks_init.len());
         variables.add(pose_id, SE2::new(x, y, th));
+        if id == 0 {
+            factors.add(PriorFactor::new(pose_id, x, y, th, None::<ScaleLoss>))
+        }
         let rays_cnt = l.next().unwrap().parse::<usize>()?;
         for _ in 0..rays_cnt {
             let id = l.next().unwrap().parse::<usize>()?;
@@ -209,10 +248,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
+    for l in &landmarks {
+        if l.1.obs_cnt < 1 {
+            eprintln!("not enough observations");
+        }
+    }
+
     const OUTPUT_GIF: &str = "2d-slam.gif";
 
     let mut params = GaussNewtonOptimizerParams::default();
-    params.base.verbosity_level = NonlinearOptimizerVerbosityLevel::Warning;
+    params.base.verbosity_level = NonlinearOptimizerVerbosityLevel::Iteration;
     let mut optimizer = NonlinearOptimizer::new(GaussNewtonOptimizer::with_params(params));
     let start = Instant::now();
     let opt_res = if args.do_viz {
@@ -250,26 +295,38 @@ fn main() -> Result<(), Box<dyn Error>> {
                     }
                     let scene_w = max_x - min_x;
                     let scene_h = max_y - min_y;
-                    let root = if scene_h > scene_w {
-                        let scale = img_h as f64 / scene_h;
-                        let sc_w = ((max_x - min_x) * scale) as i32;
-                        let marg = 5;
+                    // let root = if scene_h > scene_w {
+                    //     let scale = img_h as f64 / scene_h;
+                    //     let sc_w = ((max_x - min_x) * scale) as i32;
+                    //     let marg = 5;
+                    //     root_screen
+                    //         .margin(marg, marg, marg, marg)
+                    //         .apply_coord_spec(Cartesian2d::<RangedCoordf64, RangedCoordf64>::new(
+                    //             min_x..max_y,
+                    //             max_y..min_y,
+                    //             (img_w / 2 - sc_w / 2..sc_w * 2, 0..img_h),
+                    //         ))
+                    // } else {
+                    //     let scale = img_h as f64 / scene_h;
+                    //     let sc_h = ((max_y - min_y) * scale) as i32;
+                    //     let marg = 5;
+                    //     root_screen
+                    //         .margin(marg, marg, marg, marg)
+                    //         .apply_coord_spec(Cartesian2d::<RangedCoordf64, RangedCoordf64>::new(
+                    //             min_x..max_y,
+                    //             max_y..min_y,
+                    //             (0..img_w, img_h / 2 - sc_h / 2..sc_h * 2),
+                    //         ))
+                    // };
+                    let marg = 5;
+                    let root =
                         root_screen
                             .margin(marg, marg, marg, marg)
                             .apply_coord_spec(Cartesian2d::<RangedCoordf64, RangedCoordf64>::new(
                                 min_x..max_y,
                                 max_y..min_y,
-                                (img_w / 2 - sc_w / 2..sc_w * 2, 0..img_h),
-                            ))
-                    } else {
-                        root_screen.apply_coord_spec(
-                            Cartesian2d::<RangedCoordf64, RangedCoordf64>::new(
-                                min_x..max_y,
-                                min_y..max_y,
                                 (0..img_w, 0..img_h),
-                            ),
-                        )
-                    };
+                            ));
                     root.fill(&BLACK).unwrap();
                     // println!("iter {}", iteration);
                     for key in variables2.default_variable_ordering().keys() {
@@ -283,16 +340,16 @@ fn main() -> Result<(), Box<dyn Error>> {
                             ))
                             .unwrap();
                         }
-                        let v = variables2.at::<E2>(*key);
-                        if v.is_some() {
-                            let v = v.unwrap();
-                            root.draw(&Circle::new(
-                                (v.val[0], v.val[1]),
-                                2,
-                                Into::<ShapeStyle>::into(&RED).filled(),
-                            ))
-                            .unwrap();
-                        }
+                        // let v = variables2.at::<E2>(*key);
+                        // if v.is_some() {
+                        //     let v = v.unwrap();
+                        //     root.draw(&Circle::new(
+                        //         (v.val[0], v.val[1]),
+                        //         2,
+                        //         Into::<ShapeStyle>::into(&RED).filled(),
+                        //     ))
+                        //     .unwrap();
+                        // }
                     }
                     // for f_idx in 0..factors2.len() {
                     //     let keys = factors2.keys_at(f_idx).unwrap();

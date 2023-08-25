@@ -284,7 +284,15 @@ where
 
         let params = self.opt.base_params();
         if params.verbosity_level >= NonlinearOptimizerVerbosityLevel::Iteration {
-            // println!("initial error: {}", self.last_err_squared_norm);
+            println!("initial error: {}", self.last_err_squared_norm);
+        }
+        if callback.is_some() {
+            callback.as_ref().unwrap()(
+                self.iterations,
+                self.last_err_squared_norm,
+                factors,
+                variables,
+            );
         }
         let mut b: DVector<R> = DVector::zeros(A_rows);
         while self.iterations < params.max_iterations {
