@@ -1,15 +1,20 @@
 use core::cell::Ref;
 use core::cell::RefMut;
+use std::borrow::BorrowMut;
+use std::cell::RefCell;
 
 use crate::core::key::Key;
 use crate::core::loss_function::LossFunction;
 use crate::core::variables::Variables;
 use nalgebra::DMatrix;
+use nalgebra::DMatrixSliceMut;
 use nalgebra::DMatrixView;
+use nalgebra::DMatrixViewMut;
 use nalgebra::DVector;
 use nalgebra::DVectorView;
 use nalgebra::RealField;
 
+use super::key;
 use super::variables_container::VariablesContainer;
 pub type JacobiansReturn<'a, R> = Ref<'a, DMatrix<R>>;
 pub type ErrorReturn<'a, R> = Ref<'a, DVector<R>>;
@@ -44,6 +49,18 @@ where
     fn jacobians<C>(&self, variables: &Variables<R, C>) -> JacobiansReturn<R>
     where
         C: VariablesContainer<R>;
+    // fn jacobians<C>(&self, variables: &Variables<R, C>) -> JacobiansReturn<R>
+    // where
+    //     C: VariablesContainer<R>,
+    // {
+    //     todo!()
+    // let mut vars_cpy = variables.clone();
+    // for k in self.keys() {
+    //     // va
+    // }
+    // let jac: RefCell<DMatrix<R>> = RefCell::new(DMatrix::zeros(10, 10));
+    // jac.borrow()
+    // }
     ///  jacobian matrix
     fn jacobians_error<C>(&self, variables: &Variables<R, C>) -> JacobiansErrorReturn<R>
     where
@@ -66,6 +83,37 @@ where
     fn loss_function(&self) -> Option<&Self::L>;
 }
 
+pub fn compute_numerical_jacobians<V, F, R>(
+    variables: &Variables<R, V>,
+    factor: &F,
+    jacobians: &mut DMatrix<R>,
+) where
+    V: VariablesContainer<R>,
+    F: Factor<R>,
+    R: RealField,
+{
+    let mut factor_variables = Variables::new(variables.container.empty_clone());
+
+    let mut offsets = Vec::<usize>::with_capacity(factor.len());
+    offsets.resize(factor.len(), 0);
+    let mut offset: usize = 0;
+    for (idx, key) in factor.keys().iter().enumerate() {
+        variables
+            .container
+            .fill_variables(&mut factor_variables, *key);
+        offsets[idx] = offset;
+        offset += variables.dim_at(*key).unwrap();
+    }
+    for (idx, key) in factor.keys().iter().enumerate() {
+        variables.container.compute_jacobian_for(
+            factor,
+            &mut factor_variables,
+            *key,
+            offsets[idx],
+            jacobians.as_view_mut(),
+        );
+    }
+}
 #[cfg(test)]
 pub(crate) mod tests {
     use super::{ErrorReturn, Factor, Jacobians, JacobiansReturn};
@@ -118,8 +166,8 @@ pub(crate) mod tests {
         where
             C: VariablesContainer<R>,
         {
-            let v0: &VariableA<R> = variables.at(Key(0)).unwrap();
-            let v1: &VariableB<R> = variables.at(Key(1)).unwrap();
+            let v0: &VariableA<R> = variables.at(self.keys()[0]).unwrap();
+            let v1: &VariableB<R> = variables.at(self.keys()[1]).unwrap();
             {
                 *self.error.borrow_mut() = v0.val.clone() - v1.val.clone() + self.orig.clone();
             }
