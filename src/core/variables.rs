@@ -60,7 +60,13 @@ where
     }
 
     pub fn default_variable_ordering(&self) -> VariableOrdering {
-        VariableOrdering::new(&self.container.keys(Vec::new()))
+        // VariableOrdering::new(&self.container.keys(Vec::new()))
+
+        // need sort to repeated results
+        // due to undetermined hashmap ordering
+        let mut keys = self.container.keys(Vec::new());
+        keys.sort();
+        VariableOrdering::new(&keys)
     }
 
     pub fn at<V>(&self, key: Key) -> Option<&V>

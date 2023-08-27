@@ -96,7 +96,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     const OUTPUT_GIF: &str = "pose_graph.gif";
 
     let mut params = GaussNewtonOptimizerParams::default();
-    params.base.verbosity_level = NonlinearOptimizerVerbosityLevel::Warning;
+    params.base.verbosity_level = NonlinearOptimizerVerbosityLevel::Iteration;
     let mut optimizer = NonlinearOptimizer::new(GaussNewtonOptimizer::with_params(params));
     let start = Instant::now();
     let opt_res = if args.do_viz {
