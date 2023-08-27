@@ -78,24 +78,20 @@ where
         C: VariablesContainer<R>,
     {
         {
-            // let v0: &SE2<R> = variables.at(self.keys()[0]).unwrap();
-            // let v1: &SE2<R> = variables.at(self.keys()[1]).unwrap();
-            // let hinv = -v0.origin.adj();
-            // let hcmp1 = v1.origin.inverse().adj();
-            // let j = (hcmp1 * hinv).cast::<R>();
-            // self.jacobians.borrow_mut().columns_mut(0, 3).copy_from(&j);
-            // {
-            //     let v0: &SE2<R> = variables.at(self.keys()[0]).unwrap();
-            //     let v1: &SE2<R> = variables.at(self.keys()[1]).unwrap();
-            //     let hinv = -v0.origin.adj();
-            //     let hcmp1 = v1.origin.inverse().adj();
-            //     let j = (hcmp1 * hinv).cast::<R>();
-            //     self.jacobians.borrow_mut().columns_mut(0, 3).copy_from(&j);
-            // }
+            let v0: &SE2<R> = variables.at(self.keys()[0]).unwrap();
+            let v1: &SE2<R> = variables.at(self.keys()[1]).unwrap();
+            let hinv = -v0.origin.adj();
+            let hcmp1 = v1.origin.inverse().adj();
+            let j = (hcmp1 * hinv).cast::<R>();
+            self.jacobians.borrow_mut().columns_mut(0, 3).copy_from(&j);
             {
-                self.jacobians.borrow_mut().fill(R::zero());
+                let v0: &SE2<R> = variables.at(self.keys()[0]).unwrap();
+                let v1: &SE2<R> = variables.at(self.keys()[1]).unwrap();
+                let hinv = -v0.origin.adj();
+                let hcmp1 = v1.origin.inverse().adj();
+                let j = (hcmp1 * hinv).cast::<R>();
+                self.jacobians.borrow_mut().columns_mut(0, 3).copy_from(&j);
             }
-            compute_numerical_jacobians(variables, self, &mut self.jacobians.borrow_mut());
         }
         self.jacobians.borrow()
     }

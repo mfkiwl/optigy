@@ -6,7 +6,7 @@ use std::{env::current_dir, fs::read_to_string};
 
 use clap::Parser;
 use nalgebra::{DMatrix, DVector, DVectorView, Matrix2, Matrix3, RealField, Vector2};
-use optigy::core::factor::ErrorReturn;
+use optigy::core::factor::{compute_numerical_jacobians, ErrorReturn};
 use optigy::core::loss_function::ScaleLoss;
 
 use optigy::nonlinear::gauss_newton_optimizer::GaussNewtonOptimizerParams;
@@ -82,7 +82,7 @@ impl VisionFactor {
 impl Factor<f64> for VisionFactor {
     type L = GaussianLoss;
 
-    fn error<C>(&self, variables: &Variables<f64, C>) -> ErrorReturn<f64>
+    fn error<C>(&self, variables: &Variables<C>) -> ErrorReturn<f64>
     where
         C: VariablesContainer<f64>,
     {
@@ -101,7 +101,7 @@ impl Factor<f64> for VisionFactor {
         self.error.borrow()
     }
 
-    fn jacobians<C>(&self, variables: &Variables<f64, C>) -> JacobiansReturn<f64>
+    fn jacobians<C>(&self, variables: &Variables<C>) -> JacobiansReturn<f64>
     where
         C: VariablesContainer<f64>,
     {
@@ -140,6 +140,10 @@ impl Factor<f64> for VisionFactor {
                 .columns_mut(4, 1)
                 .copy_from(&(0.0 * J_norm * Vector2::new(-x * th.sin(), y * th.cos())));
         }
+        // {
+        //     self.jacobians.borrow_mut().fill(0.0);
+        // }
+        // compute_numerical_jacobians(variables, self, &mut self.jacobians.borrow_mut());
         self.jacobians.borrow()
     }
 
@@ -162,14 +166,14 @@ struct Landmark {
                     // vision_factors_keys: Vec<Key>,
 }
 impl Landmark {
-    fn new<C>(variables: &mut Variables<f64, C>, id: Key, coord: Vector2<f64>) -> Self
+    fn new<C>(variables: &mut Variables<C>, id: Key, coord: Vector2<f64>) -> Self
     where
         C: VariablesContainer,
     {
         variables.add(id, E2::new(coord[0], coord[1]));
         Landmark { id, obs_cnt: 0 }
     }
-    fn add_observation<C>(&mut self, factors: &mut Factors<f64, C>, pose_id: Key, ray: Vector2<f64>)
+    fn add_observation<C>(&mut self, factors: &mut Factors<C>, pose_id: Key, ray: Vector2<f64>)
     where
         C: FactorsContainer,
     {
