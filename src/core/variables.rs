@@ -7,19 +7,19 @@ use nalgebra::{DVector, DVectorView, RealField};
 use std::marker::PhantomData;
 
 #[derive(Clone)]
-pub struct Variables<R, C>
+pub struct Variables<C, R = f64>
 where
-    R: RealField,
     C: VariablesContainer<R>,
+    R: RealField,
 {
     pub(crate) container: C,
     phantom: PhantomData<R>,
 }
 
-impl<R, C> Variables<R, C>
+impl<C, R> Variables<C, R>
 where
-    R: RealField,
     C: VariablesContainer<R>,
+    R: RealField,
 {
     pub fn new(container: C) -> Self {
         Variables::<R, C> {
