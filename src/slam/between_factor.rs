@@ -58,7 +58,7 @@ where
     LF: LossFunction<R>,
 {
     type L = LF;
-    fn error<C>(&self, variables: &Variables<R, C>) -> ErrorReturn<R>
+    fn error<C>(&self, variables: &Variables<C, R>) -> ErrorReturn<R>
     where
         C: VariablesContainer<R>,
     {
@@ -73,7 +73,7 @@ where
         self.error.borrow()
     }
 
-    fn jacobians<C>(&self, variables: &Variables<R, C>) -> JacobiansReturn<R>
+    fn jacobians<C>(&self, variables: &Variables<C, R>) -> JacobiansReturn<R>
     where
         C: VariablesContainer<R>,
     {

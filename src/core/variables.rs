@@ -22,7 +22,7 @@ where
     R: RealField,
 {
     pub fn new(container: C) -> Self {
-        Variables::<R, C> {
+        Variables::<C, R> {
             container,
             phantom: PhantomData,
         }

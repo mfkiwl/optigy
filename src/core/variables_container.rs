@@ -9,7 +9,7 @@ use std::mem;
 
 use super::factor::Factor;
 
-pub trait VariablesKey<R>
+pub trait VariablesKey<R = f64>
 where
     R: RealField,
 {
@@ -53,7 +53,7 @@ where
     fn retract(&mut self, delta: DVectorView<R>, key: Key, offset: usize) -> usize;
     fn local<C>(
         &self,
-        variables: &Variables<R, C>,
+        variables: &Variables<C, R>,
         delta: DVectorViewMut<R>,
         key: Key,
         offset: usize,
@@ -64,7 +64,7 @@ where
     fn compute_jacobian_for<F, C>(
         &self,
         factor: &F,
-        variables: &mut Variables<R, C>,
+        variables: &mut Variables<C, R>,
         key: Key,
         offset: usize,
         jacobians: DMatrixViewMut<R>,
@@ -72,7 +72,7 @@ where
         F: Factor<R>,
         C: VariablesContainer<R>;
     fn empty_clone(&self) -> Self;
-    fn fill_variables<C>(&self, variables: &mut Variables<R, C>, key: Key)
+    fn fill_variables<C>(&self, variables: &mut Variables<C, R>, key: Key)
     where
         C: VariablesContainer<R>;
 }
@@ -107,7 +107,7 @@ where
 
     fn local<C>(
         &self,
-        _variables: &Variables<R, C>,
+        _variables: &Variables<C, R>,
         _delta: DVectorViewMut<R>,
         _key: Key,
         offset: usize,
@@ -124,7 +124,7 @@ where
     fn compute_jacobian_for<F, C>(
         &self,
         _factor: &F,
-        _variables: &mut Variables<R, C>,
+        _variables: &mut Variables<C, R>,
         key: Key,
         _offset: usize,
         _jacobians: DMatrixViewMut<R>,
@@ -158,7 +158,7 @@ where
         }
     }
 
-    fn fill_variables<C>(&self, _variables: &mut Variables<R, C>, key: Key)
+    fn fill_variables<C>(&self, _variables: &mut Variables<C, R>, key: Key)
     where
         C: VariablesContainer<R>,
     {
@@ -255,7 +255,7 @@ where
 
     fn local<C>(
         &self,
-        variables: &Variables<R, C>,
+        variables: &Variables<C, R>,
         mut delta: DVectorViewMut<R>,
         key: Key,
         offset: usize,
@@ -286,7 +286,7 @@ where
     fn compute_jacobian_for<F, C>(
         &self,
         factor: &F,
-        variables: &mut Variables<R, C>,
+        variables: &mut Variables<C, R>,
         key: Key,
         offset: usize,
         mut jacobians: DMatrixViewMut<R>,
@@ -339,7 +339,7 @@ where
         Self::default()
     }
 
-    fn fill_variables<C>(&self, variables: &mut Variables<R, C>, key: Key)
+    fn fill_variables<C>(&self, variables: &mut Variables<C, R>, key: Key)
     where
         C: VariablesContainer<R>,
     {

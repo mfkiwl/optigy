@@ -146,8 +146,8 @@ where
     /// - if the iteration is successful return SUCCESS
     fn iterate<VC, FC>(
         &self,
-        factors: &Factors<R, FC>,
-        variables: &mut Variables<R, VC>,
+        factors: &Factors<FC, R>,
+        variables: &mut Variables<VC, R>,
         variable_ordering: &VariableOrdering,
         lin_sys: LinSysWrapper<'_, R>,
     ) -> Result<IterationData, NonlinearOptimizationError>
@@ -224,15 +224,15 @@ where
     #[allow(non_snake_case)]
     pub fn optimize_with_callback<VC, FC, BC>(
         &mut self,
-        factors: &Factors<R, FC>,
-        variables: &mut Variables<R, VC>,
+        factors: &Factors<FC, R>,
+        variables: &mut Variables<VC, R>,
         callback: Option<BC>,
     ) -> Result<(), NonlinearOptimizationError>
     where
         R: RealField,
         FC: FactorsContainer<R>,
         VC: VariablesContainer<R>,
-        BC: Fn(usize, f64, &Factors<R, FC>, &Variables<R, VC>),
+        BC: Fn(usize, f64, &Factors<FC, R>, &Variables<VC, R>),
     {
         let tri = HessianTriangle::Upper;
         // linearization sparsity pattern
@@ -386,8 +386,8 @@ where
     }
     pub fn optimize<VC, FC>(
         &mut self,
-        factors: &Factors<R, FC>,
-        variables: &mut Variables<R, VC>,
+        factors: &Factors<FC, R>,
+        variables: &mut Variables<VC, R>,
     ) -> Result<(), NonlinearOptimizationError>
     where
         R: RealField,
@@ -397,7 +397,7 @@ where
         self.optimize_with_callback(
             factors,
             variables,
-            None::<fn(usize, f64, &Factors<R, FC>, &Variables<R, VC>) -> ()>,
+            None::<fn(usize, f64, &Factors<FC, R>, &Variables<VC, R>) -> ()>,
         )
     }
     /// default stop condition using error threshold

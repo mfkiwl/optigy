@@ -14,8 +14,8 @@ use nalgebra::DVector;
 use nalgebra::DVectorView;
 use nalgebra::RealField;
 
-use super::loss_function::GaussianLoss;
 use super::key;
+use super::loss_function::GaussianLoss;
 use super::variables_container::VariablesContainer;
 pub type JacobiansReturn<'a, R> = Ref<'a, DMatrix<R>>;
 pub type ErrorReturn<'a, R> = Ref<'a, DVector<R>>;
@@ -35,19 +35,19 @@ where
         JacobiansErrorReturn { jacobians, error }
     }
 }
-pub trait Factor<R>
+pub trait Factor<R = f64>
 where
     R: RealField,
 {
     type L: LossFunction<R>;
     /// error function
     /// error vector dimension should meet dim()
-    fn error<C>(&self, variables: &Variables<R, C>) -> ErrorReturn<R>
+    fn error<C>(&self, variables: &Variables<C, R>) -> ErrorReturn<R>
     where
         C: VariablesContainer<R>;
     /// jacobians function
     /// jacobians vector sequence meets key list, size error.dim x var.dim
-    fn jacobians<C>(&self, variables: &Variables<R, C>) -> JacobiansReturn<R>
+    fn jacobians<C>(&self, variables: &Variables<C, R>) -> JacobiansReturn<R>
     where
         C: VariablesContainer<R>;
     // fn jacobians<C>(&self, variables: &Variables<R, C>) -> JacobiansReturn<R>
@@ -63,7 +63,7 @@ where
     // jac.borrow()
     // }
     ///  jacobian matrix
-    fn jacobians_error<C>(&self, variables: &Variables<R, C>) -> JacobiansErrorReturn<R>
+    fn jacobians_error<C>(&self, variables: &Variables<C, R>) -> JacobiansErrorReturn<R>
     where
         C: VariablesContainer<R>,
     {
@@ -85,7 +85,7 @@ where
 }
 
 pub fn compute_numerical_jacobians<V, F, R>(
-    variables: &Variables<R, V>,
+    variables: &Variables<V, R>,
     factor: &F,
     jacobians: &mut DMatrix<R>,
 ) where
@@ -163,7 +163,7 @@ pub(crate) mod tests {
         R: RealField,
     {
         type L = GaussianLoss<R>;
-        fn error<C>(&self, variables: &Variables<R, C>) -> ErrorReturn<R>
+        fn error<C>(&self, variables: &Variables<C, R>) -> ErrorReturn<R>
         where
             C: VariablesContainer<R>,
         {
@@ -175,7 +175,7 @@ pub(crate) mod tests {
             self.error.borrow()
         }
 
-        fn jacobians<C>(&self, variables: &Variables<R, C>) -> JacobiansReturn<R>
+        fn jacobians<C>(&self, variables: &Variables<C, R>) -> JacobiansReturn<R>
         where
             C: VariablesContainer<R>,
         {
@@ -235,7 +235,7 @@ pub(crate) mod tests {
         R: RealField,
     {
         type L = GaussianLoss<R>;
-        fn error<C>(&self, variables: &Variables<R, C>) -> ErrorReturn<R>
+        fn error<C>(&self, variables: &Variables<C, R>) -> ErrorReturn<R>
         where
             C: VariablesContainer<R>,
         {
@@ -246,7 +246,7 @@ pub(crate) mod tests {
             }
             self.error.borrow()
         }
-        fn jacobians<C>(&self, variables: &Variables<R, C>) -> JacobiansReturn<R>
+        fn jacobians<C>(&self, variables: &Variables<C, R>) -> JacobiansReturn<R>
         where
             C: VariablesContainer<R>,
         {
@@ -304,7 +304,7 @@ pub(crate) mod tests {
         R: RealField,
     {
         type L = GaussianLoss<R>;
-        fn error<C>(&self, variables: &Variables<R, C>) -> ErrorReturn<R>
+        fn error<C>(&self, variables: &Variables<C, R>) -> ErrorReturn<R>
         where
             C: VariablesContainer<R>,
         {
@@ -316,7 +316,7 @@ pub(crate) mod tests {
             self.error.borrow()
         }
 
-        fn jacobians<C>(&self, _variables: &Variables<R, C>) -> JacobiansReturn<R>
+        fn jacobians<C>(&self, _variables: &Variables<C, R>) -> JacobiansReturn<R>
         where
             C: VariablesContainer<R>,
         {

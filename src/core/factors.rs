@@ -11,21 +11,21 @@ use super::{
     variables_container::VariablesContainer,
 };
 #[derive(Clone)]
-pub struct Factors<R, C>
+pub struct Factors<C, R = f64>
 where
-    R: RealField + Float,
     C: FactorsContainer<R>,
+    R: RealField + Float,
 {
     container: C,
     __marker: PhantomData<R>,
 }
-impl<R, C> Factors<R, C>
+impl<C, R> Factors<C, R>
 where
-    R: RealField + Float,
     C: FactorsContainer<R>,
+    R: RealField + Float,
 {
     pub fn new(container: C) -> Self {
-        Factors::<R, C> {
+        Factors::<C, R> {
             container,
             __marker: PhantomData,
         }
@@ -47,7 +47,7 @@ where
     }
     pub fn weight_jacobians_error_in_place_at<VC>(
         &self,
-        variables: &Variables<R, VC>,
+        variables: &Variables<VC, R>,
         error: DVectorViewMut<R>,
         jacobians: DMatrixViewMut<R>,
         index: usize,
@@ -59,7 +59,7 @@ where
     }
     pub fn weight_error_in_place_at<VC>(
         &self,
-        variables: &Variables<R, VC>,
+        variables: &Variables<VC, R>,
         error: DVectorViewMut<R>,
         index: usize,
     ) where
@@ -70,7 +70,7 @@ where
     }
     pub fn jacobians_error_at<VC>(
         &self,
-        variables: &Variables<R, VC>,
+        variables: &Variables<VC, R>,
         index: usize,
     ) -> Option<JacobiansErrorReturn<'_, R>>
     where
@@ -80,7 +80,7 @@ where
     }
     pub fn weighted_jacobians_error_at<VC>(
         &self,
-        variables: &Variables<R, VC>,
+        variables: &Variables<VC, R>,
         index: usize,
     ) -> Option<JacobiansErrorReturn<'_, R>>
     where
@@ -88,19 +88,19 @@ where
     {
         self.container.jacobians_error_at(variables, index, 0)
     }
-    pub fn error_at<VC>(&self, variables: &Variables<R, VC>, index: usize) -> Option<ErrorReturn<R>>
+    pub fn error_at<VC>(&self, variables: &Variables<VC, R>, index: usize) -> Option<ErrorReturn<R>>
     where
         VC: VariablesContainer<R>,
     {
         self.container.error_at(variables, index, 0)
     }
-    pub fn error<VC>(&self, _variables: &Variables<R, VC>) -> DVector<R>
+    pub fn error<VC>(&self, _variables: &Variables<VC, R>) -> DVector<R>
     where
         VC: VariablesContainer<R>,
     {
         todo!()
     }
-    pub fn error_squared_norm<VC>(&self, variables: &Variables<R, VC>) -> f64
+    pub fn error_squared_norm<VC>(&self, variables: &Variables<VC, R>) -> f64
     where
         VC: VariablesContainer<R>,
     {

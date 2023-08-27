@@ -55,8 +55,8 @@ where
     #[allow(non_snake_case)]
     fn iterate<VC, FC>(
         &self,
-        _factors: &Factors<R, FC>,
-        variables: &mut Variables<R, VC>,
+        _factors: &Factors<FC, R>,
+        variables: &mut Variables<VC, R>,
         variable_ordering: &VariableOrdering,
         lin_sys: LinSysWrapper<'_, R>,
     ) -> Result<IterationData, NonlinearOptimizationError>

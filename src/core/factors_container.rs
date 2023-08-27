@@ -10,7 +10,7 @@ use super::loss_function::LossFunction;
 use super::variables::Variables;
 use super::variables_container::VariablesContainer;
 
-pub trait FactorsKey<R>
+pub trait FactorsKey<R = f64>
 where
     R: RealField,
 {
@@ -55,7 +55,7 @@ where
     /// factor jacobians error by index
     fn jacobians_error_at<C>(
         &self,
-        variables: &Variables<R, C>,
+        variables: &Variables<C, R>,
         index: usize,
         init: usize,
     ) -> Option<JacobiansErrorReturn<'_, R>>
@@ -64,7 +64,7 @@ where
     /// weight factor error and jacobians in-place
     fn weight_jacobians_error_in_place_at<C>(
         &self,
-        variables: &Variables<R, C>,
+        variables: &Variables<C, R>,
         error: DVectorViewMut<R>,
         jacobians: DMatrixViewMut<R>,
         index: usize,
@@ -74,7 +74,7 @@ where
     /// weight factor error in-place
     fn weight_error_in_place_at<C>(
         &self,
-        variables: &Variables<R, C>,
+        variables: &Variables<C, R>,
         error: DVectorViewMut<R>,
         index: usize,
         init: usize,
@@ -83,7 +83,7 @@ where
     /// factor weighted error by index
     fn error_at<C>(
         &self,
-        variables: &Variables<R, C>,
+        variables: &Variables<C, R>,
         index: usize,
         init: usize,
     ) -> Option<ErrorReturn<R>>
@@ -121,7 +121,7 @@ where
 
     fn jacobians_error_at<C>(
         &self,
-        _variables: &Variables<R, C>,
+        _variables: &Variables<C, R>,
         _index: usize,
         _init: usize,
     ) -> Option<JacobiansErrorReturn<'_, R>>
@@ -132,7 +132,7 @@ where
     }
     fn weight_jacobians_error_in_place_at<C>(
         &self,
-        _variables: &Variables<R, C>,
+        _variables: &Variables<C, R>,
         _error: DVectorViewMut<R>,
         _jacobians: DMatrixViewMut<R>,
         _index: usize,
@@ -143,7 +143,7 @@ where
     }
     fn weight_error_in_place_at<C>(
         &self,
-        _variables: &Variables<R, C>,
+        _variables: &Variables<C, R>,
         _error: DVectorViewMut<R>,
         _index: usize,
         _init: usize,
@@ -153,7 +153,7 @@ where
     }
     fn error_at<C>(
         &self,
-        _variables: &Variables<R, C>,
+        _variables: &Variables<C, R>,
         _index: usize,
         _init: usize,
     ) -> Option<ErrorReturn<R>>
@@ -229,7 +229,7 @@ where
     }
     fn jacobians_error_at<C>(
         &self,
-        variables: &Variables<R, C>,
+        variables: &Variables<C, R>,
         index: usize,
         init: usize,
     ) -> Option<JacobiansErrorReturn<'_, R>>
@@ -245,7 +245,7 @@ where
     }
     fn weight_jacobians_error_in_place_at<C>(
         &self,
-        variables: &Variables<R, C>,
+        variables: &Variables<C, R>,
         error: DVectorViewMut<R>,
         jacobians: DMatrixViewMut<R>,
         index: usize,
@@ -271,7 +271,7 @@ where
     }
     fn weight_error_in_place_at<C>(
         &self,
-        variables: &Variables<R, C>,
+        variables: &Variables<C, R>,
         error: DVectorViewMut<R>,
         index: usize,
         init: usize,
@@ -291,7 +291,7 @@ where
     }
     fn error_at<C>(
         &self,
-        variables: &Variables<R, C>,
+        variables: &Variables<C, R>,
         index: usize,
         init: usize,
     ) -> Option<ErrorReturn<R>>

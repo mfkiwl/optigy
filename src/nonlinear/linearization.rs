@@ -24,8 +24,8 @@ where
 }
 #[allow(non_snake_case)]
 pub fn linearzation_jacobian<R, VC, FC>(
-    factors: &Factors<R, FC>,
-    variables: &Variables<R, VC>,
+    factors: &Factors<FC, R>,
+    variables: &Variables<VC, R>,
     sparsity: &JacobianSparsityPattern,
     A: &mut DMatrix<R>,
     b: &mut DVector<R>,
@@ -75,8 +75,8 @@ pub fn linearzation_jacobian<R, VC, FC>(
 #[inline(always)]
 fn linearzation_hessian_single_factor<R, VC, FC>(
     f_index: usize,
-    factors: &Factors<R, FC>,
-    variables: &Variables<R, VC>,
+    factors: &Factors<FC, R>,
+    variables: &Variables<VC, R>,
     sparsity: &HessianSparsityPattern,
     AtA_values: &mut [R],
     Atb: &mut DVector<R>,
@@ -252,8 +252,8 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
 
 #[allow(non_snake_case)]
 pub fn linearization_hessian<R, VC, FC>(
-    factors: &Factors<R, FC>,
-    variables: &Variables<R, VC>,
+    factors: &Factors<FC, R>,
+    variables: &Variables<VC, R>,
     sparsity: &HessianSparsityPattern,
     AtA_values: &mut [R],
     Atb: &mut DVector<R>,
@@ -269,8 +269,8 @@ pub fn linearization_hessian<R, VC, FC>(
 
 #[allow(non_snake_case)]
 pub fn linearzation_full_hessian<R, VC, FC>(
-    _factors: &Factors<R, FC>,
-    _variables: &Variables<R, VC>,
+    _factors: &Factors<FC, R>,
+    _variables: &Variables<VC, R>,
     _sparsity: &HessianSparsityPattern,
     _A: &mut DMatrix<R>,
     _b: &mut DVector<R>,

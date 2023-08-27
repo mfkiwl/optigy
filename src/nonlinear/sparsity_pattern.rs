@@ -74,8 +74,8 @@ pub struct HessianSparsityPattern {
 /// construct Ax = b sparsity pattern cache from a factor graph and a set of
 /// variables
 pub fn construct_jacobian_sparsity<R, VC, FC>(
-    factors: &Factors<R, FC>,
-    variables: &Variables<R, VC>,
+    factors: &Factors<FC, R>,
+    variables: &Variables<VC, R>,
     variable_ordering: &VariableOrdering,
 ) -> JacobianSparsityPattern
 where
@@ -142,8 +142,8 @@ impl Default for HessianTriangle {
 /// variables
 #[allow(non_snake_case)]
 pub fn construct_hessian_sparsity<R, VC, FC>(
-    factors: &Factors<R, FC>,
-    variables: &Variables<R, VC>,
+    factors: &Factors<FC, R>,
+    variables: &Variables<VC, R>,
     variable_ordering: &VariableOrdering,
     tri: HessianTriangle,
 ) -> HessianSparsityPattern
