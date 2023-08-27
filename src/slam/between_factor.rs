@@ -1,4 +1,5 @@
 use std::{
+    borrow::BorrowMut,
     cell::{RefCell, RefMut},
     ops::Deref,
 };
@@ -8,7 +9,7 @@ use num::Float;
 use sophus_rs::lie::rotation2::{Isometry2, Rotation2};
 
 use crate::core::{
-    factor::{ErrorReturn, Factor, Jacobians, JacobiansReturn},
+    factor::{compute_numerical_jacobians, ErrorReturn, Factor, Jacobians, JacobiansReturn},
     key::Key,
     loss_function::{GaussianLoss, LossFunction},
     variables::Variables,
@@ -77,12 +78,24 @@ where
         C: VariablesContainer<R>,
     {
         {
-            let v0: &SE2<R> = variables.at(self.keys()[0]).unwrap();
-            let v1: &SE2<R> = variables.at(self.keys()[1]).unwrap();
-            let hinv = -v0.origin.adj();
-            let hcmp1 = v1.origin.inverse().adj();
-            let j = (hcmp1 * hinv).cast::<R>();
-            self.jacobians.borrow_mut().columns_mut(0, 3).copy_from(&j);
+            // let v0: &SE2<R> = variables.at(self.keys()[0]).unwrap();
+            // let v1: &SE2<R> = variables.at(self.keys()[1]).unwrap();
+            // let hinv = -v0.origin.adj();
+            // let hcmp1 = v1.origin.inverse().adj();
+            // let j = (hcmp1 * hinv).cast::<R>();
+            // self.jacobians.borrow_mut().columns_mut(0, 3).copy_from(&j);
+            // {
+            //     let v0: &SE2<R> = variables.at(self.keys()[0]).unwrap();
+            //     let v1: &SE2<R> = variables.at(self.keys()[1]).unwrap();
+            //     let hinv = -v0.origin.adj();
+            //     let hcmp1 = v1.origin.inverse().adj();
+            //     let j = (hcmp1 * hinv).cast::<R>();
+            //     self.jacobians.borrow_mut().columns_mut(0, 3).copy_from(&j);
+            // }
+            {
+                self.jacobians.borrow_mut().fill(R::zero());
+            }
+            compute_numerical_jacobians(variables, self, &mut self.jacobians.borrow_mut());
         }
         self.jacobians.borrow()
     }
