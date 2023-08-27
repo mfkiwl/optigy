@@ -66,11 +66,15 @@ where
         factor: &F,
         variables: &mut Variables<R, C>,
         key: Key,
-        jacobian: DMatrixViewMut<R>,
+        offset: usize,
+        jacobians: DMatrixViewMut<R>,
     ) where
         F: Factor<R>,
         C: VariablesContainer<R>;
     fn empty_clone(&self) -> Self;
+    fn fill_variables<C>(&self, variables: &mut Variables<R, C>, key: Key)
+    where
+        C: VariablesContainer<R>;
 }
 
 /// The base case for recursive variadics: no fields.
@@ -119,14 +123,19 @@ where
 
     fn compute_jacobian_for<F, C>(
         &self,
-        factor: &F,
-        variables: &mut Variables<R, C>,
+        _factor: &F,
+        _variables: &mut Variables<R, C>,
         key: Key,
-        jacobian: DMatrixViewMut<R>,
+        _offset: usize,
+        _jacobians: DMatrixViewMut<R>,
     ) where
         F: Factor<R>,
         C: VariablesContainer<R>,
     {
+        panic!(
+            "should not be here, probably key {:?} not found in variables container",
+            key
+        );
     }
     fn empty_clone(&self) -> Self {
         ()
@@ -147,6 +156,16 @@ where
                 parent: self,
             },
         }
+    }
+
+    fn fill_variables<C>(&self, _variables: &mut Variables<R, C>, key: Key)
+    where
+        C: VariablesContainer<R>,
+    {
+        panic!(
+            "should not be here, probably key {:?} not found in variables container",
+            key
+        );
     }
 }
 
@@ -269,19 +288,19 @@ where
         factor: &F,
         variables: &mut Variables<R, C>,
         key: Key,
-        mut jacobian: DMatrixViewMut<R>,
+        offset: usize,
+        mut jacobians: DMatrixViewMut<R>,
     ) where
         F: Factor<R>,
         C: VariablesContainer<R>,
     {
         let var = self.data.get(&key);
-        // let mut var_map = variables.container.get_mut::<T::Value>().unwrap();
         match var {
             Some(var) => {
-                // let factor_variables = Variables::new(variables.container.empty_clone());
-                let delta = R::from_f64(1e-3).unwrap();
+                //central difference
+                let delta = R::from_f64(1e-9).unwrap();
+                let mut dx = DVector::<R>::zeros(var.dim());
                 for i in 0..var.dim() {
-                    let mut dx = DVector::<R>::zeros(var.dim());
                     dx[i] = delta.clone();
                     let var_ret = var.retracted(dx.as_view());
                     variables
@@ -298,20 +317,39 @@ where
                         .unwrap()
                         .insert(key, var_ret);
                     let dy1 = factor.error(variables).to_owned();
-                    jacobian
-                        .column_mut(i)
+                    jacobians
+                        .column_mut(i + offset)
                         .copy_from(&((dy0 - dy1) / (R::from_f64(2.0).unwrap() * delta.clone())));
+                    dx[i] = R::zero();
                 }
-                jacobian.fill(R::one());
+                //put original variable back
+                variables
+                    .container
+                    .get_mut::<T::Value>()
+                    .unwrap()
+                    .insert(key, var.clone());
             }
             None => self
                 .parent
-                .compute_jacobian_for(factor, variables, key, jacobian),
+                .compute_jacobian_for(factor, variables, key, offset, jacobians),
         }
     }
 
     fn empty_clone(&self) -> Self {
         Self::default()
+    }
+
+    fn fill_variables<C>(&self, variables: &mut Variables<R, C>, key: Key)
+    where
+        C: VariablesContainer<R>,
+    {
+        let var = self.data.get(&key);
+        match var {
+            Some(var) => {
+                variables.add(key, var.clone());
+            }
+            None => self.parent.fill_variables(variables, key),
+        }
     }
 }
 
@@ -375,7 +413,8 @@ where
 }
 #[cfg(test)]
 mod tests {
-    use nalgebra::{DMatrix, DVector};
+    use matrixcompare::assert_matrix_eq;
+    use nalgebra::{dvector, DMatrix, DVector};
 
     use crate::core::{
         factor::tests::FactorA,
@@ -493,13 +532,21 @@ mod tests {
         let mut jacobian = DMatrix::<Real>::zeros(3, 6);
         let variables0 = Variables::new(container);
         let mut variables = Variables::new(variables0.container.empty_clone());
-        let v: &VariableA<Real> = variables0.at(Key(3)).unwrap();
-        variables.add(Key(3), VariableA::new(4.0));
-        variables.add(Key(4), VariableB::new(4.0));
+        // let v: &VariableA<Real> = variables0.at(Key(3)).unwrap();
+        variables0.container.fill_variables(&mut variables, Key(3));
+        variables0.container.fill_variables(&mut variables, Key(4));
         variables0.container.compute_jacobian_for(
             &f,
             &mut variables,
             Key(3),
+            0,
+            jacobian.as_view_mut(),
+        );
+        variables0.container.compute_jacobian_for(
+            &f,
+            &mut variables,
+            Key(4),
+            3,
             jacobian.as_view_mut(),
         );
     }
@@ -519,5 +566,23 @@ mod tests {
         a.unwrap().insert(Key(3), VariableA::new(4.0));
         let a = container2.get_mut::<VariableB<Real>>();
         a.unwrap().insert(Key(4), VariableB::new(4.0));
+    }
+    #[test]
+    fn fill_variables() {
+        type Real = f64;
+        let mut container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
+        let a = container.get_mut::<VariableA<Real>>();
+        a.unwrap().insert(Key(3), VariableA::new(4.0));
+        let a = container.get_mut::<VariableB<Real>>();
+        a.unwrap().insert(Key(4), VariableB::new(4.0));
+
+        let container2 = container.empty_clone();
+        let mut variables = Variables::new(container2);
+        container.fill_variables(&mut variables, Key(3));
+        container.fill_variables(&mut variables, Key(4));
+        let v0: &VariableA<Real> = variables.at(Key(3)).unwrap();
+        let v1: &VariableB<Real> = variables.at(Key(4)).unwrap();
+        assert_matrix_eq!(v0.val, dvector![4.0, 4.0, 4.0]);
+        assert_matrix_eq!(v1.val, dvector![4.0, 4.0, 4.0]);
     }
 }
