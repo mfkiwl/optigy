@@ -22,7 +22,7 @@ use optigy::slam::se3::SE2;
 use plotters::coord::types::RangedCoordf64;
 use plotters::prelude::*;
 use plotters::style::full_palette::BLACK;
-use sophus_rs::lie::rotation2::{Isometry2, Rotation2};
+use sophus_rs::lie::rotation2::{Isometry2, Rotation2, Rotation2Impl};
 
 #[derive(Debug, Clone)]
 pub struct E2<R = f64>
@@ -91,22 +91,14 @@ impl Factor<f64> for VisionFactor {
     {
         let landmark_v: &E2 = variables.at(self.keys[0]).unwrap();
         let pose_v: &SE2 = variables.at(self.keys[1]).unwrap();
-        let R_inv = pose_v.origin.inverse().matrix();
-        let R_inv = R_inv.fixed_view::<2, 2>(0, 0).to_owned();
+        // let R_inv = pose_v.origin.inverse().matrix();
+        // let R_inv = R_inv.fixed_view::<2, 2>(0, 0).to_owned();
         let th = pose_v.origin.log()[2];
         let R_inv = matrix![th.cos(), -th.sin(); th.sin(), th.cos() ].transpose();
         let p = pose_v.origin.params().fixed_rows::<2>(0);
         let l = landmark_v.val;
         // let l0 = pose_v.origin.inverse().transform(&landmark_v.val);
         let l0 = R_inv * (l - p);
-        // let l0 = R_inv * l - R_inv * p;
-        // let l0 = Rotation2::exp(&SMatrix::<f64, 1, 1>::from_column_slice(
-        //     vec![pose_v.origin.params()[2]].as_slice(),
-        // ))
-        // .inverse()
-        // .matrix()
-        //     * (landmark_v.val)
-        //     - pose_v.origin.params().fixed_rows::<2>(0);
 
         let r = l0.normalize();
 
@@ -127,9 +119,8 @@ impl Factor<f64> for VisionFactor {
         let pose_v: &SE2 = variables.at(self.keys[1]).unwrap();
         let R_inv = pose_v.origin.inverse().matrix();
         let R_inv = R_inv.fixed_view::<2, 2>(0, 0).to_owned();
-        let p = pose_v.origin.params().fixed_rows::<2>(0);
-        // let l0 = pose_v.origin.inverse().transform(&landmark_v.val);
         let l = landmark_v.val;
+        let p = pose_v.origin.params().fixed_rows::<2>(0);
         let l0 = R_inv * (l - p);
         // let l0 = R_inv * l - R_inv * p;
 
@@ -139,7 +130,7 @@ impl Factor<f64> for VisionFactor {
             self.jacobians
                 .borrow_mut()
                 .columns_mut(0, 2)
-                .copy_from(&(1.0 * J_norm * R_inv.clone()));
+                .copy_from(&(1.0 * J_norm * R_inv));
         }
         {
             self.jacobians
