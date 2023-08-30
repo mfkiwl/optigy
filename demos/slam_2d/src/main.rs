@@ -6,7 +6,7 @@ use std::{env::current_dir, fs::read_to_string};
 
 use clap::Parser;
 use nalgebra::{
-    matrix, DMatrix, DVector, DVectorView, Matrix2, Matrix3, RealField, SMatrix, Vector2,
+    matrix, DMatrix, DVector, DVectorView, Matrix2, Matrix3, RealField, SMatrix, Vector2, Vector3,
 };
 use optigy::core::factor::{compute_numerical_jacobians, ErrorReturn};
 use optigy::core::loss_function::ScaleLoss;
@@ -21,7 +21,7 @@ use optigy::slam::prior_factor::PriorFactor;
 use optigy::slam::se3::SE2;
 use plotters::coord::types::RangedCoordf64;
 use plotters::prelude::*;
-use plotters::style::full_palette::BLACK;
+use plotters::style::full_palette::{BLACK, GREEN};
 use sophus_rs::lie::rotation2::{Isometry2, Rotation2, Rotation2Impl};
 
 #[derive(Debug, Clone)]
@@ -199,6 +199,20 @@ struct Args {
     #[arg(short, long, action)]
     do_viz: bool,
 }
+fn fmt_f64(num: f64, width: usize, precision: usize, exp_pad: usize) -> String {
+    let mut num = format!("{:.precision$e}", num, precision = precision);
+    // Safe to `unwrap` as `num` is guaranteed to contain `'e'`
+    let exp = num.split_off(num.find('e').unwrap());
+
+    let (sign, exp) = if exp.starts_with("e-") {
+        ('-', &exp[2..])
+    } else {
+        ('+', &exp[1..])
+    };
+    num.push_str(&format!("e{}{:0>pad$}", sign, exp, pad = exp_pad));
+
+    format!("{:>width$}", num, width = width)
+}
 #[allow(non_snake_case)]
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
@@ -214,6 +228,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // println!("current dir {:?}", current_dir().unwrap());
     let landmarks_filename = current_dir().unwrap().join("data").join("landmarks.txt");
     let observations_filename = current_dir().unwrap().join("data").join("observations.txt");
+    let gt_filename = current_dir().unwrap().join("data").join("gt.txt");
     let mut landmarks_init = Vec::<Vector2<f64>>::new();
 
     for (id, line) in read_to_string(landmarks_filename)
@@ -256,6 +271,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             *landmark_obs_cnt.get_mut(&Key(id)).unwrap() += 1;
         }
     }
+    let mut poses_keys = Vec::<Key>::new();
     for (id, line) in read_to_string(observations_filename)
         .unwrap()
         .lines()
@@ -267,6 +283,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let th = l.next().unwrap().parse::<f64>()?;
         let pose_id = Key(id + landmarks_init.len());
         variables.add(pose_id, SE2::new(x, y, th));
+        poses_keys.push(pose_id);
         if id == 0 {
             factors.add(PriorFactor::new(pose_id, x, y, th, None::<ScaleLoss>))
         }
@@ -290,6 +307,14 @@ fn main() -> Result<(), Box<dyn Error>> {
                 );
             }
         }
+    }
+    let mut gt_poses = Vec::<Vector3<f64>>::new();
+    for (_id, line) in read_to_string(gt_filename).unwrap().lines().enumerate() {
+        let mut l = line.split_whitespace();
+        let x = l.next().unwrap().parse::<f64>()?;
+        let y = l.next().unwrap().parse::<f64>()?;
+        let th = l.next().unwrap().parse::<f64>()?;
+        gt_poses.push(Vector3::new(x, y, th));
     }
 
     for l in &landmarks {
@@ -362,7 +387,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     //             (0..img_w, img_h / 2 - sc_h / 2..sc_h * 2),
                     //         ))
                     // };
-                    let marg = 5;
+                    let marg = 0;
                     let root =
                         root_screen
                             .margin(marg, marg, marg, marg)
@@ -413,9 +438,35 @@ fn main() -> Result<(), Box<dyn Error>> {
                     //     .unwrap();
                     // }
 
+                    for idx in 0..gt_poses.len() - 1 {
+                        let p0 = gt_poses[idx];
+                        let p1 = gt_poses[idx + 1];
+                        let p0 = p0.fixed_rows::<2>(0);
+                        let p1 = p1.fixed_rows::<2>(0);
+                        root.draw(&PathElement::new(
+                            vec![(p0[0], p0[1]), (p1[0], p1[1])],
+                            &BLUE,
+                        ))
+                        .unwrap();
+                    }
+                    for idx in 0..poses_keys.len() - 1 {
+                        let key_0 = poses_keys[idx];
+                        let key_1 = poses_keys[idx + 1];
+                        let v0 = variables2.at::<SE2>(key_0);
+                        let v1 = variables2.at::<SE2>(key_1);
+                        if v0.is_some() && v1.is_some() {
+                            let p0 = v0.unwrap().origin.params();
+                            let p1 = v1.unwrap().origin.params();
+                            root.draw(&PathElement::new(
+                                vec![(p0[0], p0[1]), (p1[0], p1[1])],
+                                &GREEN,
+                            ))
+                            .unwrap();
+                        }
+                    }
                     root_screen
                         .draw(&Rectangle::new(
-                            [(6, 3), (300, 25)],
+                            [(6, 3), (320, 25)],
                             ShapeStyle {
                                 color: RGBAColor(255, 165, 0, 1.0),
                                 filled: true,
@@ -425,7 +476,11 @@ fn main() -> Result<(), Box<dyn Error>> {
                         .unwrap();
                     root_screen
                         .draw(&Text::new(
-                            format!("iteration: {} error: {:.2}", iteration, error),
+                            format!(
+                                "iteration: {} error: {}",
+                                iteration,
+                                fmt_f64(error, 10, 3, 2)
+                            ),
                             (10, 5),
                             ("sans-serif", 25.0).into_font(),
                         ))
