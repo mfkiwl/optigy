@@ -171,7 +171,7 @@ impl Factor<f64> for VisionFactor {
 struct Landmark {
     id: Key,
     obs_cnt: usize, // coord: E2,
-                    // vision_factors_keys: Vec<Key>,
+    poses_keys: Vec<Key>,
 }
 impl Landmark {
     fn new<C>(variables: &mut Variables<C>, id: Key, coord: Vector2<f64>) -> Self
@@ -179,7 +179,11 @@ impl Landmark {
         C: VariablesContainer,
     {
         variables.add(id, E2::new(coord[0], coord[1]));
-        Landmark { id, obs_cnt: 0 }
+        Landmark {
+            id,
+            obs_cnt: 0,
+            poses_keys: Vec::new(),
+        }
     }
     fn add_observation<C>(&mut self, factors: &mut Factors<C>, pose_id: Key, ray: Vector2<f64>)
     where
@@ -187,8 +191,19 @@ impl Landmark {
     {
         factors.add(VisionFactor::new(self.id, pose_id, ray));
         self.obs_cnt += 1;
-        // self.vision_factors_keys
-        //     .push(VisionFactor::new(self.id, pose_id, ray));
+        self.poses_keys.push(pose_id);
+    }
+    fn triangulate<FC, VC>(&self, factors: &Factors<FC>, variables: &mut Variables<VC>)
+    where
+        FC: FactorsContainer,
+        VC: VariablesContainer,
+    {
+        for p_key in &self.poses_keys {
+            let pose: &SE2 = variables.at(*p_key).unwrap();
+            for f_idx in 0..factors.len() {
+                let vf = factors;
+            }
+        }
     }
 }
 /// Simple program to greet a person
