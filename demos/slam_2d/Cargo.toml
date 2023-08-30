@@ -9,3 +9,4 @@ plotters = {version="0.3.5", features = ["ttf", "all_series"] }
 optigy = { path = "../../" }
 nalgebra = {version="0.32.3", features=["compare"]}
 clap = { version = "4.3.23", features = ["derive"]}
+sophus-rs= { git = "https://github.com/Lishen1/sophus-rs.git",  branch="lie-only" }

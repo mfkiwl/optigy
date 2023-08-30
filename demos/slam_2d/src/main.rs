@@ -5,7 +5,9 @@ use std::time::Instant;
 use std::{env::current_dir, fs::read_to_string};
 
 use clap::Parser;
-use nalgebra::{DMatrix, DVector, DVectorView, Matrix2, Matrix3, RealField, Vector2};
+use nalgebra::{
+    matrix, DMatrix, DVector, DVectorView, Matrix2, Matrix3, RealField, SMatrix, Vector2,
+};
 use optigy::core::factor::{compute_numerical_jacobians, ErrorReturn};
 use optigy::core::loss_function::ScaleLoss;
 
@@ -20,6 +22,7 @@ use optigy::slam::se3::SE2;
 use plotters::coord::types::RangedCoordf64;
 use plotters::prelude::*;
 use plotters::style::full_palette::BLACK;
+use sophus_rs::lie::rotation2::{Isometry2, Rotation2};
 
 #[derive(Debug, Clone)]
 pub struct E2<R = f64>
@@ -88,7 +91,22 @@ impl Factor<f64> for VisionFactor {
     {
         let landmark_v: &E2 = variables.at(self.keys[0]).unwrap();
         let pose_v: &SE2 = variables.at(self.keys[1]).unwrap();
-        let l0 = pose_v.origin.inverse().transform(&landmark_v.val);
+        let R_inv = pose_v.origin.inverse().matrix();
+        let R_inv = R_inv.fixed_view::<2, 2>(0, 0).to_owned();
+        let th = pose_v.origin.log()[2];
+        let R_inv = matrix![th.cos(), -th.sin(); th.sin(), th.cos() ].transpose();
+        let p = pose_v.origin.params().fixed_rows::<2>(0);
+        let l = landmark_v.val;
+        // let l0 = pose_v.origin.inverse().transform(&landmark_v.val);
+        let l0 = R_inv * (l - p);
+        // let l0 = R_inv * l - R_inv * p;
+        // let l0 = Rotation2::exp(&SMatrix::<f64, 1, 1>::from_column_slice(
+        //     vec![pose_v.origin.params()[2]].as_slice(),
+        // ))
+        // .inverse()
+        // .matrix()
+        //     * (landmark_v.val)
+        //     - pose_v.origin.params().fixed_rows::<2>(0);
 
         let r = l0.normalize();
 
@@ -107,22 +125,21 @@ impl Factor<f64> for VisionFactor {
     {
         let landmark_v: &E2 = variables.at(self.keys[0]).unwrap();
         let pose_v: &SE2 = variables.at(self.keys[1]).unwrap();
-        let l0 = pose_v.origin.inverse().transform(&landmark_v.val);
+        let R_inv = pose_v.origin.inverse().matrix();
+        let R_inv = R_inv.fixed_view::<2, 2>(0, 0).to_owned();
+        let p = pose_v.origin.params().fixed_rows::<2>(0);
+        // let l0 = pose_v.origin.inverse().transform(&landmark_v.val);
+        let l = landmark_v.val;
+        let l0 = R_inv * (l - p);
+        // let l0 = R_inv * l - R_inv * p;
 
         let r = l0.normalize();
-        let R_inv = pose_v.origin.inverse().matrix();
-
-        let R_inv = R_inv.fixed_view::<2, 2>(0, 0).to_owned();
-        // .clone()
-        // .view((0, 0), (2, 2))
-        // .to_owned();
-
         let J_norm = (Matrix2::identity() - r * r.transpose()) / l0.norm();
         {
             self.jacobians
                 .borrow_mut()
                 .columns_mut(0, 2)
-                .copy_from(&(J_norm * R_inv));
+                .copy_from(&(1.0 * J_norm * R_inv.clone()));
         }
         {
             self.jacobians
@@ -131,19 +148,19 @@ impl Factor<f64> for VisionFactor {
                 .copy_from(&(-J_norm));
         }
         {
-            let th = -pose_v.origin.params()[2];
-            let x = pose_v.origin.params()[0];
-            let y = pose_v.origin.params()[1];
+            let th = pose_v.origin.log()[2];
+            let x = landmark_v.val[0] - pose_v.origin.params()[0];
+            let y = landmark_v.val[1] - pose_v.origin.params()[1];
 
-            self.jacobians
-                .borrow_mut()
-                .columns_mut(4, 1)
-                .copy_from(&(0.0 * J_norm * Vector2::new(-x * th.sin(), y * th.cos())));
+            self.jacobians.borrow_mut().columns_mut(4, 1).copy_from(
+                &(1.0
+                    * J_norm
+                    * Vector2::new(-x * th.sin() + y * th.cos(), -x * th.cos() - y * th.sin())),
+            );
         }
-        // {
-        //     self.jacobians.borrow_mut().fill(0.0);
-        // }
+        // println!("an J: {}", self.jacobians.borrow());
         // compute_numerical_jacobians(variables, self, &mut self.jacobians.borrow_mut());
+        // println!("num J: {}", self.jacobians.borrow());
         self.jacobians.borrow()
     }
 
@@ -220,6 +237,34 @@ fn main() -> Result<(), Box<dyn Error>> {
         landmarks_init.push(Vector2::new(x, y));
     }
     let mut landmarks = HashMap::<Key, Landmark>::default();
+    let mut landmark_obs_cnt = HashMap::<Key, usize>::default();
+
+    for (id, line) in read_to_string(observations_filename.clone())
+        .unwrap()
+        .lines()
+        .enumerate()
+    {
+        let mut l = line.split_whitespace();
+        let x = l.next().unwrap().parse::<f64>()?;
+        let y = l.next().unwrap().parse::<f64>()?;
+        let th = l.next().unwrap().parse::<f64>()?;
+        let pose_id = Key(id + landmarks_init.len());
+        variables.add(pose_id, SE2::new(x, y, th));
+        if id == 0 {
+            factors.add(PriorFactor::new(pose_id, x, y, th, None::<ScaleLoss>))
+        }
+        let rays_cnt = l.next().unwrap().parse::<usize>()?;
+        for _ in 0..rays_cnt {
+            let id = l.next().unwrap().parse::<usize>()?;
+            let _ = l.next().unwrap().parse::<f64>()?;
+            let _ = l.next().unwrap().parse::<f64>()?;
+            if !landmark_obs_cnt.contains_key(&Key(id)) {
+                landmark_obs_cnt.insert(Key(id), 0);
+            }
+
+            *landmark_obs_cnt.get_mut(&Key(id)).unwrap() += 1;
+        }
+    }
     for (id, line) in read_to_string(observations_filename)
         .unwrap()
         .lines()
@@ -239,21 +284,25 @@ fn main() -> Result<(), Box<dyn Error>> {
             let id = l.next().unwrap().parse::<usize>()?;
             let rx = l.next().unwrap().parse::<f64>()?;
             let ry = l.next().unwrap().parse::<f64>()?;
-            landmarks.insert(
-                Key(id),
-                Landmark::new(&mut variables, Key(id), landmarks_init[id]),
-            );
+            if landmark_obs_cnt[&Key(id)] > 1 {
+                if !landmarks.contains_key(&Key(id)) {
+                    landmarks.insert(
+                        Key(id),
+                        Landmark::new(&mut variables, Key(id), landmarks_init[id]),
+                    );
+                }
 
-            landmarks.get_mut(&Key(id)).unwrap().add_observation(
-                &mut factors,
-                pose_id,
-                Vector2::<f64>::new(rx, ry),
-            );
+                landmarks.get_mut(&Key(id)).unwrap().add_observation(
+                    &mut factors,
+                    pose_id,
+                    Vector2::<f64>::new(rx, ry),
+                );
+            }
         }
     }
 
     for l in &landmarks {
-        if l.1.obs_cnt < 1 {
+        if l.1.obs_cnt < 2 {
             eprintln!("not enough observations");
         }
     }
@@ -344,16 +393,16 @@ fn main() -> Result<(), Box<dyn Error>> {
                             ))
                             .unwrap();
                         }
-                        // let v = variables2.at::<E2>(*key);
-                        // if v.is_some() {
-                        //     let v = v.unwrap();
-                        //     root.draw(&Circle::new(
-                        //         (v.val[0], v.val[1]),
-                        //         2,
-                        //         Into::<ShapeStyle>::into(&RED).filled(),
-                        //     ))
-                        //     .unwrap();
-                        // }
+                        let v = variables2.at::<E2>(*key);
+                        if v.is_some() {
+                            let v = v.unwrap();
+                            root.draw(&Circle::new(
+                                (v.val[0], v.val[1]),
+                                2,
+                                Into::<ShapeStyle>::into(&RED).filled(),
+                            ))
+                            .unwrap();
+                        }
                     }
                     // for f_idx in 0..factors2.len() {
                     //     let keys = factors2.keys_at(f_idx).unwrap();
