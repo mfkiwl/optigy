@@ -176,17 +176,17 @@ fn main() {
     // ));
 
     println!("before optimization");
-    let var1: &SE2 = variables.at(Key(1)).unwrap();
-    let var2: &SE2 = variables.at(Key(2)).unwrap();
-    let var3: &SE2 = variables.at(Key(3)).unwrap();
+    let var1: &SE2 = variables.get(Key(1)).unwrap();
+    let var2: &SE2 = variables.get(Key(2)).unwrap();
+    let var3: &SE2 = variables.get(Key(3)).unwrap();
     println!("var 1 {:?}", var1.origin);
     println!("var 2 {:?}", var2.origin);
     println!("var 3 {:?}", var3.origin);
     let opt_res = optimizer.optimize(&factors, &mut variables);
     println!("opt_res {:?}", opt_res);
-    let var1: &SE2 = variables.at(Key(1)).unwrap();
-    let var2: &SE2 = variables.at(Key(2)).unwrap();
-    let var3: &SE2 = variables.at(Key(3)).unwrap();
+    let var1: &SE2 = variables.get(Key(1)).unwrap();
+    let var2: &SE2 = variables.get(Key(2)).unwrap();
+    let var3: &SE2 = variables.get(Key(3)).unwrap();
     println!("after optimization");
     println!("var 1 {:?}", var1.origin);
     println!("var 2 {:?}", var2.origin);

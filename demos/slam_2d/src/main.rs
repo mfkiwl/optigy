@@ -89,8 +89,8 @@ impl Factor<f64> for VisionFactor {
     where
         C: VariablesContainer<f64>,
     {
-        let landmark_v: &E2 = variables.at(self.keys[0]).unwrap();
-        let pose_v: &SE2 = variables.at(self.keys[1]).unwrap();
+        let landmark_v: &E2 = variables.get(self.keys[0]).unwrap();
+        let pose_v: &SE2 = variables.get(self.keys[1]).unwrap();
         // let R_inv = pose_v.origin.inverse().matrix();
         // let R_inv = R_inv.fixed_view::<2, 2>(0, 0).to_owned();
         let th = pose_v.origin.log()[2];
@@ -115,8 +115,8 @@ impl Factor<f64> for VisionFactor {
     where
         C: VariablesContainer<f64>,
     {
-        let landmark_v: &E2 = variables.at(self.keys[0]).unwrap();
-        let pose_v: &SE2 = variables.at(self.keys[1]).unwrap();
+        let landmark_v: &E2 = variables.get(self.keys[0]).unwrap();
+        let pose_v: &SE2 = variables.get(self.keys[1]).unwrap();
         let R_inv = pose_v.origin.inverse().matrix();
         let R_inv = R_inv.fixed_view::<2, 2>(0, 0).to_owned();
         let l = landmark_v.val;
@@ -198,11 +198,34 @@ impl Landmark {
         FC: FactorsContainer,
         VC: VariablesContainer,
     {
+        let mut A = Matrix2::<f64>::zeros();
+        let mut b = Vector2::<f64>::zeros();
+
         for p_key in &self.poses_keys {
-            let pose: &SE2 = variables.at(*p_key).unwrap();
+            let pose: &SE2 = variables.get(*p_key).unwrap();
+            let th = pose.origin.log()[2];
+            let R_inv = matrix![th.cos(), -th.sin(); th.sin(), th.cos() ].transpose();
             for f_idx in 0..factors.len() {
-                let vf = factors;
+                let vf = factors.get::<VisionFactor>(f_idx);
+                if vf.is_some() {
+                    let vf = vf.unwrap();
+                    if vf.keys()[0] == self.id && vf.keys()[1] == *p_key {
+                        let p = pose.origin.params().fixed_rows::<2>(0);
+                        let r = R_inv.transpose() * vf.ray.clone();
+                        let Ai = Matrix2::<f64>::identity() - r * r.transpose();
+                        A += Ai;
+                        b += Ai * p;
+                    }
+                }
             }
+        }
+        let l = variables.get_mut::<E2>(self.id).unwrap();
+        let chol = A.cholesky();
+        if chol.is_some() {
+            let coord = chol.unwrap().solve(&b);
+            // println!("err 0: {}", (A * l.val - b).norm());
+            // println!("err 1: {}", (A * coord - b).norm());
+            l.val = coord;
         }
     }
 }
@@ -272,7 +295,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         let pose_id = Key(id + landmarks_init.len());
         variables.add(pose_id, SE2::new(x, y, th));
         if id == 0 {
-            factors.add(PriorFactor::new(pose_id, x, y, th, None::<ScaleLoss>))
+            factors.add(PriorFactor::new(
+                pose_id,
+                x,
+                y,
+                th,
+                Some(ScaleLoss::scale(1e10)),
+            ))
         }
         let rays_cnt = l.next().unwrap().parse::<usize>()?;
         for _ in 0..rays_cnt {
@@ -320,6 +349,11 @@ fn main() -> Result<(), Box<dyn Error>> {
                     pose_id,
                     Vector2::<f64>::new(rx, ry),
                 );
+
+                landmarks
+                    .get_mut(&Key(id))
+                    .unwrap()
+                    .triangulate(&factors, &mut variables);
             }
         }
     }
@@ -360,7 +394,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     let mut min_y = f64::MAX;
                     let mut max_y = f64::MIN;
                     for key in variables2.default_variable_ordering().keys() {
-                        let v = variables2.at::<SE2>(*key);
+                        let v = variables2.get::<SE2>(*key);
                         if v.is_some() {
                             let v = v.unwrap();
                             min_x = min_x.min(v.origin.params()[0]);
@@ -368,7 +402,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                             min_y = min_y.min(v.origin.params()[1]);
                             max_y = max_y.max(v.origin.params()[1]);
                         }
-                        let v = variables2.at::<E2>(*key);
+                        let v = variables2.get::<E2>(*key);
                         if v.is_some() {
                             let v = v.unwrap();
                             min_x = min_x.min(v.val[0]);
@@ -414,7 +448,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     root.fill(&BLACK).unwrap();
                     // println!("iter {}", iteration);
                     for key in variables2.default_variable_ordering().keys() {
-                        let v = variables2.at::<SE2>(*key);
+                        let v = variables2.get::<SE2>(*key);
                         if v.is_some() {
                             let v = v.unwrap();
                             root.draw(&Circle::new(
@@ -424,7 +458,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                             ))
                             .unwrap();
                         }
-                        let v = variables2.at::<E2>(*key);
+                        let v = variables2.get::<E2>(*key);
                         if v.is_some() {
                             let v = v.unwrap();
                             root.draw(&Circle::new(
@@ -467,8 +501,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                     for idx in 0..poses_keys.len() - 1 {
                         let key_0 = poses_keys[idx];
                         let key_1 = poses_keys[idx + 1];
-                        let v0 = variables2.at::<SE2>(key_0);
-                        let v1 = variables2.at::<SE2>(key_1);
+                        let v0 = variables2.get::<SE2>(key_0);
+                        let v1 = variables2.get::<SE2>(key_1);
                         if v0.is_some() && v1.is_some() {
                             let p0 = v0.unwrap().origin.params();
                             let p1 = v1.unwrap().origin.params();

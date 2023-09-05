@@ -6,7 +6,7 @@ use core::{cell::RefMut, marker::PhantomData};
 
 use super::{
     factor::{ErrorReturn, Factor, JacobiansErrorReturn},
-    factors_container::{get_factor, FactorsContainer},
+    factors_container::{get_factor, get_factor_mut, FactorsContainer},
     key::Key,
     variables_container::VariablesContainer,
 };
@@ -139,62 +139,17 @@ where
                 .push(f)
         }
     }
-    fn get<F>(&self, index: usize) -> Option<&F>
+    pub fn get<F>(&self, index: usize) -> Option<&F>
     where
         F: Factor<R> + 'static,
     {
-        todo!()
-        // get_factor(&self.container, index)
+        get_factor(&self.container, index)
     }
-}
-pub fn get_factor<R, C, F>(container: &C, index: usize) -> Option<&F>
-where
-    R: RealField,
-    C: FactorsContainer<R>,
-    F: Factor<R> + 'static,
-{
-    #[cfg(not(debug_assertions))]
+    pub fn get_mut<F>(&mut self, index: usize) -> Option<&mut F>
+    where
+        F: Factor<R> + 'static,
     {
-        container.get::<F>().unwrap().get(&index)
-    }
-    #[cfg(debug_assertions)]
-    {
-        container
-            .get::<F>()
-            .expect(
-                format!(
-                    "type {} should be registered in factors container. use ().and_factor::<{}>()",
-                    tynm::type_name::<F>(),
-                    tynm::type_name::<F>()
-                )
-                .as_str(),
-            )
-            .get(index)
-    }
-}
-pub fn get_factor_mut<R, C, F>(container: &mut C, index: usize) -> Option<&mut F>
-where
-    R: RealField,
-    C: FactorsContainer<R>,
-    F: Factor<R> + 'static,
-{
-    #[cfg(not(debug_assertions))]
-    {
-        container.get_mut::<F>().unwrap().get_mut(&index)
-    }
-    #[cfg(debug_assertions)]
-    {
-        container
-            .get_mut::<F>()
-            .expect(
-                format!(
-                    "type {} should be registered in factors container. use ().and_factor::<{}>()",
-                    tynm::type_name::<F>(),
-                    tynm::type_name::<F>()
-                )
-                .as_str(),
-            )
-            .get_mut(index)
+        get_factor_mut(&mut self.container, index)
     }
 }
 #[cfg(test)]

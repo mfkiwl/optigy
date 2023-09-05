@@ -69,14 +69,14 @@ where
         VariableOrdering::new(&keys)
     }
 
-    pub fn at<V>(&self, key: Key) -> Option<&V>
+    pub fn get<V>(&self, key: Key) -> Option<&V>
     where
         V: Variable<R> + 'static,
     {
         get_variable(&self.container, key)
     }
 
-    pub fn at_mut<V>(&mut self, key: Key) -> Option<&mut V>
+    pub fn get_mut<V>(&mut self, key: Key) -> Option<&mut V>
     where
         V: Variable<R> + 'static,
     {
@@ -132,8 +132,8 @@ mod tests {
         let mut variables = Variables::new(container);
         variables.add(Key(0), VariableA::<Real>::new(1.0));
         variables.add(Key(1), VariableB::<Real>::new(2.0));
-        let _var_0: &VariableA<_> = variables.at(Key(0)).unwrap();
-        let _var_1: &VariableB<_> = variables.at(Key(1)).unwrap();
+        let _var_0: &VariableA<_> = variables.get(Key(0)).unwrap();
+        let _var_1: &VariableB<_> = variables.get(Key(1)).unwrap();
     }
     #[test]
     fn get_mut_variable() {
@@ -143,15 +143,15 @@ mod tests {
         variables.add(Key(0), VariableA::<Real>::new(0.0));
         variables.add(Key(1), VariableB::<Real>::new(0.0));
         {
-            let var_0: &mut VariableA<_> = variables.at_mut(Key(0)).unwrap();
+            let var_0: &mut VariableA<_> = variables.get_mut(Key(0)).unwrap();
             var_0.val.fill(1.0);
         }
         {
-            let var_1: &mut VariableB<_> = variables.at_mut(Key(1)).unwrap();
+            let var_1: &mut VariableB<_> = variables.get_mut(Key(1)).unwrap();
             var_1.val.fill(2.0);
         }
-        let var_0: &VariableA<_> = variables.at(Key(0)).unwrap();
-        let var_1: &VariableB<_> = variables.at(Key(1)).unwrap();
+        let var_0: &VariableA<_> = variables.get(Key(0)).unwrap();
+        let var_1: &VariableB<_> = variables.get(Key(1)).unwrap();
         assert_eq!(var_0.val, DVector::<Real>::from_element(3, 1.0));
         assert_eq!(var_1.val, DVector::<Real>::from_element(3, 2.0));
     }
@@ -163,11 +163,11 @@ mod tests {
         variables.add(Key(0), VariableA::<Real>::new(0.0));
         variables.add(Key(1), VariableB::<Real>::new(0.0));
         {
-            let var_0: &mut VariableA<_> = variables.at_mut(Key(0)).unwrap();
+            let var_0: &mut VariableA<_> = variables.get_mut(Key(0)).unwrap();
             var_0.val.fill(1.0);
         }
         {
-            let var_1: &mut VariableB<_> = variables.at_mut(Key(1)).unwrap();
+            let var_1: &mut VariableB<_> = variables.get_mut(Key(1)).unwrap();
             var_1.val.fill(2.0);
         }
         assert_eq!(variables.dim_at(Key(0)).unwrap(), 3);
@@ -182,22 +182,22 @@ mod tests {
         variables.add(Key(1), VariableB::<Real>::new(0.0));
         let orig_variables = variables.clone();
         {
-            let var_0: &mut VariableA<_> = variables.at_mut(Key(0)).unwrap();
+            let var_0: &mut VariableA<_> = variables.get_mut(Key(0)).unwrap();
             var_0.val.fill(1.0);
         }
         {
-            let var_1: &mut VariableB<_> = variables.at_mut(Key(1)).unwrap();
+            let var_1: &mut VariableB<_> = variables.get_mut(Key(1)).unwrap();
             var_1.val.fill(2.0);
         }
-        let var_0: &VariableA<_> = variables.at(Key(0)).unwrap();
-        let var_1: &VariableB<_> = variables.at(Key(1)).unwrap();
+        let var_0: &VariableA<_> = variables.get(Key(0)).unwrap();
+        let var_1: &VariableB<_> = variables.get(Key(1)).unwrap();
         assert_eq!(var_0.val, DVector::<Real>::from_element(3, 1.0));
         assert_eq!(var_1.val, DVector::<Real>::from_element(3, 2.0));
 
         let delta = variables.local(&orig_variables, &variables.default_variable_ordering());
 
-        let dim_0 = variables.at::<VariableA<_>>(Key(0)).unwrap().dim();
-        let dim_1 = variables.at::<VariableB<_>>(Key(1)).unwrap().dim();
+        let dim_0 = variables.get::<VariableA<_>>(Key(0)).unwrap().dim();
+        let dim_1 = variables.get::<VariableB<_>>(Key(1)).unwrap().dim();
         assert_eq!(
             DVector::<Real>::from_element(dim_1, 2.0),
             delta.rows(0, dim_0)
@@ -216,15 +216,15 @@ mod tests {
         variables.add(Key(0), VariableA::<Real>::new(0.0));
         variables.add(Key(1), VariableB::<Real>::new(0.0));
         let mut delta = DVector::<Real>::zeros(variables.dim());
-        let dim_0 = variables.at::<VariableA<_>>(Key(0)).unwrap().dim();
-        let dim_1 = variables.at::<VariableB<_>>(Key(1)).unwrap().dim();
+        let dim_0 = variables.get::<VariableA<_>>(Key(0)).unwrap().dim();
+        let dim_1 = variables.get::<VariableB<_>>(Key(1)).unwrap().dim();
         delta.fill(5.0);
         delta.fill(1.0);
         println!("delta {:?}", delta);
         let variable_ordering = variables.default_variable_ordering(); // reversed
         variables.retract(delta.as_view(), &variable_ordering);
-        let v0: &VariableA<Real> = variables.at(Key(0)).unwrap();
-        let v1: &VariableB<Real> = variables.at(Key(1)).unwrap();
+        let v0: &VariableA<Real> = variables.get(Key(0)).unwrap();
+        let v1: &VariableB<Real> = variables.get(Key(1)).unwrap();
         assert_eq!(v1.val, delta.rows(0, dim_0));
         assert_eq!(v0.val, delta.rows(dim_0, dim_1));
     }
