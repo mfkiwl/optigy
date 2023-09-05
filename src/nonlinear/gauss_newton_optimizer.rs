@@ -12,6 +12,7 @@ use crate::{
         linear_solver::{LinearSolverStatus, SparseLinearSolver},
         sparse_cholesky_solver::SparseCholeskySolver,
     },
+    prelude::NonlinearOptimizer,
 };
 
 use super::nonlinear_optimizer::{
@@ -53,8 +54,9 @@ where
 {
     type S = SparseCholeskySolver<R>;
     #[allow(non_snake_case)]
-    fn iterate<VC, FC>(
-        &self,
+    fn iterate<VC, FC, O>(
+        &mut self,
+        optimizer: &mut NonlinearOptimizer<O, R>,
         _factors: &Factors<FC, R>,
         variables: &mut Variables<VC, R>,
         variable_ordering: &VariableOrdering,
@@ -64,6 +66,7 @@ where
         R: RealField,
         VC: VariablesContainer<R>,
         FC: FactorsContainer<R>,
+        O: OptIterate<R>,
     {
         let mut dx: DVector<R> = DVector::zeros(variables.dim());
         //WARN sparse cholesky solver not working for lower triangular matrices
@@ -112,6 +115,7 @@ mod tests {
             nonlinear_optimizer::{LinSysWrapper, OptIterate},
             sparsity_pattern::{construct_hessian_sparsity, HessianTriangle},
         },
+        prelude::NonlinearOptimizer,
     };
 
     #[test]
@@ -129,7 +133,7 @@ mod tests {
         factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
         factors.add(FactorB::new(2.0, None, Key(1), Key(2)));
         let variable_ordering = variables.default_variable_ordering();
-        let optimizer = GaussNewtonOptimizer::<Real>::default();
+        let mut optimizer = GaussNewtonOptimizer::<Real>::default();
         let tri = HessianTriangle::Upper;
         let sparsity = construct_hessian_sparsity(&factors, &variables, &variable_ordering, tri);
         let A_rows: usize = sparsity.base.A_cols;
@@ -146,7 +150,9 @@ mod tests {
         .unwrap();
         let A = CscMatrix::try_from_pattern_and_values(csc_pattern, A_values.clone())
             .expect("CSC data must conform to format specifications");
+        let mut opt = NonlinearOptimizer::default();
         let opt_res = optimizer.iterate(
+            &mut opt,
             &factors,
             &mut variables,
             &variable_ordering,

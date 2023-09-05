@@ -85,7 +85,7 @@ impl Default for NonlinearOptimizerParams {
             min_rel_err_decrease: 1e-5,
             min_abs_err_decrease: 1e-5,
             linear_solver_type: LinearSolverType::Cholesky,
-            verbosity_level: NonlinearOptimizerVerbosityLevel::Subiteration,
+            verbosity_level: NonlinearOptimizerVerbosityLevel::Warning,
         }
     }
 }
@@ -144,8 +144,9 @@ where
     /// use to implement your own optimization iterate procedure
     /// need a implementation
     /// - if the iteration is successful return SUCCESS
-    fn iterate<VC, FC>(
-        &self,
+    fn iterate<VC, FC, O>(
+        &mut self,
+        optimizer: &mut NonlinearOptimizer<O, R>,
         factors: &Factors<FC, R>,
         variables: &mut Variables<VC, R>,
         variable_ordering: &VariableOrdering,
@@ -154,7 +155,8 @@ where
     where
         R: RealField,
         VC: VariablesContainer<R>,
-        FC: FactorsContainer<R>;
+        FC: FactorsContainer<R>,
+        O: OptIterate<R>;
     fn linear_solver(&self) -> &Self::S;
     fn base_params(&self) -> &NonlinearOptimizerParams;
 }
@@ -330,6 +332,7 @@ where
             let start = Instant::now();
             //iterate through
             let iterate_result = self.opt.iterate(
+                &self,
                 factors,
                 variables,
                 &variable_ordering,

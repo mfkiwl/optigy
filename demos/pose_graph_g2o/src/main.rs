@@ -7,6 +7,7 @@ use nalgebra::Matrix3;
 use optigy::core::loss_function::ScaleLoss;
 
 use optigy::nonlinear::gauss_newton_optimizer::GaussNewtonOptimizerParams;
+use optigy::nonlinear::levenberg_marquardt_optimizer::LevenbergMarquardtOptimizer;
 use optigy::prelude::{
     Factors, FactorsContainer, GaussNewtonOptimizer, GaussianLoss, Key, NonlinearOptimizer,
     NonlinearOptimizerVerbosityLevel, Variables, VariablesContainer,
@@ -97,7 +98,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut params = GaussNewtonOptimizerParams::default();
     params.base.verbosity_level = NonlinearOptimizerVerbosityLevel::Warning;
-    let mut optimizer = NonlinearOptimizer::new(GaussNewtonOptimizer::with_params(params));
+    // let mut optimizer = NonlinearOptimizer::new(GaussNewtonOptimizer::with_params(params));
+    let mut optimizer = NonlinearOptimizer::new(LevenbergMarquardtOptimizer::default());
     let start = Instant::now();
     let opt_res = if args.do_viz {
         let img_w = 1024 as i32;
@@ -110,6 +112,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             &mut variables,
             Some(
                 |iteration, error, factors2: &Factors<_, _>, variables2: &Variables<_, _>| {
+                    println!("iteration: {} error: {}", iteration, error);
+
                     let mut min_x = f64::MAX;
                     let mut max_x = f64::MIN;
                     let mut min_y = f64::MAX;
