@@ -33,7 +33,7 @@ pub enum NonlinearOptimizationError {
     Invalid,
 }
 /// enum of linear solver types
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum LinearSolverType {
     // Eigen Direct LDLt factorization
     Cholesky,
@@ -51,7 +51,7 @@ pub enum LinearSolverType {
     SchurDenseCholesky,
 }
 // enum of nonlinear optimization verbosity level
-#[derive(PartialOrd, Ord, PartialEq, Eq, Debug)]
+#[derive(PartialOrd, Ord, PartialEq, Eq, Debug, Clone)]
 pub enum NonlinearOptimizerVerbosityLevel {
     /// only print warning message to std::cerr when optimization does not success
     /// and terminated abnormally. Default verbosity level
@@ -65,7 +65,7 @@ pub enum NonlinearOptimizerVerbosityLevel {
     Subiteration,
 }
 /// base class for nonlinear optimization settings
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NonlinearOptimizerParams {
     /// max number of iterations
     pub max_iterations: usize,
@@ -98,6 +98,7 @@ impl Default for NonlinearOptimizationError {
     }
 }
 #[allow(non_snake_case)]
+#[derive(Clone)]
 pub struct LinSysWrapper<'a, R>
 where
     R: RealField,
@@ -135,6 +136,14 @@ impl IterationData {
         }
     }
 }
+impl Default for IterationData {
+    fn default() -> Self {
+        IterationData {
+            err_uptodate: false,
+            err_squared_norm: 0.0,
+        }
+    }
+}
 pub trait OptIterate<R>
 where
     R: RealField + Float,
@@ -144,19 +153,16 @@ where
     /// use to implement your own optimization iterate procedure
     /// need a implementation
     /// - if the iteration is successful return SUCCESS
-    fn iterate<VC, FC, O>(
+    fn iterate<FC, VC>(
         &mut self,
-        optimizer: &mut NonlinearOptimizer<O, R>,
         factors: &Factors<FC, R>,
         variables: &mut Variables<VC, R>,
         variable_ordering: &VariableOrdering,
         lin_sys: LinSysWrapper<'_, R>,
     ) -> Result<IterationData, NonlinearOptimizationError>
     where
-        R: RealField,
-        VC: VariablesContainer<R>,
         FC: FactorsContainer<R>,
-        O: OptIterate<R>;
+        VC: VariablesContainer<R>;
     fn linear_solver(&self) -> &Self::S;
     fn base_params(&self) -> &NonlinearOptimizerParams;
 }
@@ -284,7 +290,7 @@ where
         self.iterations = 0;
         self.last_err_squared_norm = 0.5 * factors.error_squared_norm(variables);
 
-        let params = self.opt.base_params();
+        let params = self.opt.base_params().clone();
         if params.verbosity_level >= NonlinearOptimizerVerbosityLevel::Iteration {
             println!("initial error: {}", self.last_err_squared_norm);
         }
@@ -332,7 +338,6 @@ where
             let start = Instant::now();
             //iterate through
             let iterate_result = self.opt.iterate(
-                &self,
                 factors,
                 variables,
                 &variable_ordering,
@@ -344,13 +349,14 @@ where
 
             //TODO: do better
             // check linear solver status and return if not success
-            if iterate_result.is_err() {
-                return Err(iterate_result.err().unwrap());
+            match iterate_result {
+                Ok(data) => {
+                    self.err_uptodate = data.err_uptodate;
+                    self.err_squared_norm = data.err_squared_norm;
+                }
+                Err(err) => return Err(err),
             }
-            let iter_data = iterate_result.ok().unwrap();
 
-            self.err_uptodate = iter_data.err_uptodate;
-            self.err_squared_norm = iter_data.err_squared_norm;
             // check error for stop condition
             let start = Instant::now();
             let curr_err: f64;

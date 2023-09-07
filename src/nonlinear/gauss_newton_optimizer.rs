@@ -54,9 +54,8 @@ where
 {
     type S = SparseCholeskySolver<R>;
     #[allow(non_snake_case)]
-    fn iterate<VC, FC, O>(
+    fn iterate<FC, VC>(
         &mut self,
-        optimizer: &mut NonlinearOptimizer<O, R>,
         _factors: &Factors<FC, R>,
         variables: &mut Variables<VC, R>,
         variable_ordering: &VariableOrdering,
@@ -66,7 +65,6 @@ where
         R: RealField,
         VC: VariablesContainer<R>,
         FC: FactorsContainer<R>,
-        O: OptIterate<R>,
     {
         let mut dx: DVector<R> = DVector::zeros(variables.dim());
         //WARN sparse cholesky solver not working for lower triangular matrices
@@ -76,13 +74,13 @@ where
         // dx = A.clone().cholesky().unwrap().solve(lin_sys.b);
         if linear_solver_status == LinearSolverStatus::Success {
             variables.retract(dx.as_view(), variable_ordering);
-            Ok(IterationData::new(false, 0.0))
+            Ok(IterationData::default())
         } else if linear_solver_status == LinearSolverStatus::RankDeficiency {
             println!("Warning: linear system has rank deficiency");
-            return Err(NonlinearOptimizationError::RankDeficiency);
+            Err(NonlinearOptimizationError::RankDeficiency)
         } else {
             println!("Warning: linear solver returns invalid state");
-            return Err(NonlinearOptimizationError::Invalid);
+            Err(NonlinearOptimizationError::Invalid)
         }
     }
 
@@ -150,9 +148,7 @@ mod tests {
         .unwrap();
         let A = CscMatrix::try_from_pattern_and_values(csc_pattern, A_values.clone())
             .expect("CSC data must conform to format specifications");
-        let mut opt = NonlinearOptimizer::default();
         let opt_res = optimizer.iterate(
-            &mut opt,
             &factors,
             &mut variables,
             &variable_ordering,

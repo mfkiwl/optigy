@@ -1,4 +1,5 @@
-use nalgebra::{DMatrix, DVector, RealField};
+use nalgebra::{DVector, RealField};
+use nalgebra_sparse::CscMatrix;
 use num::Float;
 
 use crate::{
@@ -10,14 +11,14 @@ use crate::{
         linear_solver::{LinearSolverStatus, SparseLinearSolver},
         sparse_cholesky_solver::SparseCholeskySolver,
     },
-    prelude::{NonlinearOptimizer, NonlinearOptimizerVerbosityLevel},
+    prelude::NonlinearOptimizerVerbosityLevel,
 };
 
 use super::nonlinear_optimizer::{
     IterationData, LinSysWrapper, NonlinearOptimizationError, NonlinearOptimizerParams, OptIterate,
     OptimizerBaseParams,
 };
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LevenbergMarquardtOptimizerParams {
     // initial lambda
     pub lambda_init: f64,
@@ -71,6 +72,10 @@ where
     try_lambda_inited: bool,
     lambda: f64,
     lambda_increase_factor: f64,
+    gain_ratio: f64,
+    last_lambda: f64,
+    last_lambda_sqrt: f64,
+    linear_solver_inited: bool,
 }
 impl<R> LevenbergMarquardtOptimizer<R>
 where
@@ -79,10 +84,14 @@ where
     pub fn with_params(params: LevenbergMarquardtOptimizerParams) -> Self {
         LevenbergMarquardtOptimizer {
             linear_solver: SparseCholeskySolver::default(),
-            params,
+            params: params.clone(),
             try_lambda_inited: false,
             lambda: params.lambda_init,
             lambda_increase_factor: params.lambda_increase_factor_init,
+            gain_ratio: 0.0,
+            last_lambda: 0.0,
+            last_lambda_sqrt: 0.0,
+            linear_solver_inited: false,
         }
     }
     fn increase_lambda(&mut self) {
@@ -90,11 +99,77 @@ where
         self.lambda_increase_factor *= self.params.lambda_increase_factor_update;
     }
     fn decrease_lambda(&mut self) {
-        // lambda_ *= std::max(params_.lambda_decrease_factor_min,
-        //                     1.0 - std::pow(2.0 * gain_ratio_ - 1.0, 3.0));
-        // lambda_ = std::max(params_.lambda_min, lambda_);
-        // lambda_increase_factor_ = params_.lambda_increase_factor_init;
+        self.lambda *= self
+            .params
+            .lambda_decrease_factor_min
+            .max(1.0 - (2.0 * self.gain_ratio - 1.0).powi(3));
+        self.lambda = self.params.lambda_min.max(self.lambda);
+        self.lambda_increase_factor = self.params.lambda_increase_factor_init;
     }
+
+    #[allow(non_snake_case)]
+    fn dump_linear_system(
+        &mut self,
+        A: &mut CscMatrix<R>,
+        _b: &mut DVector<R>,
+        hessian_diag: &DVector<R>,
+        hessian_diag_max: f64,
+        _hessian_diag_sqrt: &DVector<R>,
+        _hessian_diag_max_sqrt: f64,
+    ) {
+        if self.linear_solver.is_normal() {
+            // hessian system
+            if !self.try_lambda_inited {
+                if self.params.diagonal_damping {
+                    update_dumping_hessian_diag(A, hessian_diag, self.lambda, 0.0);
+                } else {
+                    update_dumping_hessian(A, self.lambda * hessian_diag_max, 0.0);
+                }
+            } else {
+                if self.params.diagonal_damping {
+                    update_dumping_hessian_diag(A, hessian_diag, self.lambda, self.last_lambda);
+                } else {
+                    update_dumping_hessian(
+                        A,
+                        self.lambda * hessian_diag_max,
+                        self.last_lambda * hessian_diag_max,
+                    );
+                }
+            }
+        } else {
+            todo!()
+            // // jacobian system
+            // double lambda_sqrt = std::sqrt(lambda_);
+
+            // if (!try_lambda_inited_) {
+            //   // jacobian not resize yet
+            //   if (params_.diagonal_damping) {
+            //     internal::allocateDumpingJacobianDiag(A, b, j_sparsity_cache_,
+            //                                           lambda_sqrt, hessian_diag_sqrt);
+            //   } else {
+            //     internal::allocateDumpingJacobian(A, b, j_sparsity_cache_,
+            //                                       lambda_sqrt * hessian_diag_max_sqrt);
+            //   }
+            // } else {
+            //   // jacobian already resize
+            //   if (params_.diagonal_damping) {
+            //     internal::updateDumpingJacobianDiag(A, hessian_diag_sqrt, lambda_sqrt,
+            //                                         last_lambda_sqrt_);
+            //   } else {
+            //     internal::updateDumpingJacobian(
+            //         A, lambda_sqrt * hessian_diag_max_sqrt,
+            //         last_lambda_sqrt_ * hessian_diag_max_sqrt);
+            //   }
+            // }
+            // last_lambda_sqrt_ = lambda_sqrt;
+        }
+
+        // update last lambda to current
+        self.try_lambda_inited = true;
+        self.last_lambda = self.lambda;
+    }
+
+    #[allow(non_snake_case)]
     fn try_lambda<FC, VC>(
         &mut self,
         lin_sys: LinSysWrapper<'_, R>,
@@ -105,109 +180,126 @@ where
         hessian_diag_max_sqrt: f64,
         factors: &Factors<FC, R>,
         variables: &mut Variables<VC, R>,
+        variable_ordering: &VariableOrdering,
         values_curr_err: f64,
     ) -> Result<IterationData, NonlinearOptimizationError>
     where
         FC: FactorsContainer<R>,
         VC: VariablesContainer<R>,
     {
-        // // profiling
-        // static auto init_timer =
-        //     global_timer().getTimer("* Ordering/LinearSolver init");
-        // static auto linsolve_timer = global_timer().getTimer("* Linear system solve");
-        // static auto error_timer = global_timer().getTimer("* Graph error");
-        // static auto retract_timer = global_timer().getTimer("* Solution update");
+        let mut A = lin_sys.A.clone();
+        let mut b = lin_sys.b.clone();
+        // dump linear system
+        self.dump_linear_system(
+            &mut A,
+            &mut b,
+            hessian_diag,
+            hessian_diag_max,
+            hessian_diag_sqrt,
+            hessian_diag_max_sqrt,
+        );
 
-        // // dump linear system
-        // dumpLinearSystem_(A, b, hessian_diag, hessian_diag_max, hessian_diag_sqrt,
-        //                   hessian_diag_max_sqrt);
+        // solve dumped linear system
+        // init solver is not yet
+        if !self.linear_solver_inited {
+            self.linear_solver.initialize(&A);
+            self.linear_solver_inited = true;
+        }
 
-        // // solve dumped linear system
-        // // init solver is not yet
-        // if (!linear_solver_inited_) {
-        //   init_timer->tic_();
+        // solve
+        let mut dx_lm: DVector<R> = DVector::zeros(variables.dim());
+        let linear_solver_status = self.linear_solver.solve(&A, &b, &mut dx_lm);
 
-        //   linear_solver_->initialize(A);
+        match linear_solver_status {
+            LinearSolverStatus::Success => {}
+            LinearSolverStatus::RankDeficiency => {
+                if self.params.base.verbosity_level
+                    >= NonlinearOptimizerVerbosityLevel::Subiteration
+                {
+                    println!("dumped linear system has rank deficiency");
+                }
+                //TODO: impl error from
+                return Err(NonlinearOptimizationError::RankDeficiency);
+            }
+            LinearSolverStatus::Invalid => {
+                //TODO: impl error from
+                return Err(NonlinearOptimizationError::Invalid);
+            }
+        }
+        // calculate gain ratio
 
-        //   init_timer->toc_();
+        // nonlinear error improvement
+        let variables_to_update = variables.retracted(dx_lm.as_view(), variable_ordering);
 
-        //   linear_solver_inited_ = true;
-        // }
+        let values_update_err = 0.5 * factors.error_squared_norm(variables); //values_to_update
+        let nonlinear_err_update = values_curr_err - values_update_err;
 
-        // // solve
-        // Eigen::VectorXd dx_lm;
+        // linear error improvement
+        // see imm3215 p.25, just notice here g = -g in the book
+        let linear_err_update = if self.params.diagonal_damping {
+            0.5 * dx_lm
+                .dot(
+                    &(hessian_diag
+                        .component_mul(&dx_lm)
+                        .scale(R::from_f64(self.lambda).unwrap())
+                        + g),
+                )
+                .to_f64()
+                .unwrap()
+        } else {
+            0.5 * dx_lm
+                .dot(&(dx_lm.scale(R::from_f64(hessian_diag_max * self.lambda).unwrap()) + g))
+                .to_f64()
+                .unwrap()
+        };
 
-        // linsolve_timer->tic_();
+        self.gain_ratio = nonlinear_err_update / linear_err_update;
 
-        // LinearSolverStatus linear_solver_status = linear_solver_->solve(A, b, dx_lm);
+        if self.params.base.verbosity_level >= NonlinearOptimizerVerbosityLevel::Subiteration {
+            println!("gain ratio: {}", self.gain_ratio);
+        }
 
-        // linsolve_timer->toc_();
+        if self.gain_ratio > self.params.gain_ratio_thresh {
+            // try is success and update values
+            *variables = variables_to_update;
+            Ok(IterationData::new(true, values_update_err))
+        } else {
+            Err(NonlinearOptimizationError::ErrorIncrease)
+        }
+    }
+}
 
-        // if (linear_solver_status == LinearSolverStatus::RANK_DEFICIENCY) {
-        //   if (params_.verbosity_level >=
-        //       NonlinearOptimizerVerbosityLevel::SUBITERATION) {
-        //     cout << "dumped linear system has rank deficiency" << endl;
-        //   }
+#[allow(non_snake_case)]
+fn update_dumping_hessian<R>(H: &mut CscMatrix<R>, diag: f64, diag_last: f64)
+where
+    R: RealField + Float + Default,
+{
+    for i in 0..H.ncols() {
+        match H.get_entry_mut(i, i).unwrap() {
+            nalgebra_sparse::SparseEntryMut::NonZero(v) => {
+                *v += R::from_f64(diag - diag_last).unwrap()
+            }
+            nalgebra_sparse::SparseEntryMut::Zero => {}
+        }
+    }
+}
 
-        //   return NonlinearOptimizationStatus::RANK_DEFICIENCY;
-        // } else if (linear_solver_status == LinearSolverStatus::INVALID) {
-        //   return NonlinearOptimizationStatus::INVALID;
-        // }
-
-        // // calculate gain ratio
-
-        // // nonlinear error improvement
-        // retract_timer->tic_();
-
-        // Variables values_to_update;
-        // if (linear_solver_->is_normal()) {
-        //   values_to_update = values.retract(dx_lm, h_sparsity_cache_.var_ordering);
-        // } else {
-        //   values_to_update = values.retract(dx_lm, j_sparsity_cache_.var_ordering);
-        // }
-
-        // retract_timer->toc_();
-        // error_timer->tic_();
-
-        // const double values_update_err =
-        //     0.5 * graph.errorSquaredNorm(values_to_update);
-        // const double nonlinear_err_update = values_curr_err - values_update_err;
-
-        // error_timer->toc_();
-
-        // // linear error improvement
-        // // see imm3215 p.25, just notice here g = -g in the book
-        // double linear_err_update;
-        // if (params_.diagonal_damping) {
-        //   linear_err_update =
-        //       0.5 *
-        //       dx_lm.dot(
-        //           Eigen::VectorXd(lambda_ * hessian_diag.array() * dx_lm.array()) +
-        //           g);
-        // } else {
-        //   linear_err_update =
-        //       0.5 * dx_lm.dot((lambda_ * hessian_diag_max) * dx_lm + g);
-        // }
-
-        // gain_ratio_ = nonlinear_err_update / linear_err_update;
-
-        // if (params_.verbosity_level >=
-        //     NonlinearOptimizerVerbosityLevel::SUBITERATION) {
-        //   cout << "gain ratio = " << gain_ratio_ << endl;
-        // }
-
-        // if (gain_ratio_ > params_.gain_ratio_thresh) {
-        //   // try is success and update values
-        //   values = values_to_update;
-
-        //   err_squared_norm_ = values_update_err;
-        //   err_uptodate_ = true;
-
-        //   return NonlinearOptimizationStatus::SUCCESS;
-        // } else {
-        //   return NonlinearOptimizationStatus::ERROR_INCREASE;
-        // }
-        todo!()
+#[allow(non_snake_case)]
+fn update_dumping_hessian_diag<R>(
+    H: &mut CscMatrix<R>,
+    diags: &DVector<R>,
+    lambda: f64,
+    lambda_last: f64,
+) where
+    R: RealField + Float + Default,
+{
+    for i in 0..H.ncols() {
+        match H.get_entry_mut(i, i).unwrap() {
+            nalgebra_sparse::SparseEntryMut::NonZero(v) => {
+                *v += R::from_f64(lambda - lambda_last).unwrap() * diags[i]
+            }
+            nalgebra_sparse::SparseEntryMut::Zero => {}
+        }
     }
 }
 impl<R> OptIterate<R> for LevenbergMarquardtOptimizer<R>
@@ -216,18 +308,16 @@ where
 {
     type S = SparseCholeskySolver<R>;
     #[allow(non_snake_case)]
-    fn iterate<VC, FC, O>(
+    fn iterate<FC, VC>(
         &mut self,
-        optimizer: &mut NonlinearOptimizer<O, R>,
         factors: &Factors<FC, R>,
         variables: &mut Variables<VC, R>,
         variable_ordering: &VariableOrdering,
         lin_sys: LinSysWrapper<'_, R>,
     ) -> Result<IterationData, NonlinearOptimizationError>
     where
-        VC: VariablesContainer<R>,
         FC: FactorsContainer<R>,
-        O: OptIterate<R>,
+        VC: VariablesContainer<R>,
     {
         // get hessian diagonal once iter
         let hessian_diag = if self.linear_solver.is_normal() {
@@ -242,9 +332,9 @@ where
             hessian_diag.ncols()
         );
         let mut hessian_diag_max = 0.0;
-        let mut hessian_diag_max_sqrt = 0.0;
+        let hessian_diag_max_sqrt = 0.0;
 
-        let mut hessian_diag_sqrt = DVector::<R>::zeros(0);
+        let hessian_diag_sqrt = DVector::<R>::zeros(0);
         if !self.linear_solver.is_normal() {
             // hessian_diag_sqrt = hessian_diag.as_view().iter().map(|v: R| Float::sqrt(v));
             todo!();
@@ -264,9 +354,8 @@ where
         };
 
         // current value error
-        // double values_curr_err = 0.5 * graph.error(values).squaredNorm();
-        let values_curr_err = optimizer.last_err_squared_norm; // read from optimize()
-
+        // let values_curr_err = optimizer.last_err_squared_norm; // read from optimize()
+        let values_curr_err = factors.error_squared_norm(variables);
         // try different lambda, until find a lambda to decrese error (return
         // SUCCESS),
         // or reach max lambda which still cannot decrese error (return
@@ -280,7 +369,7 @@ where
 
             // try current lambda value
             let try_lambda_result = self.try_lambda(
-                lin_sys,
+                lin_sys.clone(),
                 &g,
                 &hessian_diag,
                 hessian_diag_max,
@@ -288,14 +377,15 @@ where
                 hessian_diag_max_sqrt,
                 factors,
                 variables,
+                variable_ordering,
                 values_curr_err,
             );
 
             match try_lambda_result {
-                Ok(_) => {
+                Ok(data) => {
                     // SUCCESS: decrease error, decrease lambda and return success
-                    // decreaseLambda_();
-                    return Ok(IterationData::new(false, 0.0));
+                    self.decrease_lambda();
+                    return Ok(data);
                 }
 
                 Err(err) => {
@@ -303,7 +393,7 @@ where
                         || err == NonlinearOptimizationError::ErrorIncrease
                     {
                         // RANK_DEFICIENCY and ERROR_INCREASE, incease lambda and try again
-                        // increaseLambda_();
+                        self.increase_lambda();
                     } else {
                         // INVALID: internal error
                         println!("Warning: linear solver returns invalid state");
@@ -313,23 +403,9 @@ where
             }
         }
 
-        // // cannot decrease error with max lambda
-        // cerr << "Warning: LM cannot decrease error with max lambda" << endl;
-        // return NonlinearOptimizationStatus::ERROR_INCREASE;
-
-        let mut dx: DVector<R> = DVector::zeros(variables.dim());
-        //WARN sparse cholesky solver not working for lower triangular matrices
-        let linear_solver_status = self.linear_solver.solve(lin_sys.A, lin_sys.b, &mut dx);
-        if linear_solver_status == LinearSolverStatus::Success {
-            variables.retract(dx.as_view(), variable_ordering);
-            Ok(IterationData::new(false, 0.0))
-        } else if linear_solver_status == LinearSolverStatus::RankDeficiency {
-            println!("Warning: linear system has rank deficiency");
-            return Err(NonlinearOptimizationError::RankDeficiency);
-        } else {
-            println!("Warning: linear solver returns invalid state");
-            return Err(NonlinearOptimizationError::Invalid);
-        }
+        // cannot decrease error with max lambda
+        println!("Warning: LM cannot decrease error with max lambda");
+        Err(NonlinearOptimizationError::ErrorIncrease)
     }
 
     fn linear_solver(&self) -> &Self::S {
@@ -360,7 +436,6 @@ mod tests {
             nonlinear_optimizer::{LinSysWrapper, OptIterate},
             sparsity_pattern::{construct_hessian_sparsity, HessianTriangle},
         },
-        prelude::NonlinearOptimizer,
     };
 
     #[test]
@@ -399,9 +474,7 @@ mod tests {
         .unwrap();
         let A = CscMatrix::try_from_pattern_and_values(csc_pattern, A_values.clone())
             .expect("CSC data must conform to format specifications");
-        let mut optimizer = NonlinearOptimizer::default();
         let opt_res = opt_iter.iterate(
-            &mut optimizer,
             &factors,
             &mut variables,
             &variable_ordering,

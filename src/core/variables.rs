@@ -46,6 +46,19 @@ where
             d = self.container.retract(delta.clone(), key, d);
         }
     }
+    pub fn retracted(
+        &mut self,
+        delta: DVectorView<R>,
+        variable_ordering: &VariableOrdering,
+    ) -> Self {
+        debug_assert_eq!(delta.nrows(), self.dim());
+        todo!()
+        // let mut d: usize = 0;
+        // for i in 0..variable_ordering.len() {
+        //     let key = variable_ordering.key(i).unwrap();
+        //     d = self.container.retract(delta.clone(), key, d);
+        // }
+    }
 
     //TODO: return DVectorView
     pub fn local(&self, variables: &Self, variable_ordering: &VariableOrdering) -> DVector<R> {
