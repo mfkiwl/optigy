@@ -82,7 +82,7 @@ where
     R: RealField + Float + Default,
 {
     pub fn with_params(params: LevenbergMarquardtOptimizerParams) -> Self {
-        LevenbergMarquardtOptimizer {
+        let mut opt = LevenbergMarquardtOptimizer {
             linear_solver: SparseCholeskySolver::default(),
             params: params.clone(),
             try_lambda_inited: false,
@@ -92,7 +92,9 @@ where
             last_lambda: 0.0,
             last_lambda_sqrt: 0.0,
             linear_solver_inited: false,
-        }
+        };
+        opt.reset();
+        opt
     }
     fn increase_lambda(&mut self) {
         self.lambda *= self.lambda_increase_factor;
@@ -231,7 +233,7 @@ where
         // nonlinear error improvement
         let variables_to_update = variables.retracted(dx_lm.as_view(), variable_ordering);
 
-        let values_update_err = 0.5 * factors.error_squared_norm(variables); //values_to_update
+        let values_update_err = 0.5 * factors.error_squared_norm(&variables_to_update);
         let nonlinear_err_update = values_curr_err - values_update_err;
 
         // linear error improvement
@@ -314,6 +316,7 @@ where
         variables: &mut Variables<VC, R>,
         variable_ordering: &VariableOrdering,
         lin_sys: LinSysWrapper<'_, R>,
+        variables_curr_err: f64,
     ) -> Result<IterationData, NonlinearOptimizationError>
     where
         FC: FactorsContainer<R>,
@@ -326,11 +329,6 @@ where
             todo!()
             // hessian_diag = internal::hessianDiagonal(A);
         };
-        println!(
-            "rows: {} cols: {}",
-            hessian_diag.nrows(),
-            hessian_diag.ncols()
-        );
         let mut hessian_diag_max = 0.0;
         let hessian_diag_max_sqrt = 0.0;
 
@@ -354,8 +352,7 @@ where
         };
 
         // current value error
-        // let values_curr_err = optimizer.last_err_squared_norm; // read from optimize()
-        let values_curr_err = factors.error_squared_norm(variables);
+        // let variables_curr_err = factors.error_squared_norm(variables);
         // try different lambda, until find a lambda to decrese error (return
         // SUCCESS),
         // or reach max lambda which still cannot decrese error (return
@@ -378,7 +375,7 @@ where
                 factors,
                 variables,
                 variable_ordering,
-                values_curr_err,
+                variables_curr_err,
             );
 
             match try_lambda_result {
@@ -413,6 +410,16 @@ where
     }
     fn base_params(&self) -> &NonlinearOptimizerParams {
         &self.params.base
+    }
+
+    fn reset(&mut self) {
+        self.try_lambda_inited = false;
+        self.lambda = self.params.lambda_init;
+        self.lambda_increase_factor = self.params.lambda_increase_factor_init;
+        self.gain_ratio = 0.0;
+        self.last_lambda = 0.0;
+        self.last_lambda_sqrt = 0.0;
+        self.linear_solver_inited = false;
     }
 }
 #[cfg(test)]
@@ -479,6 +486,7 @@ mod tests {
             &mut variables,
             &variable_ordering,
             LinSysWrapper::new(&A, &b),
+            0.0,
         );
         assert!(opt_res.is_ok());
     }

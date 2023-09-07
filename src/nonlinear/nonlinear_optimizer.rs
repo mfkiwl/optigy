@@ -159,12 +159,14 @@ where
         variables: &mut Variables<VC, R>,
         variable_ordering: &VariableOrdering,
         lin_sys: LinSysWrapper<'_, R>,
+        variables_curr_err: f64,
     ) -> Result<IterationData, NonlinearOptimizationError>
     where
         FC: FactorsContainer<R>,
         VC: VariablesContainer<R>;
     fn linear_solver(&self) -> &Self::S;
     fn base_params(&self) -> &NonlinearOptimizerParams;
+    fn reset(&mut self) {}
 }
 
 // #[derive(Default)]
@@ -303,6 +305,7 @@ where
             );
         }
         let mut b: DVector<R> = DVector::zeros(A_rows);
+        self.opt.reset();
         while self.iterations < params.max_iterations {
             b.fill(R::zero());
             A_values.fill(R::zero());
@@ -342,6 +345,7 @@ where
                 variables,
                 &variable_ordering,
                 LinSysWrapper::new(&A, &b),
+                self.last_err_squared_norm,
             );
             let duration = start.elapsed();
             // println!("opt iterate time: {:?}", duration);

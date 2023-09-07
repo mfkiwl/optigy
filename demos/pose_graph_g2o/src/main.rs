@@ -7,7 +7,9 @@ use nalgebra::Matrix3;
 use optigy::core::loss_function::ScaleLoss;
 
 use optigy::nonlinear::gauss_newton_optimizer::GaussNewtonOptimizerParams;
-use optigy::nonlinear::levenberg_marquardt_optimizer::LevenbergMarquardtOptimizer;
+use optigy::nonlinear::levenberg_marquardt_optimizer::{
+    LevenbergMarquardtOptimizer, LevenbergMarquardtOptimizerParams,
+};
 use optigy::prelude::{
     Factors, FactorsContainer, GaussNewtonOptimizer, GaussianLoss, Key, NonlinearOptimizer,
     NonlinearOptimizerVerbosityLevel, Variables, VariablesContainer,
@@ -96,10 +98,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     const OUTPUT_GIF: &str = "pose_graph.gif";
 
-    let mut params = GaussNewtonOptimizerParams::default();
-    params.base.verbosity_level = NonlinearOptimizerVerbosityLevel::Warning;
-    // let mut optimizer = NonlinearOptimizer::new(GaussNewtonOptimizer::with_params(params));
-    let mut optimizer = NonlinearOptimizer::new(LevenbergMarquardtOptimizer::default());
+    let mut params = LevenbergMarquardtOptimizerParams::default();
+    // params.base.verbosity_level = NonlinearOptimizerVerbosityLevel::Subiteration;
+    let mut optimizer = NonlinearOptimizer::new(LevenbergMarquardtOptimizer::with_params(params));
+    // let mut optimizer = NonlinearOptimizer::new(LevenbergMarquardtOptimizer::default());
     let start = Instant::now();
     let opt_res = if args.do_viz {
         let img_w = 1024 as i32;

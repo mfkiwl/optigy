@@ -60,6 +60,7 @@ where
         variables: &mut Variables<VC, R>,
         variable_ordering: &VariableOrdering,
         lin_sys: LinSysWrapper<'_, R>,
+        _variables_curr_err: f64,
     ) -> Result<IterationData, NonlinearOptimizationError>
     where
         R: RealField,
@@ -113,7 +114,6 @@ mod tests {
             nonlinear_optimizer::{LinSysWrapper, OptIterate},
             sparsity_pattern::{construct_hessian_sparsity, HessianTriangle},
         },
-        prelude::NonlinearOptimizer,
     };
 
     #[test]
@@ -153,6 +153,7 @@ mod tests {
             &mut variables,
             &variable_ordering,
             LinSysWrapper::new(&A, &b),
+            0.0,
         );
         assert!(opt_res.is_ok());
     }
