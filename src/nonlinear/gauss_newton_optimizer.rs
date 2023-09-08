@@ -108,6 +108,7 @@ mod tests {
             variables::Variables,
             variables_container::VariablesContainer,
         },
+        linear::linear_solver::SparseLinearSolver,
         nonlinear::{
             gauss_newton_optimizer::GaussNewtonOptimizer,
             linearization::linearization_hessian,
@@ -148,6 +149,7 @@ mod tests {
         .unwrap();
         let A = CscMatrix::try_from_pattern_and_values(csc_pattern, A_values.clone())
             .expect("CSC data must conform to format specifications");
+        optimizer.linear_solver.initialize(&A);
         let opt_res = optimizer.iterate(
             &factors,
             &mut variables,

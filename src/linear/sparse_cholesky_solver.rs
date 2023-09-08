@@ -163,20 +163,46 @@ mod tests {
 
     use super::SparseCholeskySolver;
 
+    // #[test]
+    // #[allow(non_snake_case)]
+    // fn lin_solve() {
+    //     let a = dmatrix![11.0, 5.0, 0.0; 5.0, 5.0, 4.0; 0.0, 4.0, 6.0];
+    //     let mut coo = CooMatrix::new(3, 3);
+    //     for i in 0..a.nrows() {
+    //         for j in 0..a.ncols() {
+    //             coo.push(i, j, a[(i, j)]);
+    //         }
+    //     }
+    //     let A: CscMatrix<f64> = CscMatrix::from(&coo);
+
+    //     let b = dvector![21.0, 27.0, 26.0];
+    //     let solver = SparseCholeskySolver::<f64>::default();
+    //     let mut x = DVector::zeros(3);
+    //     let status = solver.solve(&A, &b, &mut x);
+    //     assert_eq!(status, LinearSolverStatus::Success);
+    //     assert!((x - dvector![1.0, 2.0, 3.0]).norm() < 1e-9);
+    // }
     #[test]
     #[allow(non_snake_case)]
-    fn lin_solve() {
-        let a = dmatrix![11.0, 5.0, 0.0; 5.0, 5.0, 4.0; 0.0, 4.0, 6.0];
+    fn lin_solve_upper() {
+        let a = dmatrix![
+            11.0, 5.0, 0.0; 
+            0.0, 5.0, 4.0;
+            0.0, 0.0, 6.0];
         let mut coo = CooMatrix::new(3, 3);
         for i in 0..a.nrows() {
             for j in 0..a.ncols() {
-                coo.push(i, j, a[(i, j)]);
+                let v: f64 = a[(i, j)];
+                if v.abs() > 0.0 {
+                    coo.push(i, j, v);
+                }
             }
         }
         let A: CscMatrix<f64> = CscMatrix::from(&coo);
 
         let b = dvector![21.0, 27.0, 26.0];
         let solver = SparseCholeskySolver::<f64>::default();
+        solver.initialize(&A);
         let mut x = DVector::zeros(3);
         let status = solver.solve(&A, &b, &mut x);
         assert_eq!(status, LinearSolverStatus::Success);

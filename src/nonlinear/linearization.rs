@@ -34,41 +34,63 @@ pub fn linearzation_jacobian<R, VC, FC>(
     VC: VariablesContainer<R>,
     FC: FactorsContainer<R>,
 {
-    // assert_eq!(A.nrows(), sparsity.base.A_rows);
-    // assert_eq!(A.ncols(), sparsity.base.A_cols);
-    // assert_eq!(b.nrows(), sparsity.base.A_rows);
-    // let mut err_row_counter = 0;
-    // for f_index in 0..factors.len() {
-    //     // factor dim
-    //     let f_dim = factors.dim_at(f_index).unwrap();
-    //     let keys = factors.keys_at(f_index).unwrap();
-    //     assert!(has_unique_elements(keys));
-    //     let mut jacobian_col = Vec::<usize>::with_capacity(keys.len());
-    //     for vkey in keys {
-    //         let key_idx = sparsity.base.var_ordering.search_key(*vkey).unwrap();
-    //         jacobian_col.push(sparsity.base.var_col[key_idx]);
-    //     }
-    //     let wht_js_err = factors
-    //         .weighted_jacobians_error_at(variables, f_index)
-    //         .unwrap();
-    //     let wht_js = wht_js_err.jacobians.deref();
-    //     b.rows_mut(err_row_counter, f_dim)
-    //         .copy_from(&wht_js_err.error.deref().clone());
+    assert_eq!(A.nrows(), sparsity.base.A_rows);
+    assert_eq!(A.ncols(), sparsity.base.A_cols);
+    assert_eq!(b.nrows(), sparsity.base.A_rows);
+    let mut err_row_counter = 0;
+    for f_index in 0..factors.len() {
+        // factor dim
+        let f_dim = factors.dim_at(f_index).unwrap();
+        let keys = factors.keys_at(f_index).unwrap();
+        let f_len = keys.len();
 
-    //     for j_idx in 0..wht_js.len() {
-    //         let jacob = &wht_js[j_idx];
-    //         A.view_mut(
-    //             (err_row_counter, jacobian_col[j_idx]),
-    //             (jacob.nrows(), jacob.ncols()),
-    //         )
-    //         .copy_from(jacob);
-    //     }
+        assert!(has_unique_elements(keys));
+        let mut jacobian_col = Vec::<usize>::with_capacity(f_len);
+        let mut jacobian_col_local = Vec::<usize>::with_capacity(f_len);
+        let mut jacobian_ncols = Vec::<usize>::with_capacity(f_len);
+        let mut local_col: usize = 0;
+        for vkey in keys {
+            let key_idx = sparsity.base.var_ordering.search_key(*vkey).unwrap();
+            jacobian_col.push(sparsity.base.var_col[key_idx]);
+            jacobian_col_local.push(local_col);
+            let var_dim = sparsity.base.var_dim[key_idx];
+            jacobian_ncols.push(var_dim);
+            local_col += var_dim;
+        }
+        // let wht_js_err = factors
+        //     .weighted_jacobians_error_at(variables, f_index)
+        //     .unwrap();
+        // let wht_js = wht_js_err.jacobians.deref();
+        let wht_js_err = factors.jacobians_error_at(variables, f_index).unwrap();
+        let mut error = wht_js_err.error.to_owned();
+        let mut jacobians = wht_js_err.jacobians.to_owned();
 
-    //     err_row_counter += f_dim;
-    // }
-    // //TODO: do better
-    // b.neg_mut();
-    todo!()
+        debug_assert_eq!(error.nrows(), f_dim);
+        debug_assert_eq!(jacobians.nrows(), f_dim);
+        // debug_assert_eq!(jacobians.ncols(), local_col);
+
+        //  whiten err and jacobians
+        factors.weight_jacobians_error_in_place_at(
+            variables,
+            error.as_view_mut(),
+            jacobians.as_view_mut(),
+            f_index,
+        );
+        b.rows_mut(err_row_counter, f_dim).copy_from(&error);
+
+        for j_idx in 0..jacobian_col.len() {
+            let jacobian = &jacobians.columns(jacobian_col_local[j_idx], jacobian_ncols[j_idx]);
+            A.view_mut(
+                (err_row_counter, jacobian_col[j_idx]),
+                (jacobian.nrows(), jacobian.ncols()),
+            )
+            .copy_from(jacobian);
+        }
+
+        err_row_counter += f_dim;
+    }
+    //TODO: do better
+    b.neg_mut();
 }
 
 #[allow(non_snake_case)]

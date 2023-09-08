@@ -122,6 +122,8 @@ where
 }
 #[cfg(test)]
 mod tests {
+    use matrixcompare::assert_matrix_eq;
+
     use crate::core::variable::tests::{VariableA, VariableB};
 
     use super::*;
@@ -204,17 +206,19 @@ mod tests {
         assert_eq!(var_0.val, DVector::<Real>::from_element(3, 1.0));
         assert_eq!(var_1.val, DVector::<Real>::from_element(3, 2.0));
 
-        let delta = variables.local(&orig_variables, &variables.default_variable_ordering());
+        let ordering = variables.default_variable_ordering();
+        let delta = variables.local(&orig_variables, &ordering);
 
         let dim_0 = variables.at::<VariableA<_>>(Key(0)).unwrap().dim();
         let dim_1 = variables.at::<VariableB<_>>(Key(1)).unwrap().dim();
-        assert_eq!(
-            DVector::<Real>::from_element(dim_1, 2.0),
-            delta.rows(0, dim_0)
+
+        assert_matrix_eq!(
+            DVector::<Real>::from_element(dim_1, 1.0),
+            delta.rows(ordering.search_key(Key(0)).unwrap(), dim_0)
         );
-        assert_eq!(
-            DVector::<Real>::from_element(dim_0, 1.0),
-            delta.rows(dim_0, dim_1)
+        assert_matrix_eq!(
+            DVector::<Real>::from_element(dim_0, 2.0),
+            delta.rows(ordering.search_key(Key(1)).unwrap() * dim_0, dim_1)
         );
     }
 
