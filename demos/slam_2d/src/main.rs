@@ -6,7 +6,7 @@ use std::{env::current_dir, fs::read_to_string};
 
 use clap::Parser;
 use nalgebra::{
-    matrix, DMatrix, DVector, DVectorView, Matrix2, Matrix3, RealField, SMatrix, Vector2,
+    matrix, DMatrix, DVector, DVectorView, Matrix2, Matrix3, RealField, SMatrix, Vector2, Vector3,
 };
 use optigy::core::factor::{compute_numerical_jacobians, ErrorReturn};
 use optigy::core::loss_function::ScaleLoss;
@@ -24,7 +24,7 @@ use optigy::slam::prior_factor::PriorFactor;
 use optigy::slam::se3::SE2;
 use plotters::coord::types::RangedCoordf64;
 use plotters::prelude::*;
-use plotters::style::full_palette::BLACK;
+use plotters::style::full_palette::{BLACK, GREEN};
 use sophus_rs::lie::rotation2::{Isometry2, Rotation2, Rotation2Impl};
 
 #[derive(Debug, Clone)]
@@ -92,8 +92,8 @@ impl Factor<f64> for VisionFactor {
     where
         C: VariablesContainer<f64>,
     {
-        let landmark_v: &E2 = variables.at(self.keys[0]).unwrap();
-        let pose_v: &SE2 = variables.at(self.keys[1]).unwrap();
+        let landmark_v: &E2 = variables.get(self.keys[0]).unwrap();
+        let pose_v: &SE2 = variables.get(self.keys[1]).unwrap();
         // let R_inv = pose_v.origin.inverse().matrix();
         // let R_inv = R_inv.fixed_view::<2, 2>(0, 0).to_owned();
         let th = pose_v.origin.log()[2];
@@ -118,8 +118,8 @@ impl Factor<f64> for VisionFactor {
     where
         C: VariablesContainer<f64>,
     {
-        let landmark_v: &E2 = variables.at(self.keys[0]).unwrap();
-        let pose_v: &SE2 = variables.at(self.keys[1]).unwrap();
+        let landmark_v: &E2 = variables.get(self.keys[0]).unwrap();
+        let pose_v: &SE2 = variables.get(self.keys[1]).unwrap();
         let R_inv = pose_v.origin.inverse().matrix();
         let R_inv = R_inv.fixed_view::<2, 2>(0, 0).to_owned();
         let l = landmark_v.val;
@@ -174,7 +174,7 @@ impl Factor<f64> for VisionFactor {
 struct Landmark {
     id: Key,
     obs_cnt: usize, // coord: E2,
-                    // vision_factors_keys: Vec<Key>,
+    poses_keys: Vec<Key>,
 }
 impl Landmark {
     fn new<C>(variables: &mut Variables<C>, id: Key, coord: Vector2<f64>) -> Self
@@ -182,7 +182,11 @@ impl Landmark {
         C: VariablesContainer,
     {
         variables.add(id, E2::new(coord[0], coord[1]));
-        Landmark { id, obs_cnt: 0 }
+        Landmark {
+            id,
+            obs_cnt: 0,
+            poses_keys: Vec::new(),
+        }
     }
     fn add_observation<C>(&mut self, factors: &mut Factors<C>, pose_id: Key, ray: Vector2<f64>)
     where
@@ -190,8 +194,42 @@ impl Landmark {
     {
         factors.add(VisionFactor::new(self.id, pose_id, ray));
         self.obs_cnt += 1;
-        // self.vision_factors_keys
-        //     .push(VisionFactor::new(self.id, pose_id, ray));
+        self.poses_keys.push(pose_id);
+    }
+    fn triangulate<FC, VC>(&self, factors: &Factors<FC>, variables: &mut Variables<VC>)
+    where
+        FC: FactorsContainer,
+        VC: VariablesContainer,
+    {
+        let mut A = Matrix2::<f64>::zeros();
+        let mut b = Vector2::<f64>::zeros();
+
+        for p_key in &self.poses_keys {
+            let pose: &SE2 = variables.get(*p_key).unwrap();
+            let th = pose.origin.log()[2];
+            let R_inv = matrix![th.cos(), -th.sin(); th.sin(), th.cos() ].transpose();
+            for f_idx in 0..factors.len() {
+                let vf = factors.get::<VisionFactor>(f_idx);
+                if vf.is_some() {
+                    let vf = vf.unwrap();
+                    if vf.keys()[0] == self.id && vf.keys()[1] == *p_key {
+                        let p = pose.origin.params().fixed_rows::<2>(0);
+                        let r = R_inv.transpose() * vf.ray.clone();
+                        let Ai = Matrix2::<f64>::identity() - r * r.transpose();
+                        A += Ai;
+                        b += Ai * p;
+                    }
+                }
+            }
+        }
+        let l = variables.get_mut::<E2>(self.id).unwrap();
+        let chol = A.cholesky();
+        if chol.is_some() {
+            let coord = chol.unwrap().solve(&b);
+            // println!("err 0: {}", (A * l.val - b).norm());
+            // println!("err 1: {}", (A * coord - b).norm());
+            l.val = coord;
+        }
     }
 }
 /// Simple program to greet a person
@@ -201,6 +239,20 @@ struct Args {
     /// make gif animation
     #[arg(short, long, action)]
     do_viz: bool,
+}
+fn fmt_f64(num: f64, width: usize, precision: usize, exp_pad: usize) -> String {
+    let mut num = format!("{:.precision$e}", num, precision = precision);
+    // Safe to `unwrap` as `num` is guaranteed to contain `'e'`
+    let exp = num.split_off(num.find('e').unwrap());
+
+    let (sign, exp) = if exp.starts_with("e-") {
+        ('-', &exp[2..])
+    } else {
+        ('+', &exp[1..])
+    };
+    num.push_str(&format!("e{}{:0>pad$}", sign, exp, pad = exp_pad));
+
+    format!("{:>width$}", num, width = width)
 }
 #[allow(non_snake_case)]
 fn main() -> Result<(), Box<dyn Error>> {
@@ -217,6 +269,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // println!("current dir {:?}", current_dir().unwrap());
     let landmarks_filename = current_dir().unwrap().join("data").join("landmarks.txt");
     let observations_filename = current_dir().unwrap().join("data").join("observations.txt");
+    let gt_filename = current_dir().unwrap().join("data").join("gt.txt");
     let mut landmarks_init = Vec::<Vector2<f64>>::new();
 
     for (id, line) in read_to_string(landmarks_filename)
@@ -245,7 +298,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         let pose_id = Key(id + landmarks_init.len());
         variables.add(pose_id, SE2::new(x, y, th));
         if id == 0 {
-            factors.add(PriorFactor::new(pose_id, x, y, th, None::<ScaleLoss>))
+            factors.add(PriorFactor::new(
+                pose_id,
+                x,
+                y,
+                th,
+                Some(ScaleLoss::scale(1e10)),
+            ))
         }
         let rays_cnt = l.next().unwrap().parse::<usize>()?;
         for _ in 0..rays_cnt {
@@ -259,6 +318,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             *landmark_obs_cnt.get_mut(&Key(id)).unwrap() += 1;
         }
     }
+    let mut poses_keys = Vec::<Key>::new();
     for (id, line) in read_to_string(observations_filename)
         .unwrap()
         .lines()
@@ -270,6 +330,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let th = l.next().unwrap().parse::<f64>()?;
         let pose_id = Key(id + landmarks_init.len());
         variables.add(pose_id, SE2::new(x, y, th));
+        poses_keys.push(pose_id);
         if id == 0 {
             factors.add(PriorFactor::new(pose_id, x, y, th, None::<ScaleLoss>))
         }
@@ -291,8 +352,21 @@ fn main() -> Result<(), Box<dyn Error>> {
                     pose_id,
                     Vector2::<f64>::new(rx, ry),
                 );
+
+                landmarks
+                    .get_mut(&Key(id))
+                    .unwrap()
+                    .triangulate(&factors, &mut variables);
             }
         }
+    }
+    let mut gt_poses = Vec::<Vector3<f64>>::new();
+    for (_id, line) in read_to_string(gt_filename).unwrap().lines().enumerate() {
+        let mut l = line.split_whitespace();
+        let x = l.next().unwrap().parse::<f64>()?;
+        let y = l.next().unwrap().parse::<f64>()?;
+        let th = l.next().unwrap().parse::<f64>()?;
+        gt_poses.push(Vector3::new(x, y, th));
     }
 
     for l in &landmarks {
@@ -323,7 +397,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     let mut min_y = f64::MAX;
                     let mut max_y = f64::MIN;
                     for key in variables2.default_variable_ordering().keys() {
-                        let v = variables2.at::<SE2>(*key);
+                        let v = variables2.get::<SE2>(*key);
                         if v.is_some() {
                             let v = v.unwrap();
                             min_x = min_x.min(v.origin.params()[0]);
@@ -331,7 +405,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                             min_y = min_y.min(v.origin.params()[1]);
                             max_y = max_y.max(v.origin.params()[1]);
                         }
-                        let v = variables2.at::<E2>(*key);
+                        let v = variables2.get::<E2>(*key);
                         if v.is_some() {
                             let v = v.unwrap();
                             min_x = min_x.min(v.val[0]);
@@ -365,7 +439,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     //             (0..img_w, img_h / 2 - sc_h / 2..sc_h * 2),
                     //         ))
                     // };
-                    let marg = 5;
+                    let marg = 0;
                     let root =
                         root_screen
                             .margin(marg, marg, marg, marg)
@@ -377,7 +451,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     root.fill(&BLACK).unwrap();
                     // println!("iter {}", iteration);
                     for key in variables2.default_variable_ordering().keys() {
-                        let v = variables2.at::<SE2>(*key);
+                        let v = variables2.get::<SE2>(*key);
                         if v.is_some() {
                             let v = v.unwrap();
                             root.draw(&Circle::new(
@@ -387,7 +461,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                             ))
                             .unwrap();
                         }
-                        let v = variables2.at::<E2>(*key);
+                        let v = variables2.get::<E2>(*key);
                         if v.is_some() {
                             let v = v.unwrap();
                             root.draw(&Circle::new(
@@ -416,9 +490,35 @@ fn main() -> Result<(), Box<dyn Error>> {
                     //     .unwrap();
                     // }
 
+                    for idx in 0..gt_poses.len() - 1 {
+                        let p0 = gt_poses[idx];
+                        let p1 = gt_poses[idx + 1];
+                        let p0 = p0.fixed_rows::<2>(0);
+                        let p1 = p1.fixed_rows::<2>(0);
+                        root.draw(&PathElement::new(
+                            vec![(p0[0], p0[1]), (p1[0], p1[1])],
+                            &BLUE,
+                        ))
+                        .unwrap();
+                    }
+                    for idx in 0..poses_keys.len() - 1 {
+                        let key_0 = poses_keys[idx];
+                        let key_1 = poses_keys[idx + 1];
+                        let v0 = variables2.get::<SE2>(key_0);
+                        let v1 = variables2.get::<SE2>(key_1);
+                        if v0.is_some() && v1.is_some() {
+                            let p0 = v0.unwrap().origin.params();
+                            let p1 = v1.unwrap().origin.params();
+                            root.draw(&PathElement::new(
+                                vec![(p0[0], p0[1]), (p1[0], p1[1])],
+                                &GREEN,
+                            ))
+                            .unwrap();
+                        }
+                    }
                     root_screen
                         .draw(&Rectangle::new(
-                            [(6, 3), (300, 25)],
+                            [(6, 3), (320, 25)],
                             ShapeStyle {
                                 color: RGBAColor(255, 165, 0, 1.0),
                                 filled: true,
@@ -428,7 +528,11 @@ fn main() -> Result<(), Box<dyn Error>> {
                         .unwrap();
                     root_screen
                         .draw(&Text::new(
-                            format!("iteration: {} error: {:.2}", iteration, error),
+                            format!(
+                                "iteration: {} error: {}",
+                                iteration,
+                                fmt_f64(error, 10, 3, 2)
+                            ),
                             (10, 5),
                             ("sans-serif", 25.0).into_font(),
                         ))

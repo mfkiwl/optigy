@@ -89,7 +89,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
         // println!("line: {}", line);
     }
-    let v0: &SE2 = variables.at(Key(0)).unwrap();
+    let v0: &SE2 = variables.get(Key(0)).unwrap();
     factors.add(PriorFactor::from_se2(
         Key(0),
         v0.origin,
@@ -121,7 +121,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     let mut min_y = f64::MAX;
                     let mut max_y = f64::MIN;
                     for key in variables2.default_variable_ordering().keys() {
-                        let v: &SE2 = variables2.at(*key).unwrap();
+                        let v: &SE2 = variables2.get(*key).unwrap();
                         min_x = min_x.min(v.origin.params()[0]);
                         max_x = max_x.max(v.origin.params()[0]);
                         min_y = min_y.min(v.origin.params()[1]);
@@ -138,7 +138,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     root.fill(&BLACK).unwrap();
                     // println!("iter {}", iteration);
                     for key in variables2.default_variable_ordering().keys() {
-                        let v: &SE2 = variables2.at(*key).unwrap();
+                        let v: &SE2 = variables2.get(*key).unwrap();
                         // Draw an circle on the drawing area
                         root.draw(&Circle::new(
                             (v.origin.params()[0], v.origin.params()[1]),
@@ -153,8 +153,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                             continue;
                         }
 
-                        let v0: &SE2 = variables2.at(keys[0]).unwrap();
-                        let v1: &SE2 = variables2.at(keys[1]).unwrap();
+                        let v0: &SE2 = variables2.get(keys[0]).unwrap();
+                        let v1: &SE2 = variables2.get(keys[1]).unwrap();
                         root.draw(&PathElement::new(
                             vec![
                                 (v0.origin.params()[0], v0.origin.params()[1]),

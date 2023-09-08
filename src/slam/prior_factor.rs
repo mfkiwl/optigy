@@ -71,7 +71,7 @@ where
     where
         C: VariablesContainer<R>,
     {
-        let v0: &SE2<R> = variables.at(self.keys()[0]).unwrap();
+        let v0: &SE2<R> = variables.get(self.keys()[0]).unwrap();
 
         let diff = (self.origin.inverse().multiply(&v0.origin)).log();
         {

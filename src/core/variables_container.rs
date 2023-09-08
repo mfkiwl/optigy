@@ -266,7 +266,7 @@ where
         let var_this = self.data.get(&key);
         match var_this {
             Some(var_this) => {
-                let var = variables.at::<T::Value>(key).unwrap();
+                let var = variables.get::<T::Value>(key).unwrap();
                 let vd = var.dim();
                 delta.rows_mut(offset, vd).copy_from(&var_this.local(var));
                 offset + vd
@@ -580,8 +580,8 @@ mod tests {
         let mut variables = Variables::new(container2);
         container.fill_variables(&mut variables, Key(3));
         container.fill_variables(&mut variables, Key(4));
-        let v0: &VariableA<Real> = variables.at(Key(3)).unwrap();
-        let v1: &VariableB<Real> = variables.at(Key(4)).unwrap();
+        let v0: &VariableA<Real> = variables.get(Key(3)).unwrap();
+        let v1: &VariableB<Real> = variables.get(Key(4)).unwrap();
         assert_matrix_eq!(v0.val, dvector![4.0, 4.0, 4.0]);
         assert_matrix_eq!(v1.val, dvector![4.0, 4.0, 4.0]);
     }

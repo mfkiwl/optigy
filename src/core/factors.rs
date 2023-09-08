@@ -6,7 +6,7 @@ use core::{cell::RefMut, marker::PhantomData};
 
 use super::{
     factor::{ErrorReturn, Factor, JacobiansErrorReturn},
-    factors_container::FactorsContainer,
+    factors_container::{get_factor, get_factor_mut, FactorsContainer},
     key::Key,
     variables_container::VariablesContainer,
 };
@@ -138,6 +138,18 @@ where
                 )
                 .push(f)
         }
+    }
+    pub fn get<F>(&self, index: usize) -> Option<&F>
+    where
+        F: Factor<R> + 'static,
+    {
+        get_factor(&self.container, index)
+    }
+    pub fn get_mut<F>(&mut self, index: usize) -> Option<&mut F>
+    where
+        F: Factor<R> + 'static,
+    {
+        get_factor_mut(&mut self.container, index)
     }
 }
 #[cfg(test)]

@@ -167,8 +167,8 @@ pub(crate) mod tests {
         where
             C: VariablesContainer<R>,
         {
-            let v0: &VariableA<R> = variables.at(self.keys()[0]).unwrap();
-            let v1: &VariableB<R> = variables.at(self.keys()[1]).unwrap();
+            let v0: &VariableA<R> = variables.get(self.keys()[0]).unwrap();
+            let v1: &VariableB<R> = variables.get(self.keys()[1]).unwrap();
             {
                 *self.error.borrow_mut() = v0.val.clone() - v1.val.clone() + self.orig.clone();
             }
@@ -179,8 +179,8 @@ pub(crate) mod tests {
         where
             C: VariablesContainer<R>,
         {
-            let v0: &VariableA<R> = variables.at(Key(0)).unwrap();
-            let v1: &VariableB<R> = variables.at(Key(1)).unwrap();
+            let v0: &VariableA<R> = variables.get(Key(0)).unwrap();
+            let v1: &VariableB<R> = variables.get(Key(1)).unwrap();
             {
                 let mut js = self.jacobians.borrow_mut();
                 js.column_mut(0).copy_from(&v0.val);
@@ -239,8 +239,8 @@ pub(crate) mod tests {
         where
             C: VariablesContainer<R>,
         {
-            let v0: &VariableA<R> = variables.at(Key(0)).unwrap();
-            let v1: &VariableB<R> = variables.at(Key(1)).unwrap();
+            let v0: &VariableA<R> = variables.get(Key(0)).unwrap();
+            let v1: &VariableB<R> = variables.get(Key(1)).unwrap();
             {
                 *self.error.borrow_mut() = v0.val.clone() - v1.val.clone() + self.orig.clone();
             }
@@ -250,8 +250,8 @@ pub(crate) mod tests {
         where
             C: VariablesContainer<R>,
         {
-            let v0: &VariableA<R> = variables.at(Key(0)).unwrap();
-            let v1: &VariableB<R> = variables.at(Key(1)).unwrap();
+            let v0: &VariableA<R> = variables.get(Key(0)).unwrap();
+            let v1: &VariableB<R> = variables.get(Key(1)).unwrap();
             {
                 let mut js = self.jacobians.borrow_mut();
                 js.column_mut(0).copy_from(&v0.val);
@@ -308,8 +308,8 @@ pub(crate) mod tests {
         where
             C: VariablesContainer<R>,
         {
-            let v0: &RandomVariable<R> = variables.at(self.keys()[0]).unwrap();
-            let v1: &RandomVariable<R> = variables.at(self.keys()[1]).unwrap();
+            let v0: &RandomVariable<R> = variables.get(self.keys()[0]).unwrap();
+            let v1: &RandomVariable<R> = variables.get(self.keys()[1]).unwrap();
             {
                 *self.error.borrow_mut() = v0.val.clone() - v1.val.clone();
             }
@@ -348,7 +348,7 @@ pub(crate) mod tests {
             let e0 = f0.error(&variables).to_owned();
             assert_eq!(e0, DVector::<Real>::from_element(3, 3.0));
         }
-        let v0: &mut VariableA<Real> = variables.at_mut(Key(0)).unwrap();
+        let v0: &mut VariableA<Real> = variables.get_mut(Key(0)).unwrap();
         v0.val.fill(3.0);
         {
             let e0 = f0.error(&variables).to_owned();
