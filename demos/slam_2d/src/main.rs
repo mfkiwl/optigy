@@ -377,9 +377,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     const OUTPUT_GIF: &str = "2d-slam.gif";
 
-    let mut params = LevenbergMarquardtOptimizerParams::default();
+    // let mut params = LevenbergMarquardtOptimizerParams::default();
+    // params.base.verbosity_level = NonlinearOptimizerVerbosityLevel::Iteration;
+    // let mut optimizer = NonlinearOptimizer::new(LevenbergMarquardtOptimizer::with_params(params));
+    let mut params = GaussNewtonOptimizerParams::default();
     params.base.verbosity_level = NonlinearOptimizerVerbosityLevel::Iteration;
-    let mut optimizer = NonlinearOptimizer::new(LevenbergMarquardtOptimizer::with_params(params));
+    let mut optimizer = NonlinearOptimizer::new(GaussNewtonOptimizer::with_params(params));
     let start = Instant::now();
     let opt_res = if args.do_viz {
         let img_w = 1024 as i32;
