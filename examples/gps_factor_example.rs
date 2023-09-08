@@ -61,7 +61,7 @@ where
     where
         C: VariablesContainer<R>,
     {
-        let v0: &SE2<R> = variables.at(self.keys()[0]).unwrap();
+        let v0: &SE2<R> = variables.get(self.keys()[0]).unwrap();
         {
             let pose = v0.origin.params();
             let pose = vector![pose[0], pose[1]];
