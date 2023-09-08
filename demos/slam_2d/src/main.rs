@@ -1,20 +1,18 @@
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap};
 use std::error::Error;
 use std::time::Instant;
 use std::{env::current_dir, fs::read_to_string};
 
 use clap::Parser;
 use nalgebra::{
-    matrix, DMatrix, DVector, DVectorView, Matrix2, Matrix3, RealField, SMatrix, Vector2, Vector3,
+    matrix, DMatrix, DVector, DVectorView, Matrix2, RealField, Vector2, Vector3,
 };
-use optigy::core::factor::{compute_numerical_jacobians, ErrorReturn};
+use optigy::core::factor::{ErrorReturn};
 use optigy::core::loss_function::ScaleLoss;
 
 use optigy::nonlinear::gauss_newton_optimizer::GaussNewtonOptimizerParams;
-use optigy::nonlinear::levenberg_marquardt_optimizer::{
-    LevenbergMarquardtOptimizer, LevenbergMarquardtOptimizerParams,
-};
+
 use optigy::prelude::{
     Factor, Factors, FactorsContainer, GaussNewtonOptimizer, GaussianLoss, JacobiansReturn, Key,
     NonlinearOptimizer, NonlinearOptimizerVerbosityLevel, Variable, Variables, VariablesContainer,
@@ -25,7 +23,7 @@ use optigy::slam::se3::SE2;
 use plotters::coord::types::RangedCoordf64;
 use plotters::prelude::*;
 use plotters::style::full_palette::{BLACK, GREEN};
-use sophus_rs::lie::rotation2::{Isometry2, Rotation2, Rotation2Impl};
+
 
 #[derive(Debug, Clone)]
 pub struct E2<R = f64>
@@ -214,7 +212,7 @@ impl Landmark {
                     let vf = vf.unwrap();
                     if vf.keys()[0] == self.id && vf.keys()[1] == *p_key {
                         let p = pose.origin.params().fixed_rows::<2>(0);
-                        let r = R_inv.transpose() * vf.ray.clone();
+                        let r = R_inv.transpose() * vf.ray;
                         let Ai = Matrix2::<f64>::identity() - r * r.transpose();
                         A += Ai;
                         b += Ai * p;
@@ -272,7 +270,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let gt_filename = current_dir().unwrap().join("data").join("gt.txt");
     let mut landmarks_init = Vec::<Vector2<f64>>::new();
 
-    for (id, line) in read_to_string(landmarks_filename)
+    for (_id, line) in read_to_string(landmarks_filename)
         .unwrap()
         .lines()
         .enumerate()
@@ -311,9 +309,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             let id = l.next().unwrap().parse::<usize>()?;
             let _ = l.next().unwrap().parse::<f64>()?;
             let _ = l.next().unwrap().parse::<f64>()?;
-            if !landmark_obs_cnt.contains_key(&Key(id)) {
-                landmark_obs_cnt.insert(Key(id), 0);
-            }
+            landmark_obs_cnt.entry(Key(id)).or_insert(0);
 
             *landmark_obs_cnt.get_mut(&Key(id)).unwrap() += 1;
         }
@@ -340,12 +336,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             let rx = l.next().unwrap().parse::<f64>()?;
             let ry = l.next().unwrap().parse::<f64>()?;
             if landmark_obs_cnt[&Key(id)] > 1 {
-                if !landmarks.contains_key(&Key(id)) {
-                    landmarks.insert(
-                        Key(id),
-                        Landmark::new(&mut variables, Key(id), landmarks_init[id]),
-                    );
-                }
+                landmarks.entry(Key(id)).or_insert_with(|| Landmark::new(&mut variables, Key(id), landmarks_init[id]));
 
                 landmarks.get_mut(&Key(id)).unwrap().add_observation(
                     &mut factors,
@@ -385,8 +376,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut optimizer = NonlinearOptimizer::new(GaussNewtonOptimizer::with_params(params));
     let start = Instant::now();
     let opt_res = if args.do_viz {
-        let img_w = 1024 as i32;
-        let img_h = 768 as i32;
+        let img_w = 1024_i32;
+        let img_h = 768_i32;
         let root_screen = BitMapBackend::gif(OUTPUT_GIF, (img_w as u32, img_h as u32), 1000)
             .unwrap()
             .into_drawing_area();
@@ -394,7 +385,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             &factors,
             &mut variables,
             Some(
-                |iteration, error, factors2: &Factors<_, _>, variables2: &Variables<_, _>| {
+                |iteration, error, _factors2: &Factors<_, _>, variables2: &Variables<_, _>| {
                     let mut min_x = f64::MAX;
                     let mut max_x = f64::MIN;
                     let mut min_y = f64::MAX;
@@ -417,8 +408,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                             max_y = max_y.max(v.val[1]);
                         }
                     }
-                    let scene_w = max_x - min_x;
-                    let scene_h = max_y - min_y;
+                    let _scene_w = max_x - min_x;
+                    let _scene_h = max_y - min_y;
                     // let root = if scene_h > scene_w {
                     //     let scale = img_h as f64 / scene_h;
                     //     let sc_w = ((max_x - min_x) * scale) as i32;
@@ -460,7 +451,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                             root.draw(&Circle::new(
                                 (v.origin.params()[0], v.origin.params()[1]),
                                 3,
-                                Into::<ShapeStyle>::into(&GREEN).filled(),
+                                Into::<ShapeStyle>::into(GREEN).filled(),
                             ))
                             .unwrap();
                         }
@@ -470,7 +461,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                             root.draw(&Circle::new(
                                 (v.val[0], v.val[1]),
                                 2,
-                                Into::<ShapeStyle>::into(&RED).filled(),
+                                Into::<ShapeStyle>::into(RED).filled(),
                             ))
                             .unwrap();
                         }
@@ -500,7 +491,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         let p1 = p1.fixed_rows::<2>(0);
                         root.draw(&PathElement::new(
                             vec![(p0[0], p0[1]), (p1[0], p1[1])],
-                            &BLUE,
+                            BLUE,
                         ))
                         .unwrap();
                     }
@@ -514,7 +505,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                             let p1 = v1.unwrap().origin.params();
                             root.draw(&PathElement::new(
                                 vec![(p0[0], p0[1]), (p1[0], p1[1])],
-                                &GREEN,
+                                GREEN,
                             ))
                             .unwrap();
                         }
