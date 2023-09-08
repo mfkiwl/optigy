@@ -12,6 +12,9 @@ use optigy::core::factor::{compute_numerical_jacobians, ErrorReturn};
 use optigy::core::loss_function::ScaleLoss;
 
 use optigy::nonlinear::gauss_newton_optimizer::GaussNewtonOptimizerParams;
+use optigy::nonlinear::levenberg_marquardt_optimizer::{
+    LevenbergMarquardtOptimizer, LevenbergMarquardtOptimizerParams,
+};
 use optigy::prelude::{
     Factor, Factors, FactorsContainer, GaussNewtonOptimizer, GaussianLoss, JacobiansReturn, Key,
     NonlinearOptimizer, NonlinearOptimizerVerbosityLevel, Variable, Variables, VariablesContainer,
@@ -300,9 +303,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     const OUTPUT_GIF: &str = "2d-slam.gif";
 
-    let mut params = GaussNewtonOptimizerParams::default();
+    let mut params = LevenbergMarquardtOptimizerParams::default();
     params.base.verbosity_level = NonlinearOptimizerVerbosityLevel::Iteration;
-    let mut optimizer = NonlinearOptimizer::new(GaussNewtonOptimizer::with_params(params));
+    let mut optimizer = NonlinearOptimizer::new(LevenbergMarquardtOptimizer::with_params(params));
     let start = Instant::now();
     let opt_res = if args.do_viz {
         let img_w = 1024 as i32;

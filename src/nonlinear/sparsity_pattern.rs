@@ -256,11 +256,12 @@ where
 
     for var_idx in 0..sparsity.base.var_dim.len() {
         let self_dim = sparsity.base.var_dim[var_idx];
-        for i in 0..sparsity.base.var_dim[var_idx] {
+        let self_col = sparsity.base.var_col[var_idx];
+        for i in 0..self_dim {
             //inner_nnz not used (just for original eigen impl)
             // *inner_nnz_ptr.next().unwrap() =
             //     sparsity.nnz_AtA_cols[i + sparsity.base.var_col[var_idx]];
-            out_counter += sparsity.nnz_AtA_cols[i + sparsity.base.var_col[var_idx]];
+            out_counter += sparsity.nnz_AtA_cols[i + self_col];
             *outer_index_ptr.next().unwrap() = out_counter;
 
             let fill_non_self = |ptr: &mut IterMut<usize>| {
@@ -273,10 +274,10 @@ where
             let fill_self = |ptr: &mut IterMut<usize>| {
                 let j_range = match tri {
                     HessianTriangle::Upper => 0..i + 1,
-                    HessianTriangle::Lower => i..sparsity.base.var_dim[var_idx],
+                    HessianTriangle::Lower => i..self_dim,
                 };
                 for j in j_range {
-                    *ptr.next().unwrap() = sparsity.base.var_col[var_idx] + j;
+                    *ptr.next().unwrap() = self_col + j;
                 }
             };
 
