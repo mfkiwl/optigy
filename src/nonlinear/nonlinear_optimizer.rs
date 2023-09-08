@@ -286,7 +286,7 @@ where
                 A_values.resize(sparsity.total_nnz_AtA_cols, R::from_f64(0.0).unwrap());
             }
         }
-        let duration = start.elapsed();
+        let _duration = start.elapsed();
         // println!("build starsity time: {:?}", duration);
         // init vars and errors
         self.iterations = 0;
@@ -327,7 +327,7 @@ where
                     }
                 }
             }
-            let duration = start.elapsed();
+            let _duration = start.elapsed();
             // println!("linearize time: {:?}", duration);
             let A = CscMatrix::try_from_pattern_and_values(csc_pattern.clone(), A_values.clone())
                 .expect("CSC data must conform to format specifications");
@@ -335,7 +335,7 @@ where
             if self.iterations == 0 {
                 let start = Instant::now();
                 self.opt.linear_solver().initialize(&A);
-                let duration = start.elapsed();
+                let _duration = start.elapsed();
                 // println!("linear_solver().initialize time: {:?}", duration);
             }
             let start = Instant::now();
@@ -347,7 +347,7 @@ where
                 LinSysWrapper::new(&A, &b),
                 self.last_err_squared_norm,
             );
-            let duration = start.elapsed();
+            let _duration = start.elapsed();
             // println!("opt iterate time: {:?}", duration);
             self.iterations += 1;
 
@@ -374,7 +374,7 @@ where
             if callback.is_some() {
                 callback.as_ref().unwrap()(self.iterations, curr_err, factors, variables);
             }
-            let duration = start.elapsed();
+            let _duration = start.elapsed();
             // println!("compute error time: {:?}", duration);
 
             if params.verbosity_level >= NonlinearOptimizerVerbosityLevel::Iteration {

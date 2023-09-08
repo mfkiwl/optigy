@@ -1,17 +1,17 @@
-use std::cell::{RefCell, RefMut};
+
 
 use criterion::{criterion_group, criterion_main, Criterion};
-use nalgebra::{DMatrix, DVector, DVectorView, RealField, Vector2};
+use nalgebra::{DVector};
 use optigy::{
     core::{
-        factor::JacobiansReturn, factors::Factors, factors_container::FactorsContainer,
+        factors::Factors, factors_container::FactorsContainer,
         loss_function::GaussianLoss, variables_container::VariablesContainer,
     },
     nonlinear::{
         linearization::linearization_hessian,
         sparsity_pattern::{construct_hessian_sparsity, HessianTriangle},
     },
-    prelude::{Factor, Key, Variable, Variables},
+    prelude::{Key, Variables},
     slam::{between_factor::BetweenFactor, se3::SE2},
 };
 

@@ -105,14 +105,9 @@ where
         {
             self.container
             .get_mut::<V>()
-            .expect(
-                format!(
-                    "type {} should be registered in variables container. use ().and_variable::<{}>()",
+            .unwrap_or_else(|| panic!("type {} should be registered in variables container. use ().and_variable::<{}>()",
                    tynm::type_name::<V>(),
-                   tynm::type_name::<V>()
-                )
-                .as_str(),
-            )
+                   tynm::type_name::<V>()))
             .insert(key, var);
         }
     }

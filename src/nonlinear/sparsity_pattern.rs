@@ -129,15 +129,13 @@ where
 }
 
 #[derive(Debug, Copy, Clone)]
+#[derive(Default)]
 pub enum HessianTriangle {
+    #[default]
     Upper,
     Lower,
 }
-impl Default for HessianTriangle {
-    fn default() -> Self {
-        HessianTriangle::Upper
-    }
-}
+
 /// construct A'Ax = A'b sparsity pattern cache from a factor graph and a set of
 /// variables
 #[allow(non_snake_case)]

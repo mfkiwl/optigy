@@ -3,9 +3,9 @@ use std::ops::MulAssign;
 use nalgebra::{
     DMatrix, DMatrixView, DMatrixViewMut, DVector, DVectorView, DVectorViewMut, RealField,
 };
-use num::{traits::real::Real, Float};
+use num::{Float};
 
-use super::factor::JacobiansErrorReturn;
+
 
 pub trait LossFunction<R>
 where

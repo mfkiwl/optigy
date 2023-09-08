@@ -1,10 +1,10 @@
 use core::cell::RefCell;
-use core::cell::RefMut;
-use std::io::Error;
+
+
 
 use nalgebra::vector;
 
-use nalgebra::SMatrix;
+
 use nalgebra::Vector2;
 use nalgebra::{DMatrix, DVector, RealField};
 use num::Float;
@@ -12,11 +12,11 @@ use optigy::core::factor::ErrorReturn;
 use optigy::core::factor::Jacobians;
 use optigy::core::loss_function::DiagonalLoss;
 use optigy::core::loss_function::ScaleLoss;
-use optigy::nonlinear::levenberg_marquardt_optimizer::LevenbergMarquardtOptimizer;
-use optigy::nonlinear::levenberg_marquardt_optimizer::LevenbergMarquardtOptimizerParams;
+
+
 use optigy::prelude::Factors;
 use optigy::prelude::FactorsContainer;
-use optigy::prelude::GaussNewtonOptimizer;
+
 use optigy::prelude::GaussianLoss;
 use optigy::prelude::JacobiansReturn;
 use optigy::prelude::NonlinearOptimizer;

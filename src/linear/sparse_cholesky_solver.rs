@@ -105,7 +105,7 @@ where
         {
             self.factors.borrow_mut().as_mut().unwrap().update_values(
                 Vec::<usize>::from_iter(0..A.nnz()).as_slice(),
-                &A.nzval.as_slice(),
+                A.nzval.as_slice(),
             );
         }
         {
@@ -115,7 +115,7 @@ where
             self.factors.borrow_mut().as_mut().unwrap().solve(&mut bv);
         }
 
-        let duration = start.elapsed();
+        let _duration = start.elapsed();
         // println!("cholesky factor time: {:?}", duration);
         for i in 0..bv.len() {
             x[i] = R::from_f64(bv[i]).unwrap();

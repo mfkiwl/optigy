@@ -1,8 +1,8 @@
-use nalgebra::{DMatrix, DMatrixViewMut, DVector, DVectorViewMut, RealField};
+use nalgebra::{DMatrixViewMut, DVector, DVectorViewMut, RealField};
 use num::Float;
 
 use crate::core::variables::Variables;
-use core::{cell::RefMut, marker::PhantomData};
+use core::{marker::PhantomData};
 
 use super::{
     factor::{ErrorReturn, Factor, JacobiansErrorReturn},
@@ -128,14 +128,9 @@ where
         {
             self.container
                 .get_mut::<F>()
-                .expect(
-                    format!(
-                    "type {} should be registered in factors container. use ().and_factor::<{}>()",
+                .unwrap_or_else(|| panic!("type {} should be registered in factors container. use ().and_factor::<{}>()",
                     tynm::type_name::<F>(),
-                    tynm::type_name::<F>()
-                )
-                    .as_str(),
-                )
+                    tynm::type_name::<F>()))
                 .push(f)
         }
     }

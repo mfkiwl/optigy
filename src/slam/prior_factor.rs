@@ -1,9 +1,8 @@
 use std::{
-    cell::{RefCell, RefMut},
-    ops::Deref,
+    cell::{RefCell},
 };
 
-use nalgebra::{DMatrix, DVector, DVectorView, RealField, SMatrix, Vector2};
+use nalgebra::{DMatrix, DVector, RealField, SMatrix, Vector2};
 use num::Float;
 use sophus_rs::lie::rotation2::{Isometry2, Rotation2};
 

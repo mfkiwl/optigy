@@ -1,12 +1,12 @@
-use std::ops::{Deref, SubAssign};
+use std::ops::{SubAssign};
 
 use hashbrown::HashSet;
-use nalgebra::{DMatrix, DMatrixViewMut, DVector, RealField};
+use nalgebra::{DMatrix, DVector, RealField};
 use num::Float;
 
 use crate::{
     core::{
-        factor::JacobiansReturn, factors::Factors, factors_container::FactorsContainer,
+        factors::Factors, factors_container::FactorsContainer,
         variables::Variables, variables_container::VariablesContainer,
     },
     nonlinear::sparsity_pattern::HessianTriangle,
@@ -307,7 +307,7 @@ pub fn linearzation_full_hessian<R, VC, FC>(
 mod tests {
 
     use matrixcompare::assert_matrix_eq;
-    use nalgebra::{dmatrix, DMatrix, DVector, Matrix3x4};
+    use nalgebra::{DMatrix, DVector, Matrix3x4};
     use nalgebra_sparse::{pattern::SparsityPattern, CscMatrix};
     use rand::{distributions::Uniform, prelude::Distribution};
 
@@ -315,7 +315,6 @@ mod tests {
         core::{
             factor::{
                 tests::{FactorA, FactorB, RandomBlockFactor},
-                JacobiansReturn,
             },
             factors::Factors,
             factors_container::FactorsContainer,
@@ -377,8 +376,8 @@ mod tests {
         // let variable_ordering = variables.default_variable_ordering();
         let variable_ordering = VariableOrdering::new(vec![Key(0), Key(1), Key(2)].as_slice());
         let pattern = construct_jacobian_sparsity(&factors, &variables, &variable_ordering);
-        let mut A = DMatrix::<Real>::zeros(pattern.base.A_rows, pattern.base.A_cols);
-        let mut b = DVector::<Real>::zeros(pattern.base.A_rows);
+        let _A = DMatrix::<Real>::zeros(pattern.base.A_rows, pattern.base.A_cols);
+        let _b = DVector::<Real>::zeros(pattern.base.A_rows);
         // linearzation_jacobian(&factors, &variables, &pattern, &mut A, &mut b);
         // println!("A {}", A);
         // println!("b {}", b);

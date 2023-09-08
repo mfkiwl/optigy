@@ -1,6 +1,6 @@
-use std::time::Instant;
 
-use nalgebra::{DMatrix, DVector, RealField};
+
+use nalgebra::{DVector, RealField};
 use num::Float;
 
 use crate::{
@@ -12,7 +12,6 @@ use crate::{
         linear_solver::{LinearSolverStatus, SparseLinearSolver},
         sparse_cholesky_solver::SparseCholeskySolver,
     },
-    prelude::NonlinearOptimizer,
 };
 
 use super::nonlinear_optimizer::{

@@ -1,21 +1,21 @@
 use core::cell::Ref;
-use core::cell::RefMut;
-use std::borrow::BorrowMut;
-use std::cell::RefCell;
+
+
+
 
 use crate::core::key::Key;
 use crate::core::loss_function::LossFunction;
 use crate::core::variables::Variables;
 use nalgebra::DMatrix;
-use nalgebra::DMatrixSliceMut;
-use nalgebra::DMatrixView;
-use nalgebra::DMatrixViewMut;
+
+
+
 use nalgebra::DVector;
-use nalgebra::DVectorView;
+
 use nalgebra::RealField;
 
-use super::key;
-use super::loss_function::GaussianLoss;
+
+
 use super::variables_container::VariablesContainer;
 pub type JacobiansReturn<'a, R> = Ref<'a, DMatrix<R>>;
 pub type ErrorReturn<'a, R> = Ref<'a, DVector<R>>;
@@ -126,10 +126,10 @@ pub(crate) mod tests {
         variables_container::VariablesContainer,
     };
     use core::cell::RefCell;
-    use core::cell::RefMut;
-    use nalgebra::{DMatrix, DMatrixView, DVector, DVectorView, Matrix3, RealField};
+    
+    use nalgebra::{DMatrix, DVector, Matrix3, RealField};
     use rand::Rng;
-    use std::ops::Deref;
+    
 
     pub struct FactorA<R>
     where
@@ -218,7 +218,7 @@ pub(crate) mod tests {
         R: RealField,
     {
         pub fn new(v: R, loss: Option<GaussianLoss<R>>, var0: Key, var1: Key) -> Self {
-            let mut jacobians = Vec::<DMatrix<R>>::with_capacity(2);
+            let _jacobians = Vec::<DMatrix<R>>::with_capacity(2);
             let keys = vec![var0, var1];
             let jacobians = DMatrix::<R>::zeros(3, 3 * keys.len());
             FactorB {
@@ -287,8 +287,8 @@ pub(crate) mod tests {
         R: RealField,
     {
         pub fn new(var0: Key, var1: Key) -> Self {
-            let mut rng = rand::thread_rng();
-            let mut jacobians = Vec::<DMatrix<R>>::with_capacity(2);
+            let _rng = rand::thread_rng();
+            let _jacobians = Vec::<DMatrix<R>>::with_capacity(2);
             let keys = vec![var0, var1];
             let jacobians = DMatrix::<R>::from_fn(3, 3 * keys.len(), |_i, _j| R::one());
             RandomBlockFactor {

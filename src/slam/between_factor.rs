@@ -1,15 +1,14 @@
 use std::{
     borrow::BorrowMut,
-    cell::{RefCell, RefMut},
-    ops::Deref,
+    cell::{RefCell},
 };
 
-use nalgebra::{DMatrix, DVector, DVectorView, RealField, SMatrix, Vector2};
+use nalgebra::{DMatrix, DVector, RealField, SMatrix, Vector2};
 use num::Float;
 use sophus_rs::lie::rotation2::{Isometry2, Rotation2};
 
 use crate::core::{
-    factor::{compute_numerical_jacobians, ErrorReturn, Factor, Jacobians, JacobiansReturn},
+    factor::{ErrorReturn, Factor, Jacobians, JacobiansReturn},
     key::Key,
     loss_function::{GaussianLoss, LossFunction},
     variables::Variables,

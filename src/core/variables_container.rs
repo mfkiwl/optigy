@@ -138,7 +138,7 @@ where
         );
     }
     fn empty_clone(&self) -> Self {
-        ()
+        
     }
 
     fn and_variable<N: VariablesKey<R>>(self) -> VariablesEntry<N, Self, R>
@@ -375,14 +375,9 @@ where
     {
         container
             .get::<V>()
-            .expect(
-                format!(
-                "type {} should be registered in variables container. use ().and_variable::<{}>()",
+            .unwrap_or_else(|| panic!("type {} should be registered in variables container. use ().and_variable::<{}>()",
                 tynm::type_name::<V>(),
-                tynm::type_name::<V>()
-            )
-                .as_str(),
-            )
+                tynm::type_name::<V>()))
             .get(&key)
     }
 }
@@ -400,14 +395,9 @@ where
     {
         container
             .get_mut::<V>()
-            .expect(
-                format!(
-                "type {} should be registered in variables container. use ().and_variable::<{}>()",
+            .unwrap_or_else(|| panic!("type {} should be registered in variables container. use ().and_variable::<{}>()",
                 tynm::type_name::<V>(),
-                tynm::type_name::<V>()
-            )
-                .as_str(),
-            )
+                tynm::type_name::<V>()))
             .get_mut(&key)
     }
 }

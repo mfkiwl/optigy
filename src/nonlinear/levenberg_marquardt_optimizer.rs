@@ -127,16 +127,14 @@ where
                 } else {
                     update_dumping_hessian(A, self.lambda * hessian_diag_max, 0.0);
                 }
+            } else if self.params.diagonal_damping {
+                update_dumping_hessian_diag(A, hessian_diag, self.lambda, self.last_lambda);
             } else {
-                if self.params.diagonal_damping {
-                    update_dumping_hessian_diag(A, hessian_diag, self.lambda, self.last_lambda);
-                } else {
-                    update_dumping_hessian(
-                        A,
-                        self.lambda * hessian_diag_max,
-                        self.last_lambda * hessian_diag_max,
-                    );
-                }
+                update_dumping_hessian(
+                    A,
+                    self.lambda * hessian_diag_max,
+                    self.last_lambda * hessian_diag_max,
+                );
             }
         } else {
             todo!()

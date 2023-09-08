@@ -1,8 +1,8 @@
 use crate::core::factor::Factor;
 use core::any::TypeId;
-use core::cell::RefMut;
+
 use core::mem;
-use nalgebra::{DMatrix, DMatrixViewMut, DVector, DVectorViewMut, RealField};
+use nalgebra::{DMatrixViewMut, DVectorViewMut, RealField};
 
 use super::factor::{ErrorReturn, JacobiansErrorReturn};
 use super::key::Key;
