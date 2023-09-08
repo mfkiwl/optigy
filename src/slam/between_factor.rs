@@ -1,7 +1,4 @@
-use std::{
-    borrow::BorrowMut,
-    cell::{RefCell},
-};
+use std::cell::RefCell;
 
 use nalgebra::{DMatrix, DVector, RealField, SMatrix, Vector2};
 use num::Float;

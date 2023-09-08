@@ -170,6 +170,7 @@ where
     }
 
     #[allow(non_snake_case)]
+    #[allow(clippy::too_many_arguments)]
     fn try_lambda<FC, VC>(
         &mut self,
         lin_sys: LinSysWrapper<'_, R>,

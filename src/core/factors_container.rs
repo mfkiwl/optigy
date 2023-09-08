@@ -255,8 +255,7 @@ where
     {
         if (init..(init + self.data.len())).contains(&index) {
             let loss = self.data[index - init].loss_function();
-            if loss.is_some() {
-                let loss = loss.unwrap();
+            if let Some(loss) = loss {
                 loss.weight_jacobians_error_in_place(error, jacobians);
             }
         } else {
@@ -280,8 +279,7 @@ where
     {
         if (init..(init + self.data.len())).contains(&index) {
             let loss = self.data[index - init].loss_function();
-            if loss.is_some() {
-                let loss = loss.unwrap();
+            if let Some(loss) = loss {
                 loss.weight_error_in_place(error);
             }
         } else {

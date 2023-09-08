@@ -1,20 +1,13 @@
 use core::cell::Ref;
 
-
-
-
 use crate::core::key::Key;
 use crate::core::loss_function::LossFunction;
 use crate::core::variables::Variables;
 use nalgebra::DMatrix;
 
-
-
 use nalgebra::DVector;
 
 use nalgebra::RealField;
-
-
 
 use super::variables_container::VariablesContainer;
 pub type JacobiansReturn<'a, R> = Ref<'a, DMatrix<R>>;
@@ -95,8 +88,7 @@ pub fn compute_numerical_jacobians<V, F, R>(
 {
     let mut factor_variables = Variables::new(variables.container.empty_clone());
 
-    let mut offsets = Vec::<usize>::with_capacity(factor.len());
-    offsets.resize(factor.len(), 0);
+    let mut offsets: Vec<usize> = vec![0; factor.len()];
     let mut offset: usize = 0;
     for (idx, key) in factor.keys().iter().enumerate() {
         variables
@@ -126,10 +118,9 @@ pub(crate) mod tests {
         variables_container::VariablesContainer,
     };
     use core::cell::RefCell;
-    
+
     use nalgebra::{DMatrix, DVector, Matrix3, RealField};
     use rand::Rng;
-    
 
     pub struct FactorA<R>
     where

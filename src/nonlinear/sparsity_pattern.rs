@@ -128,8 +128,7 @@ where
     sparsity
 }
 
-#[derive(Debug, Copy, Clone)]
-#[derive(Default)]
+#[derive(Debug, Copy, Clone, Default)]
 pub enum HessianTriangle {
     #[default]
     Upper,
@@ -150,8 +149,10 @@ where
     VC: VariablesContainer<R>,
     FC: FactorsContainer<R>,
 {
-    let mut sparsity = HessianSparsityPattern::default();
-    sparsity.tri = tri;
+    let mut sparsity = HessianSparsityPattern {
+        tri,
+        ..Default::default()
+    };
 
     // A size
     sparsity.base.A_rows = factors.dim();

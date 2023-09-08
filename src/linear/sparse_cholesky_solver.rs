@@ -17,15 +17,13 @@ where
     factors: RefCell<Option<QDLDLFactorisation>>,
 }
 #[allow(non_snake_case)]
-fn make_transposed<R>(A: &CscMatrix<R>) -> algebra::CscMatrix
+fn _make_transposed<R>(A: &CscMatrix<R>) -> algebra::CscMatrix
 where
     R: RealField + Float,
 {
     let mut coo = CooMatrix::<R>::zeros(A.nrows(), A.ncols());
     for (i, j, v) in A.triplet_iter() {
-        //lower to upper
         coo.push(j, i, *v);
-        // coo.push(i, j, *v);
     }
     let A = &CscMatrix::from(&coo);
     let (patt, vals) = A.clone().into_pattern_and_values();
