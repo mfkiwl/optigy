@@ -3,9 +3,7 @@ use std::ops::MulAssign;
 use nalgebra::{
     DMatrix, DMatrixView, DMatrixViewMut, DVector, DVectorView, DVectorViewMut, RealField,
 };
-use num::{Float};
-
-
+use num::Float;
 
 pub trait LossFunction<R>
 where
@@ -36,6 +34,19 @@ where
         assert_eq!(I.nrows(), I.ncols(), "non-square information matrix");
         let lt = I.clone().cholesky().unwrap().l().transpose();
         GaussianLoss { sqrt_info: lt }
+    }
+    #[allow(non_snake_case)]
+    pub fn covariance(sigma: DMatrixView<R>) -> Self {
+        assert_eq!(sigma.nrows(), sigma.ncols(), "non-square covariance matrix");
+        GaussianLoss::information(sigma.try_inverse().unwrap().as_view())
+        // let n = sigma.nrows();
+        // GaussianLoss::information(
+        //     sigma
+        //         .cholesky()
+        //         .unwrap()
+        //         .solve(&DMatrix::<R>::identity(n, n))
+        //         .as_view(),
+        // )
     }
 }
 impl<R> LossFunction<R> for GaussianLoss<R>

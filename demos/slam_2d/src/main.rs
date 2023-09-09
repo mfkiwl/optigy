@@ -1,18 +1,22 @@
 use std::cell::RefCell;
-use std::collections::{HashMap};
+use std::collections::HashMap;
 use std::error::Error;
 use std::time::Instant;
 use std::{env::current_dir, fs::read_to_string};
 
 use clap::Parser;
 use nalgebra::{
-    matrix, DMatrix, DVector, DVectorView, Matrix2, RealField, Vector2, Vector3,
+    dmatrix, dvector, matrix, DMatrix, DMatrixView, DVector, DVectorView, Matrix2, RealField,
+    Scalar, Vector2, Vector3,
 };
-use optigy::core::factor::{ErrorReturn};
-use optigy::core::loss_function::ScaleLoss;
+use optigy::core::factor::ErrorReturn;
+use optigy::core::loss_function::{DiagonalLoss, ScaleLoss};
 
 use optigy::nonlinear::gauss_newton_optimizer::GaussNewtonOptimizerParams;
 
+use optigy::nonlinear::levenberg_marquardt_optimizer::{
+    LevenbergMarquardtOptimizer, LevenbergMarquardtOptimizerParams,
+};
 use optigy::prelude::{
     Factor, Factors, FactorsContainer, GaussNewtonOptimizer, GaussianLoss, JacobiansReturn, Key,
     NonlinearOptimizer, NonlinearOptimizerVerbosityLevel, Variable, Variables, VariablesContainer,
@@ -23,7 +27,6 @@ use optigy::slam::se3::SE2;
 use plotters::coord::types::RangedCoordf64;
 use plotters::prelude::*;
 use plotters::style::full_palette::{BLACK, GREEN};
-
 
 #[derive(Debug, Clone)]
 pub struct E2<R = f64>
@@ -72,14 +75,16 @@ struct VisionFactor {
     ray: Vector2<f64>,
     error: RefCell<DVector<f64>>,
     jacobians: RefCell<DMatrix<f64>>,
+    loss: GaussianLoss<f64>,
 }
 impl VisionFactor {
-    fn new(landmark_id: Key, pose_id: Key, ray: Vector2<f64>) -> Self {
+    fn new(landmark_id: Key, pose_id: Key, ray: Vector2<f64>, cov: DMatrixView<f64>) -> Self {
         VisionFactor {
             keys: [landmark_id, pose_id],
             ray,
             error: RefCell::new(DVector::<f64>::zeros(2)),
             jacobians: RefCell::new(DMatrix::<f64>::identity(2, 5)),
+            loss: GaussianLoss::<f64>::covariance(cov.as_view()),
         }
     }
 }
@@ -165,7 +170,7 @@ impl Factor<f64> for VisionFactor {
     }
 
     fn loss_function(&self) -> Option<&Self::L> {
-        None
+        Some(&self.loss)
     }
 }
 
@@ -186,11 +191,16 @@ impl Landmark {
             poses_keys: Vec::new(),
         }
     }
-    fn add_observation<C>(&mut self, factors: &mut Factors<C>, pose_id: Key, ray: Vector2<f64>)
-    where
+    fn add_observation<C>(
+        &mut self,
+        factors: &mut Factors<C>,
+        pose_id: Key,
+        ray: Vector2<f64>,
+        cov: &Matrix2<f64>,
+    ) where
         C: FactorsContainer,
     {
-        factors.add(VisionFactor::new(self.id, pose_id, ray));
+        factors.add(VisionFactor::new(self.id, pose_id, ray, cov.as_view()));
         self.obs_cnt += 1;
         self.poses_keys.push(pose_id);
     }
@@ -262,11 +272,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     let container =
         ().and_factor::<BetweenFactor<GaussianLoss>>()
             .and_factor::<PriorFactor<ScaleLoss>>()
-            .and_factor::<VisionFactor>();
+            .and_factor::<VisionFactor>()
+            .and_factor::<BetweenFactor<DiagonalLoss>>();
     let mut factors = Factors::new(container);
     // println!("current dir {:?}", current_dir().unwrap());
     let landmarks_filename = current_dir().unwrap().join("data").join("landmarks.txt");
     let observations_filename = current_dir().unwrap().join("data").join("observations.txt");
+    let odometry_filename = current_dir().unwrap().join("data").join("odometry.txt");
     let gt_filename = current_dir().unwrap().join("data").join("gt.txt");
     let mut landmarks_init = Vec::<Vector2<f64>>::new();
 
@@ -295,18 +307,21 @@ fn main() -> Result<(), Box<dyn Error>> {
         let th = l.next().unwrap().parse::<f64>()?;
         let pose_id = Key(id + landmarks_init.len());
         variables.add(pose_id, SE2::new(x, y, th));
-        if id == 0 {
-            factors.add(PriorFactor::new(
-                pose_id,
-                x,
-                y,
-                th,
-                Some(ScaleLoss::scale(1e10)),
-            ))
-        }
+        // if id == 0 {
+        //     factors.add(PriorFactor::new(
+        //         pose_id,
+        //         x,
+        //         y,
+        //         th,
+        //         Some(ScaleLoss::scale(1e10)),
+        //     ))
+        // }
         let rays_cnt = l.next().unwrap().parse::<usize>()?;
         for _ in 0..rays_cnt {
             let id = l.next().unwrap().parse::<usize>()?;
+            let _ = l.next().unwrap().parse::<f64>()?;
+            let _ = l.next().unwrap().parse::<f64>()?;
+            let _ = l.next().unwrap().parse::<f64>()?;
             let _ = l.next().unwrap().parse::<f64>()?;
             let _ = l.next().unwrap().parse::<f64>()?;
             landmark_obs_cnt.entry(Key(id)).or_insert(0);
@@ -328,20 +343,32 @@ fn main() -> Result<(), Box<dyn Error>> {
         variables.add(pose_id, SE2::new(x, y, th));
         poses_keys.push(pose_id);
         if id == 0 {
-            factors.add(PriorFactor::new(pose_id, x, y, th, None::<ScaleLoss>))
+            factors.add(PriorFactor::new(
+                pose_id,
+                x,
+                y,
+                th,
+                Some(ScaleLoss::scale(1e2)),
+            ));
         }
         let rays_cnt = l.next().unwrap().parse::<usize>()?;
         for _ in 0..rays_cnt {
             let id = l.next().unwrap().parse::<usize>()?;
             let rx = l.next().unwrap().parse::<f64>()?;
             let ry = l.next().unwrap().parse::<f64>()?;
+            let sx = l.next().unwrap().parse::<f64>()?;
+            let sy = l.next().unwrap().parse::<f64>()?;
+            let sxy = l.next().unwrap().parse::<f64>()?;
             if landmark_obs_cnt[&Key(id)] > 1 {
-                landmarks.entry(Key(id)).or_insert_with(|| Landmark::new(&mut variables, Key(id), landmarks_init[id]));
+                landmarks
+                    .entry(Key(id))
+                    .or_insert_with(|| Landmark::new(&mut variables, Key(id), landmarks_init[id]));
 
                 landmarks.get_mut(&Key(id)).unwrap().add_observation(
                     &mut factors,
                     pose_id,
                     Vector2::<f64>::new(rx, ry),
+                    &Matrix2::new(sx, sxy, sxy, sy),
                 );
 
                 landmarks
@@ -350,6 +377,30 @@ fn main() -> Result<(), Box<dyn Error>> {
                     .triangulate(&factors, &mut variables);
             }
         }
+    }
+    for (id, line) in read_to_string(odometry_filename)
+        .unwrap()
+        .lines()
+        .enumerate()
+    {
+        let mut l = line.split_whitespace();
+        let dx = l.next().unwrap().parse::<f64>()?;
+        let dy = l.next().unwrap().parse::<f64>()?;
+        let dth = l.next().unwrap().parse::<f64>()?;
+        let sigx = l.next().unwrap().parse::<f64>()?;
+        let sigy = l.next().unwrap().parse::<f64>()?;
+        let sigth = l.next().unwrap().parse::<f64>()?;
+        factors.add(BetweenFactor::new(
+            Key(id + landmarks_init.len()),
+            Key(id + landmarks_init.len() + 1),
+            dx,
+            dy,
+            dth,
+            // Some(DiagonalLoss::sigmas(&dvector![sigx, sigy, sigth].as_view())),
+            Some(GaussianLoss::covariance(
+                dmatrix![sigx*sigx, 0.0, 0.0; 0.0, sigy*sigy, 0.0; 0.0, 0.0, sigth*sigth].as_view(),
+            )),
+        ));
     }
     let mut gt_poses = Vec::<Vector3<f64>>::new();
     for (_id, line) in read_to_string(gt_filename).unwrap().lines().enumerate() {
@@ -368,12 +419,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     const OUTPUT_GIF: &str = "2d-slam.gif";
 
-    // let mut params = LevenbergMarquardtOptimizerParams::default();
-    // params.base.verbosity_level = NonlinearOptimizerVerbosityLevel::Iteration;
-    // let mut optimizer = NonlinearOptimizer::new(LevenbergMarquardtOptimizer::with_params(params));
-    let mut params = GaussNewtonOptimizerParams::default();
+    let mut params = LevenbergMarquardtOptimizerParams::default();
     params.base.verbosity_level = NonlinearOptimizerVerbosityLevel::Iteration;
-    let mut optimizer = NonlinearOptimizer::new(GaussNewtonOptimizer::with_params(params));
+    let mut optimizer = NonlinearOptimizer::new(LevenbergMarquardtOptimizer::with_params(params));
+    // let mut params = GaussNewtonOptimizerParams::default();
+    // params.base.verbosity_level = NonlinearOptimizerVerbosityLevel::Iteration;
+    // let mut optimizer = NonlinearOptimizer::new(GaussNewtonOptimizer::with_params(params));
     let start = Instant::now();
     let opt_res = if args.do_viz {
         let img_w = 1024_i32;

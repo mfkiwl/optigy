@@ -1,13 +1,11 @@
-use std::{
-    cell::{RefCell},
-};
+use std::cell::RefCell;
 
 use nalgebra::{DMatrix, DVector, RealField, SMatrix, Vector2};
 use num::Float;
 use sophus_rs::lie::rotation2::{Isometry2, Rotation2};
 
 use crate::core::{
-    factor::{ErrorReturn, Factor, Jacobians, JacobiansReturn},
+    factor::{compute_numerical_jacobians, ErrorReturn, Factor, Jacobians, JacobiansReturn},
     key::Key,
     loss_function::{GaussianLoss, LossFunction},
     variables::Variables,
@@ -71,7 +69,6 @@ where
         C: VariablesContainer<R>,
     {
         let v0: &SE2<R> = variables.get(self.keys()[0]).unwrap();
-
         let diff = (self.origin.inverse().multiply(&v0.origin)).log();
         {
             self.error.borrow_mut().copy_from(&diff.cast::<R>());
@@ -84,6 +81,9 @@ where
         C: VariablesContainer<R>,
     {
         //identity
+        // {
+        //     compute_numerical_jacobians(variables, self, &mut self.jacobians.borrow_mut());
+        // }
         self.jacobians.borrow()
     }
 

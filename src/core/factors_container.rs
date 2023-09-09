@@ -337,10 +337,7 @@ pub(crate) mod tests {
     use nalgebra::{DMatrix, DVector};
 
     use crate::core::{
-        factor::{
-            tests::{FactorA, FactorB},
-            Factor,
-        },
+        factor::tests::{FactorA, FactorB},
         factors_container::{get_factor, get_factor_mut, FactorsContainer},
         key::Key,
         variable::tests::{VariableA, VariableB},

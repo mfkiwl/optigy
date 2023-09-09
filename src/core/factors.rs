@@ -2,7 +2,7 @@ use nalgebra::{DMatrixViewMut, DVector, DVectorViewMut, RealField};
 use num::Float;
 
 use crate::core::variables::Variables;
-use core::{marker::PhantomData};
+use core::marker::PhantomData;
 
 use super::{
     factor::{ErrorReturn, Factor, JacobiansErrorReturn},
@@ -109,7 +109,7 @@ where
             // let werr = self.weighted_error_at(variables, f_index).unwrap();
             let error = self.error_at(variables, f_index).unwrap();
             let mut error = error.to_owned();
-            //TODO: do optimal. copy not needed without
+            //TODO: do optimal. copy not needed without loss
             self.weight_error_in_place_at(variables, error.as_view_mut(), f_index);
             err_squared_norm += error.norm_squared();
         }
