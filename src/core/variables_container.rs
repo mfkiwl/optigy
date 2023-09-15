@@ -171,7 +171,7 @@ where
         );
     }
 
-    fn remove(&mut self, key: Vkey) -> bool {
+    fn remove(&mut self, _key: Vkey) -> bool {
         false
     }
 }
@@ -483,7 +483,7 @@ mod tests {
             a.unwrap().insert(Vkey(7), VariableB::new(7.0));
 
             assert_eq!(
-                get_variable::<_, _, VariableB<Real>>(&thing, Vkey(7))
+                get_variable::<_, VariableB<Real>, _>(&thing, Vkey(7))
                     .unwrap()
                     .val,
                 DVector::from_element(3, 7.0)
@@ -528,7 +528,7 @@ mod tests {
             a.unwrap().insert(Vkey(7), VariableB::new(7.0));
 
             assert_eq!(
-                get_variable::<_, _, VariableB<Real>>(&container, Vkey(7))
+                get_variable::<_, VariableB<Real>, _>(&container, Vkey(7))
                     .unwrap()
                     .val,
                 DVector::from_element(3, 7.0)

@@ -177,7 +177,7 @@ where
         None
     }
 
-    fn remove_conneted_factors(&mut self, key: Vkey, init: usize) -> usize {
+    fn remove_conneted_factors(&mut self, _key: Vkey, init: usize) -> usize {
         init
     }
 }
