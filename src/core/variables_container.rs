@@ -1,8 +1,9 @@
-use crate::core::key::Key;
+use crate::core::key::Vkey;
 use crate::core::variable::Variable;
 use crate::core::variables::Variables;
 use hashbrown::HashMap;
 use nalgebra::{DMatrixViewMut, DVector, DVectorView, DVectorViewMut, RealField};
+use num::Float;
 use std::any::TypeId;
 
 use std::mem;
@@ -11,7 +12,7 @@ use super::factor::Factor;
 
 pub trait VariablesKey<R = f64>
 where
-    R: RealField,
+    R: RealField + Float,
 {
     type Value: 'static + Variable<R>;
 }
@@ -19,12 +20,12 @@ where
 /// The building block trait for recursive variadics.
 pub trait VariablesContainer<R = f64>: Clone
 where
-    R: RealField,
+    R: RealField + Float,
 {
     /// Try to get the value for N.
-    fn get<N: VariablesKey<R>>(&self) -> Option<&HashMap<Key, N::Value>>;
+    fn get<N: VariablesKey<R>>(&self) -> Option<&HashMap<Vkey, N::Value>>;
     /// Try to get the value for N mutably.
-    fn get_mut<N: VariablesKey<R>>(&mut self) -> Option<&mut HashMap<Key, N::Value>>;
+    fn get_mut<N: VariablesKey<R>>(&mut self) -> Option<&mut HashMap<Vkey, N::Value>>;
     /// Add the default value for N
     fn and_variable<N: VariablesKey<R>>(self) -> VariablesEntry<N, Self, R>
     where
@@ -37,7 +38,7 @@ where
                 tynm::type_name::<N::Value>()
             ),
             None => VariablesEntry {
-                data: HashMap::<Key, N::Value>::default(),
+                data: HashMap::<Vkey, N::Value>::default(),
                 parent: self,
             },
         }
@@ -48,45 +49,49 @@ where
     fn len(&self, init: usize) -> usize;
     fn is_empty(&self) -> bool;
     /// join keys of variables
-    fn keys(&self, init: Vec<Key>) -> Vec<Key>;
+    fn keys(&self, init: Vec<Vkey>) -> Vec<Vkey>;
     /// retact variable by key and delta offset
-    fn retract(&mut self, delta: DVectorView<R>, key: Key, offset: usize) -> usize;
+    fn retract(&mut self, delta: DVectorView<R>, key: Vkey, offset: usize) -> usize;
     fn local<C>(
         &self,
         variables: &Variables<C, R>,
         delta: DVectorViewMut<R>,
-        key: Key,
+        key: Vkey,
         offset: usize,
     ) -> usize
     where
         C: VariablesContainer<R>;
-    fn dim_at(&self, key: Key) -> Option<usize>;
+    fn dim_at(&self, key: Vkey) -> Option<usize>;
     fn compute_jacobian_for<F, C>(
         &self,
         factor: &F,
         variables: &mut Variables<C, R>,
-        key: Key,
+        key: Vkey,
         offset: usize,
         jacobians: DMatrixViewMut<R>,
     ) where
         F: Factor<R>,
         C: VariablesContainer<R>;
     fn empty_clone(&self) -> Self;
-    fn fill_variables<C>(&self, variables: &mut Variables<C, R>, key: Key)
+    fn fill_variables<C>(&self, variables: &mut Variables<C, R>, key: Vkey)
     where
         C: VariablesContainer<R>;
+    // fn remove<N>(&mut self, key: Key) -> Option<N::Value>
+    // where
+    //     N: VariablesKey<R>;
+    fn remove(&mut self, key: Vkey) -> bool;
 }
 
 /// The base case for recursive variadics: no fields.
 pub type VariablesEmpty = ();
 impl<R> VariablesContainer<R> for VariablesEmpty
 where
-    R: RealField,
+    R: RealField + Float,
 {
-    fn get<N: VariablesKey<R>>(&self) -> Option<&HashMap<Key, N::Value>> {
+    fn get<N: VariablesKey<R>>(&self) -> Option<&HashMap<Vkey, N::Value>> {
         None
     }
-    fn get_mut<N: VariablesKey<R>>(&mut self) -> Option<&mut HashMap<Key, N::Value>> {
+    fn get_mut<N: VariablesKey<R>>(&mut self) -> Option<&mut HashMap<Vkey, N::Value>> {
         None
     }
     fn dim(&self, init: usize) -> usize {
@@ -95,13 +100,13 @@ where
     fn len(&self, init: usize) -> usize {
         init
     }
-    fn keys(&self, init: Vec<Key>) -> Vec<Key> {
+    fn keys(&self, init: Vec<Vkey>) -> Vec<Vkey> {
         init
     }
     fn is_empty(&self) -> bool {
         true
     }
-    fn retract(&mut self, _delta: DVectorView<R>, _key: Key, offset: usize) -> usize {
+    fn retract(&mut self, _delta: DVectorView<R>, _key: Vkey, offset: usize) -> usize {
         offset
     }
 
@@ -109,7 +114,7 @@ where
         &self,
         _variables: &Variables<C, R>,
         _delta: DVectorViewMut<R>,
-        _key: Key,
+        _key: Vkey,
         offset: usize,
     ) -> usize
     where
@@ -117,7 +122,7 @@ where
     {
         offset
     }
-    fn dim_at(&self, _key: Key) -> Option<usize> {
+    fn dim_at(&self, _key: Vkey) -> Option<usize> {
         None
     }
 
@@ -125,7 +130,7 @@ where
         &self,
         _factor: &F,
         _variables: &mut Variables<C, R>,
-        key: Key,
+        key: Vkey,
         _offset: usize,
         _jacobians: DMatrixViewMut<R>,
     ) where
@@ -137,9 +142,7 @@ where
             key
         );
     }
-    fn empty_clone(&self) -> Self {
-        
-    }
+    fn empty_clone(&self) -> Self {}
 
     fn and_variable<N: VariablesKey<R>>(self) -> VariablesEntry<N, Self, R>
     where
@@ -152,13 +155,13 @@ where
                 tynm::type_name::<N::Value>()
             ),
             None => VariablesEntry {
-                data: HashMap::<Key, N::Value>::default(),
+                data: HashMap::<Vkey, N::Value>::default(),
                 parent: self,
             },
         }
     }
 
-    fn fill_variables<C>(&self, _variables: &mut Variables<C, R>, key: Key)
+    fn fill_variables<C>(&self, _variables: &mut Variables<C, R>, key: Vkey)
     where
         C: VariablesContainer<R>,
     {
@@ -167,6 +170,10 @@ where
             key
         );
     }
+
+    fn remove(&mut self, key: Vkey) -> bool {
+        false
+    }
 }
 
 /// Wraps some field data and a parent, which is either another Entry or Empty
@@ -174,20 +181,20 @@ where
 pub struct VariablesEntry<T, P, R>
 where
     T: VariablesKey<R>,
-    R: RealField,
+    R: RealField + Float,
 {
-    data: HashMap<Key, T::Value>,
+    data: HashMap<Vkey, T::Value>,
     parent: P,
 }
 impl<T, P, R> Default for VariablesEntry<T, P, R>
 where
     T: VariablesKey<R>,
-    R: RealField,
     P: VariablesContainer<R> + Default,
+    R: RealField + Float,
 {
     fn default() -> Self {
         VariablesEntry::<T, P, R> {
-            data: HashMap::<Key, T::Value>::default(),
+            data: HashMap::<Vkey, T::Value>::default(),
             parent: P::default(),
         }
     }
@@ -197,16 +204,16 @@ impl<T, P, R> VariablesContainer<R> for VariablesEntry<T, P, R>
 where
     T: VariablesKey<R> + Clone,
     P: VariablesContainer<R> + Default,
-    R: RealField,
+    R: RealField + Float,
 {
-    fn get<N: VariablesKey<R>>(&self) -> Option<&HashMap<Key, N::Value>> {
+    fn get<N: VariablesKey<R>>(&self) -> Option<&HashMap<Vkey, N::Value>> {
         if TypeId::of::<N::Value>() == TypeId::of::<T::Value>() {
             Some(unsafe { mem::transmute(&self.data) })
         } else {
             self.parent.get::<N>()
         }
     }
-    fn get_mut<N: VariablesKey<R>>(&mut self) -> Option<&mut HashMap<Key, N::Value>> {
+    fn get_mut<N: VariablesKey<R>>(&mut self) -> Option<&mut HashMap<Vkey, N::Value>> {
         if TypeId::of::<N::Value>() == TypeId::of::<T::Value>() {
             Some(unsafe { mem::transmute(&mut self.data) })
         } else {
@@ -231,7 +238,7 @@ where
             false
         }
     }
-    fn keys(&self, init: Vec<Key>) -> Vec<Key> {
+    fn keys(&self, init: Vec<Vkey>) -> Vec<Vkey> {
         let mut keys = init;
         for (key, _val) in self.data.iter() {
             keys.push(*key);
@@ -239,7 +246,7 @@ where
         self.parent.keys(keys)
     }
 
-    fn retract(&mut self, delta: DVectorView<R>, key: Key, offset: usize) -> usize {
+    fn retract(&mut self, delta: DVectorView<R>, key: Vkey, offset: usize) -> usize {
         let var = self.data.get_mut(&key);
         match var {
             Some(var) => {
@@ -257,7 +264,7 @@ where
         &self,
         variables: &Variables<C, R>,
         mut delta: DVectorViewMut<R>,
-        key: Key,
+        key: Vkey,
         offset: usize,
     ) -> usize
     where
@@ -275,7 +282,7 @@ where
             None => self.parent.local(variables, delta, key, offset),
         }
     }
-    fn dim_at(&self, key: Key) -> Option<usize> {
+    fn dim_at(&self, key: Vkey) -> Option<usize> {
         let var = self.data.get(&key);
         match var {
             Some(var) => Some(var.dim()),
@@ -287,7 +294,7 @@ where
         &self,
         factor: &F,
         variables: &mut Variables<C, R>,
-        key: Key,
+        key: Vkey,
         offset: usize,
         mut jacobians: DMatrixViewMut<R>,
     ) where
@@ -339,7 +346,7 @@ where
         Self::default()
     }
 
-    fn fill_variables<C>(&self, variables: &mut Variables<C, R>, key: Key)
+    fn fill_variables<C>(&self, variables: &mut Variables<C, R>, key: Vkey)
     where
         C: VariablesContainer<R>,
     {
@@ -351,55 +358,81 @@ where
             None => self.parent.fill_variables(variables, key),
         }
     }
+
+    fn remove(&mut self, key: Vkey) -> bool {
+        let var = self.data.remove(&key);
+        match var {
+            Some(_) => true,
+            None => self.parent.remove(key),
+        }
+    }
 }
 
 impl<T, R> VariablesKey<R> for T
 where
     T: 'static + Variable<R>,
-    R: RealField,
+    R: RealField + Float,
 {
     type Value = T;
 }
 
-pub fn get_variable<R, C, V>(container: &C, key: Key) -> Option<&V>
+pub fn get_map<C, V, R>(container: &C) -> &HashMap<Vkey, V>
 where
-    R: RealField,
     C: VariablesContainer<R>,
     V: Variable<R> + 'static,
+    R: RealField + Float,
 {
     #[cfg(not(debug_assertions))]
     {
-        container.get::<V>().unwrap().get(&key)
+        container.get::<V>().unwrap()
     }
     #[cfg(debug_assertions)]
     {
-        container
-            .get::<V>()
-            .unwrap_or_else(|| panic!("type {} should be registered in variables container. use ().and_variable::<{}>()",
+        container.get::<V>().unwrap_or_else(|| {
+            panic!(
+                "type {} should be registered in variables container. use ().and_variable::<{}>()",
                 tynm::type_name::<V>(),
-                tynm::type_name::<V>()))
-            .get(&key)
+                tynm::type_name::<V>()
+            )
+        })
     }
 }
-pub fn get_variable_mut<R, C, V>(container: &mut C, key: Key) -> Option<&mut V>
+pub fn get_variable<C, V, R>(container: &C, key: Vkey) -> Option<&V>
 where
-    R: RealField,
     C: VariablesContainer<R>,
     V: Variable<R> + 'static,
+    R: RealField + Float,
+{
+    get_map(container).get(&key)
+}
+pub fn get_map_mut<C, V, R>(container: &mut C) -> &mut HashMap<Vkey, V>
+where
+    C: VariablesContainer<R>,
+    V: Variable<R> + 'static,
+    R: RealField + Float,
 {
     #[cfg(not(debug_assertions))]
     {
-        container.get_mut::<V>().unwrap().get_mut(&key)
+        container.get_mut::<V>().unwrap()
     }
     #[cfg(debug_assertions)]
     {
-        container
-            .get_mut::<V>()
-            .unwrap_or_else(|| panic!("type {} should be registered in variables container. use ().and_variable::<{}>()",
+        container.get_mut::<V>().unwrap_or_else(|| {
+            panic!(
+                "type {} should be registered in variables container. use ().and_variable::<{}>()",
                 tynm::type_name::<V>(),
-                tynm::type_name::<V>()))
-            .get_mut(&key)
+                tynm::type_name::<V>()
+            )
+        })
     }
+}
+pub fn get_variable_mut<C, V, R>(container: &mut C, key: Vkey) -> Option<&mut V>
+where
+    C: VariablesContainer<R>,
+    V: Variable<R> + 'static,
+    R: RealField + Float,
+{
+    get_map_mut(container).get_mut(&key)
 }
 #[cfg(test)]
 mod tests {
@@ -416,11 +449,11 @@ mod tests {
         type Real = f64;
         let mut container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
         let a = container.get_mut::<VariableA<Real>>();
-        a.unwrap().insert(Key(3), VariableA::new(4.0));
+        a.unwrap().insert(Vkey(3), VariableA::new(4.0));
         let a = container.get_mut::<VariableB<Real>>();
-        a.unwrap().insert(Key(4), VariableB::new(4.0));
-        assert_eq!(container.dim_at(Key(3)).unwrap(), 3);
-        assert_eq!(container.dim_at(Key(4)).unwrap(), 3);
+        a.unwrap().insert(Vkey(4), VariableB::new(4.0));
+        assert_eq!(container.dim_at(Vkey(3)).unwrap(), 3);
+        assert_eq!(container.dim_at(Vkey(4)).unwrap(), 3);
     }
 
     #[test]
@@ -432,36 +465,36 @@ mod tests {
             assert!(a.is_some());
 
             let a = thing.get_mut::<VariableA<Real>>();
-            a.unwrap().insert(Key(3), VariableA::new(4.0));
+            a.unwrap().insert(Vkey(3), VariableA::new(4.0));
             let a = thing.get_mut::<VariableA<Real>>();
-            a.unwrap().insert(Key(4), VariableA::new(4.0));
+            a.unwrap().insert(Vkey(4), VariableA::new(4.0));
             let a = thing.get::<VariableA<Real>>();
             assert_eq!(
-                a.unwrap().get(&Key(3)).unwrap().val,
+                a.unwrap().get(&Vkey(3)).unwrap().val,
                 DVector::<Real>::from_element(3, 4.0)
             );
 
             assert_eq!(
-                a.unwrap().get(&Key(4)).unwrap().val,
+                a.unwrap().get(&Vkey(4)).unwrap().val,
                 DVector::<Real>::from_element(3, 4.0)
             );
 
             let a = thing.get_mut::<VariableB<Real>>();
-            a.unwrap().insert(Key(7), VariableB::new(7.0));
+            a.unwrap().insert(Vkey(7), VariableB::new(7.0));
 
             assert_eq!(
-                get_variable::<_, _, VariableB<Real>>(&thing, Key(7))
+                get_variable::<_, _, VariableB<Real>>(&thing, Vkey(7))
                     .unwrap()
                     .val,
                 DVector::from_element(3, 7.0)
             );
         }
         {
-            let var_b0: &mut VariableB<Real> = get_variable_mut(&mut thing, Key(7)).unwrap();
+            let var_b0: &mut VariableB<Real> = get_variable_mut(&mut thing, Vkey(7)).unwrap();
             var_b0.val = DVector::from_element(3, 10.0);
         }
         {
-            let var_b0: &VariableB<Real> = get_variable(&thing, Key(7)).unwrap();
+            let var_b0: &VariableB<Real> = get_variable(&thing, Vkey(7)).unwrap();
             assert_eq!(var_b0.val, DVector::<Real>::from_element(3, 10.0));
         }
         assert_eq!(thing.dim(0), 9);
@@ -477,25 +510,25 @@ mod tests {
             assert!(a.is_some());
 
             let a = container.get_mut::<VariableA<Real>>();
-            a.unwrap().insert(Key(3), VariableA::new(4.0));
+            a.unwrap().insert(Vkey(3), VariableA::new(4.0));
             let a = container.get_mut::<VariableA<Real>>();
-            a.unwrap().insert(Key(4), VariableA::new(4.0));
+            a.unwrap().insert(Vkey(4), VariableA::new(4.0));
             let a = container.get::<VariableA<Real>>();
             assert_eq!(
-                a.unwrap().get(&Key(3)).unwrap().val,
+                a.unwrap().get(&Vkey(3)).unwrap().val,
                 DVector::<Real>::from_element(3, 4.0)
             );
 
             assert_eq!(
-                a.unwrap().get(&Key(4)).unwrap().val,
+                a.unwrap().get(&Vkey(4)).unwrap().val,
                 DVector::<Real>::from_element(3, 4.0)
             );
 
             let a = container.get_mut::<VariableB<Real>>();
-            a.unwrap().insert(Key(7), VariableB::new(7.0));
+            a.unwrap().insert(Vkey(7), VariableB::new(7.0));
 
             assert_eq!(
-                get_variable::<_, _, VariableB<Real>>(&container, Key(7))
+                get_variable::<_, _, VariableB<Real>>(&container, Vkey(7))
                     .unwrap()
                     .val,
                 DVector::from_element(3, 7.0)
@@ -513,29 +546,29 @@ mod tests {
         assert!(a.is_some());
 
         let a = container.get_mut::<VariableA<Real>>();
-        a.unwrap().insert(Key(3), VariableA::new(4.0));
+        a.unwrap().insert(Vkey(3), VariableA::new(4.0));
         let a = container.get_mut::<VariableB<Real>>();
-        a.unwrap().insert(Key(4), VariableB::new(4.0));
+        a.unwrap().insert(Vkey(4), VariableB::new(4.0));
         assert!(!container.is_empty());
 
-        let f: FactorA<Real> = FactorA::new(0.1, None, Key(3), Key(4));
+        let f: FactorA<Real> = FactorA::new(0.1, None, Vkey(3), Vkey(4));
         let mut jacobian = DMatrix::<Real>::zeros(3, 6);
         let variables0 = Variables::new(container);
         let mut variables = Variables::new(variables0.container.empty_clone());
         // let v: &VariableA<Real> = variables0.at(Key(3)).unwrap();
-        variables0.container.fill_variables(&mut variables, Key(3));
-        variables0.container.fill_variables(&mut variables, Key(4));
+        variables0.container.fill_variables(&mut variables, Vkey(3));
+        variables0.container.fill_variables(&mut variables, Vkey(4));
         variables0.container.compute_jacobian_for(
             &f,
             &mut variables,
-            Key(3),
+            Vkey(3),
             0,
             jacobian.as_view_mut(),
         );
         variables0.container.compute_jacobian_for(
             &f,
             &mut variables,
-            Key(4),
+            Vkey(4),
             3,
             jacobian.as_view_mut(),
         );
@@ -546,32 +579,32 @@ mod tests {
         type Real = f64;
         let mut container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
         let a = container.get_mut::<VariableA<Real>>();
-        a.unwrap().insert(Key(3), VariableA::new(4.0));
+        a.unwrap().insert(Vkey(3), VariableA::new(4.0));
         let a = container.get_mut::<VariableB<Real>>();
-        a.unwrap().insert(Key(4), VariableB::new(4.0));
+        a.unwrap().insert(Vkey(4), VariableB::new(4.0));
 
         let mut container2 = container.empty_clone();
         assert!(container2.is_empty());
         let a = container2.get_mut::<VariableA<Real>>();
-        a.unwrap().insert(Key(3), VariableA::new(4.0));
+        a.unwrap().insert(Vkey(3), VariableA::new(4.0));
         let a = container2.get_mut::<VariableB<Real>>();
-        a.unwrap().insert(Key(4), VariableB::new(4.0));
+        a.unwrap().insert(Vkey(4), VariableB::new(4.0));
     }
     #[test]
     fn fill_variables() {
         type Real = f64;
         let mut container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
         let a = container.get_mut::<VariableA<Real>>();
-        a.unwrap().insert(Key(3), VariableA::new(4.0));
+        a.unwrap().insert(Vkey(3), VariableA::new(4.0));
         let a = container.get_mut::<VariableB<Real>>();
-        a.unwrap().insert(Key(4), VariableB::new(4.0));
+        a.unwrap().insert(Vkey(4), VariableB::new(4.0));
 
         let container2 = container.empty_clone();
         let mut variables = Variables::new(container2);
-        container.fill_variables(&mut variables, Key(3));
-        container.fill_variables(&mut variables, Key(4));
-        let v0: &VariableA<Real> = variables.get(Key(3)).unwrap();
-        let v1: &VariableB<Real> = variables.get(Key(4)).unwrap();
+        container.fill_variables(&mut variables, Vkey(3));
+        container.fill_variables(&mut variables, Vkey(4));
+        let v0: &VariableA<Real> = variables.get(Vkey(3)).unwrap();
+        let v1: &VariableB<Real> = variables.get(Vkey(4)).unwrap();
         assert_matrix_eq!(v0.val, dvector![4.0, 4.0, 4.0]);
         assert_matrix_eq!(v1.val, dvector![4.0, 4.0, 4.0]);
     }

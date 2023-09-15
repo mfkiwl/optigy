@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::error::Error;
 use std::time::Instant;
 use std::{env::current_dir, fs::read_to_string};
@@ -18,8 +18,9 @@ use optigy::nonlinear::levenberg_marquardt_optimizer::{
     LevenbergMarquardtOptimizer, LevenbergMarquardtOptimizerParams,
 };
 use optigy::prelude::{
-    Factor, Factors, FactorsContainer, GaussNewtonOptimizer, GaussianLoss, JacobiansReturn, Key,
+    Factor, Factors, FactorsContainer, GaussNewtonOptimizer, GaussianLoss, JacobiansReturn,
     NonlinearOptimizer, NonlinearOptimizerVerbosityLevel, Variable, Variables, VariablesContainer,
+    Vkey,
 };
 use optigy::slam::between_factor::BetweenFactor;
 use optigy::slam::prior_factor::PriorFactor;
@@ -70,15 +71,18 @@ where
         }
     }
 }
+#[derive(Clone)]
 struct VisionFactor {
-    keys: [Key; 2],
+    keys: [Vkey; 2],
     ray: Vector2<f64>,
     error: RefCell<DVector<f64>>,
     jacobians: RefCell<DMatrix<f64>>,
     loss: GaussianLoss<f64>,
 }
 impl VisionFactor {
-    fn new(landmark_id: Key, pose_id: Key, ray: Vector2<f64>, cov: DMatrixView<f64>) -> Self {
+    const LANDMARK_KEY: usize = 0;
+    const POSE_KEY: usize = 1;
+    fn new(landmark_id: Vkey, pose_id: Vkey, ray: Vector2<f64>, cov: DMatrixView<f64>) -> Self {
         VisionFactor {
             keys: [landmark_id, pose_id],
             ray,
@@ -95,8 +99,10 @@ impl Factor<f64> for VisionFactor {
     where
         C: VariablesContainer<f64>,
     {
-        let landmark_v: &E2 = variables.get(self.keys[0]).unwrap();
-        let pose_v: &SE2 = variables.get(self.keys[1]).unwrap();
+        let landmark_v: &E2 = variables
+            .get(self.keys[VisionFactor::LANDMARK_KEY])
+            .unwrap();
+        let pose_v: &SE2 = variables.get(self.keys[VisionFactor::POSE_KEY]).unwrap();
         // let R_inv = pose_v.origin.inverse().matrix();
         // let R_inv = R_inv.fixed_view::<2, 2>(0, 0).to_owned();
         let th = pose_v.origin.log()[2];
@@ -165,7 +171,7 @@ impl Factor<f64> for VisionFactor {
         2
     }
 
-    fn keys(&self) -> &[Key] {
+    fn keys(&self) -> &[Vkey] {
         &self.keys
     }
 
@@ -175,68 +181,147 @@ impl Factor<f64> for VisionFactor {
 }
 
 struct Landmark {
-    id: Key,
-    obs_cnt: usize, // coord: E2,
-    poses_keys: Vec<Key>,
+    id: Vkey,
+    obs_cnt: usize,
+    poses_keys: Vec<Vkey>,
+    triangulated: bool,
+    factors: Vec<VisionFactor>,
 }
 impl Landmark {
-    fn new<C>(variables: &mut Variables<C>, id: Key, coord: Vector2<f64>) -> Self
+    fn new<C>(variables: &mut Variables<C>, id: Vkey) -> Self
     where
         C: VariablesContainer,
     {
-        variables.add(id, E2::new(coord[0], coord[1]));
         Landmark {
             id,
             obs_cnt: 0,
             poses_keys: Vec::new(),
+            triangulated: false,
+            factors: Vec::new(),
         }
     }
     fn add_observation<C>(
         &mut self,
         factors: &mut Factors<C>,
-        pose_id: Key,
+        pose_id: Vkey,
         ray: Vector2<f64>,
         cov: &Matrix2<f64>,
     ) where
         C: FactorsContainer,
     {
-        factors.add(VisionFactor::new(self.id, pose_id, ray, cov.as_view()));
+        // return;
+        let vf = VisionFactor::new(self.id, pose_id, ray, cov.as_view());
+        if self.triangulated {
+            factors.add(vf);
+        } else {
+            self.factors.push(vf);
+        }
         self.obs_cnt += 1;
         self.poses_keys.push(pose_id);
+        // self.triangulated = false;
     }
-    fn triangulate<FC, VC>(&self, factors: &Factors<FC>, variables: &mut Variables<VC>)
+    fn remove_pose<FC, VC>(
+        &mut self,
+        pose_key: Vkey,
+        factors: &mut Factors<FC>,
+        variables: &mut Variables<VC>,
+    ) -> bool
     where
         FC: FactorsContainer,
         VC: VariablesContainer,
     {
-        let mut A = Matrix2::<f64>::zeros();
-        let mut b = Vector2::<f64>::zeros();
+        // if !self.triangulated {
+        //     return false;
+        // }
+        if let Some(idx) = self.poses_keys.iter().position(|v| *v == pose_key) {
+            self.poses_keys.remove(idx);
+            self.factors.retain(|f| {
+                !(f.keys()[VisionFactor::POSE_KEY] == pose_key
+                    && f.keys()[VisionFactor::LANDMARK_KEY] == self.id)
+            });
+        }
+        if self.poses_keys.is_empty() {
+            if self.triangulated {
+                // assert!(variables.get_map_mut::<E2>().remove(&self.id).is_some());
+                variables.remove(self.id, factors);
+            }
+            // self.triangulated = false;
+            return true;
+        }
+        return false;
+    }
+    fn triangulate<FC, VC>(&mut self, factors: &mut Factors<FC>, variables: &mut Variables<VC>)
+    where
+        FC: FactorsContainer,
+        VC: VariablesContainer,
+    {
+        if self.obs_cnt < 2 || self.triangulated {
+            return;
+        }
+        let mut rays = Vec::<Vector2<f64>>::new();
+        for vf in &self.factors {
+            let r = vf.ray;
+            rays.push(r);
+        }
+        let mut max_ang = 0.0;
+        for i in 0..rays.len() {
+            for j in 0..rays.len() {
+                if i == j {
+                    continue;
+                }
+                let ri = &rays[i];
+                let rj = &rays[j];
+                let ang = ri.dot(rj).acos().to_degrees().abs();
 
-        for p_key in &self.poses_keys {
-            let pose: &SE2 = variables.get(*p_key).unwrap();
-            let th = pose.origin.log()[2];
-            let R_inv = matrix![th.cos(), -th.sin(); th.sin(), th.cos() ].transpose();
-            for f_idx in 0..factors.len() {
-                let vf = factors.get::<VisionFactor>(f_idx);
-                if vf.is_some() {
-                    let vf = vf.unwrap();
-                    if vf.keys()[0] == self.id && vf.keys()[1] == *p_key {
-                        let p = pose.origin.params().fixed_rows::<2>(0);
-                        let r = R_inv.transpose() * vf.ray;
-                        let Ai = Matrix2::<f64>::identity() - r * r.transpose();
-                        A += Ai;
-                        b += Ai * p;
-                    }
+                if ang > max_ang {
+                    max_ang = ang;
                 }
             }
         }
-        let l = variables.get_mut::<E2>(self.id).unwrap();
+        // println!("max_ang {}", max_ang);
+        if max_ang < 5.0 {
+            return;
+        }
+
+        let mut A = Matrix2::<f64>::zeros();
+        let mut b = Vector2::<f64>::zeros();
+        let mut rays = Vec::<Vector2<f64>>::new();
+        let mut poses = Vec::<Vector2<f64>>::new();
+        for p_key in &self.poses_keys {
+            let pose: &SE2 = variables.get(*p_key).unwrap();
+            let th = pose.origin.log()[2];
+            let R = matrix![th.cos(), -th.sin(); th.sin(), th.cos() ];
+            for f_idx in 0..self.factors.len() {
+                let vf = self.factors.get(f_idx).unwrap();
+                if vf.keys()[1] == *p_key {
+                    let p = pose.origin.params().fixed_rows::<2>(0);
+                    let r = R * vf.ray;
+                    let Ai = Matrix2::<f64>::identity() - r * r.transpose();
+                    A += Ai;
+                    b += Ai * p;
+                    rays.push(r);
+                    poses.push(Vector2::<f64>::new(p[0], p[1]));
+                }
+            }
+        }
         let chol = A.cholesky();
         if chol.is_some() {
             let coord = chol.unwrap().solve(&b);
-            // println!("err 0: {}", (A * l.val - b).norm());
-            // println!("err 1: {}", (A * coord - b).norm());
-            l.val = coord;
+            for i in 0..poses.len() {
+                let p = &poses[i];
+                let r = &rays[i];
+                let nr = (coord - p).normalize();
+                let ang = r.dot(&nr).acos().to_degrees().abs();
+                if ang > 0.1 {
+                    return;
+                }
+            }
+            for f in &self.factors {
+                factors.add(f.clone());
+            }
+            self.factors.clear();
+            variables.add(self.id, E2::new(coord[0], coord[1]));
+            self.triangulated = true;
         }
     }
 }
@@ -293,43 +378,44 @@ fn main() -> Result<(), Box<dyn Error>> {
         // variables.add(Key(id), E2::new(x, y));
         landmarks_init.push(Vector2::new(x, y));
     }
-    let mut landmarks = HashMap::<Key, Landmark>::default();
-    let mut landmark_obs_cnt = HashMap::<Key, usize>::default();
+    let mut landmarks = HashMap::<Vkey, Landmark>::default();
 
-    for (id, line) in read_to_string(observations_filename.clone())
+    let mut poses_keys = VecDeque::<Vkey>::new();
+    let mut var_id: usize = 0;
+    let mut odom_lines: Vec<String> = read_to_string(odometry_filename)
         .unwrap()
         .lines()
-        .enumerate()
-    {
+        .map(|s| String::from(s))
+        .collect();
+
+    let mut gt_poses = Vec::<Vector3<f64>>::new();
+    for (_id, line) in read_to_string(gt_filename).unwrap().lines().enumerate() {
         let mut l = line.split_whitespace();
         let x = l.next().unwrap().parse::<f64>()?;
         let y = l.next().unwrap().parse::<f64>()?;
         let th = l.next().unwrap().parse::<f64>()?;
-        let pose_id = Key(id + landmarks_init.len());
-        variables.add(pose_id, SE2::new(x, y, th));
-        // if id == 0 {
-        //     factors.add(PriorFactor::new(
-        //         pose_id,
-        //         x,
-        //         y,
-        //         th,
-        //         Some(ScaleLoss::scale(1e10)),
-        //     ))
-        // }
-        let rays_cnt = l.next().unwrap().parse::<usize>()?;
-        for _ in 0..rays_cnt {
-            let id = l.next().unwrap().parse::<usize>()?;
-            let _ = l.next().unwrap().parse::<f64>()?;
-            let _ = l.next().unwrap().parse::<f64>()?;
-            let _ = l.next().unwrap().parse::<f64>()?;
-            let _ = l.next().unwrap().parse::<f64>()?;
-            let _ = l.next().unwrap().parse::<f64>()?;
-            landmark_obs_cnt.entry(Key(id)).or_insert(0);
-
-            *landmark_obs_cnt.get_mut(&Key(id)).unwrap() += 1;
-        }
+        gt_poses.push(Vector3::new(x, y, th));
     }
-    let mut poses_keys = Vec::<Key>::new();
+    let mut min_x = f64::MAX;
+    let mut max_x = f64::MIN;
+    let mut min_y = f64::MAX;
+    let mut max_y = f64::MIN;
+    for gt in &gt_poses {
+        min_x = min_x.min(gt[0]);
+        max_x = max_x.max(gt[0]);
+        min_y = min_y.min(gt[1]);
+        max_y = max_y.max(gt[1]);
+    }
+
+    const OUTPUT_GIF: &str = "2d-slam.gif";
+    let img_w = 1024_i32;
+    let img_h = 768_i32;
+    let root_screen = BitMapBackend::gif(OUTPUT_GIF, (img_w as u32, img_h as u32), 100)
+        .unwrap()
+        .into_drawing_area();
+
+    let mut step: usize = 0;
+
     for (id, line) in read_to_string(observations_filename)
         .unwrap()
         .lines()
@@ -339,19 +425,55 @@ fn main() -> Result<(), Box<dyn Error>> {
         let x = l.next().unwrap().parse::<f64>()?;
         let y = l.next().unwrap().parse::<f64>()?;
         let th = l.next().unwrap().parse::<f64>()?;
-        let pose_id = Key(id + landmarks_init.len());
+        let pose_id = Vkey(id + landmarks_init.len());
+
         variables.add(pose_id, SE2::new(x, y, th));
-        poses_keys.push(pose_id);
-        if id == 0 {
-            factors.add(PriorFactor::new(
-                pose_id,
-                x,
-                y,
-                th,
-                Some(ScaleLoss::scale(1e2)),
-            ));
+        if id > 0 {
+            let mut l = odom_lines[id - 1].split_whitespace();
+            let dx = l.next().unwrap().parse::<f64>()?;
+            let dy = l.next().unwrap().parse::<f64>()?;
+            let dth = l.next().unwrap().parse::<f64>()?;
+            let sigx = l.next().unwrap().parse::<f64>()?;
+            let sigy = l.next().unwrap().parse::<f64>()?;
+            let sigth = l.next().unwrap().parse::<f64>()?;
+
+            let dse2 = SE2::<f64>::new(dx, dy, dth);
+            let pose0 = variables
+                .get::<SE2>(Vkey(id + landmarks_init.len() - 1))
+                .unwrap()
+                .origin
+                .clone();
+            let pose1: &mut SE2 = variables.get_mut(Vkey(id + landmarks_init.len())).unwrap();
+            pose1.origin = pose0.multiply(&dse2.origin);
+            // factors.add(BetweenFactor::new(
+            //     Vkey(id + landmarks_init.len() - 1),
+            //     Vkey(id + landmarks_init.len()),
+            //     dx,
+            //     dy,
+            //     dth,
+            //     Some(DiagonalLoss::sigmas(&dvector![sigx, sigy, sigth].as_view())),
+            // ));
         }
+        poses_keys.push_back(pose_id);
+        let last_pose_key = *poses_keys.front().unwrap();
+        let last_pose: &SE2 = variables.get(last_pose_key).unwrap();
+        let lx = last_pose.origin.params()[0];
+        let ly = last_pose.origin.params()[1];
+        let lth = last_pose.origin.log()[2];
+
+        factors.add(PriorFactor::new(
+            *poses_keys.front().unwrap(),
+            lx,
+            ly,
+            lth,
+            Some(ScaleLoss::scale(1e2)),
+        ));
+        let mut sA = Matrix2::<f64>::zeros();
+        let mut sb = Vector2::<f64>::zeros();
         let rays_cnt = l.next().unwrap().parse::<usize>()?;
+        let mut pcnt = 0_usize;
+
+        let R = matrix![th.cos(), -th.sin(); th.sin(), th.cos() ];
         for _ in 0..rays_cnt {
             let id = l.next().unwrap().parse::<usize>()?;
             let rx = l.next().unwrap().parse::<f64>()?;
@@ -359,146 +481,118 @@ fn main() -> Result<(), Box<dyn Error>> {
             let sx = l.next().unwrap().parse::<f64>()?;
             let sy = l.next().unwrap().parse::<f64>()?;
             let sxy = l.next().unwrap().parse::<f64>()?;
-            if landmark_obs_cnt[&Key(id)] > 1 {
-                landmarks
-                    .entry(Key(id))
-                    .or_insert_with(|| Landmark::new(&mut variables, Key(id), landmarks_init[id]));
+            landmarks
+                .entry(Vkey(id))
+                .or_insert_with(|| Landmark::new(&mut variables, Vkey(id)));
 
-                landmarks.get_mut(&Key(id)).unwrap().add_observation(
-                    &mut factors,
-                    pose_id,
-                    Vector2::<f64>::new(rx, ry),
-                    &Matrix2::new(sx, sxy, sxy, sy),
-                );
+            landmarks.get_mut(&Vkey(id)).unwrap().add_observation(
+                &mut factors,
+                pose_id,
+                Vector2::<f64>::new(rx, ry),
+                &Matrix2::new(sx, sxy, sxy, sy),
+            );
 
-                landmarks
-                    .get_mut(&Key(id))
-                    .unwrap()
-                    .triangulate(&factors, &mut variables);
-            }
+            // if let Some(l) = variables.get::<E2>(Key(id)) {
+            //     let r = R * Vector2::<f64>::new(rx, ry);
+            //     let I = Matrix2::identity();
+            //     let A = I - r * r.transpose();
+            //     let l = l.val;
+            //     sA += A.transpose() * A;
+            //     sb += A.transpose() * A * l;
+            //     pcnt += 1;
+            // }
         }
-    }
-    for (id, line) in read_to_string(odometry_filename)
-        .unwrap()
-        .lines()
-        .enumerate()
-    {
-        let mut l = line.split_whitespace();
-        let dx = l.next().unwrap().parse::<f64>()?;
-        let dy = l.next().unwrap().parse::<f64>()?;
-        let dth = l.next().unwrap().parse::<f64>()?;
-        let sigx = l.next().unwrap().parse::<f64>()?;
-        let sigy = l.next().unwrap().parse::<f64>()?;
-        let sigth = l.next().unwrap().parse::<f64>()?;
-        factors.add(BetweenFactor::new(
-            Key(id + landmarks_init.len()),
-            Key(id + landmarks_init.len() + 1),
-            dx,
-            dy,
-            dth,
-            // Some(DiagonalLoss::sigmas(&dvector![sigx, sigy, sigth].as_view())),
-            Some(GaussianLoss::covariance(
-                dmatrix![sigx*sigx, 0.0, 0.0; 0.0, sigy*sigy, 0.0; 0.0, 0.0, sigth*sigth].as_view(),
-            )),
-        ));
-    }
-    let mut gt_poses = Vec::<Vector3<f64>>::new();
-    for (_id, line) in read_to_string(gt_filename).unwrap().lines().enumerate() {
-        let mut l = line.split_whitespace();
-        let x = l.next().unwrap().parse::<f64>()?;
-        let y = l.next().unwrap().parse::<f64>()?;
-        let th = l.next().unwrap().parse::<f64>()?;
-        gt_poses.push(Vector3::new(x, y, th));
-    }
 
-    for l in &landmarks {
-        if l.1.obs_cnt < 2 {
-            eprintln!("not enough observations");
+        for l in landmarks.values_mut().into_iter() {
+            l.triangulate(&mut factors, &mut variables);
         }
-    }
+        // let pose: &mut SE2 = variables.get_mut(Key(id + landmarks_init.len())).unwrap();
+        // let mut pp = pose.origin.params().clone();
 
-    const OUTPUT_GIF: &str = "2d-slam.gif";
+        // if pcnt > 6 {
+        //     let chol = sA.cholesky();
+        //     if chol.is_some() {
+        //         let coord = chol.unwrap().solve(&sb);
+        //         // let lp = pose.origin.log();
+        //         // coord =
+        //         // println!("old params {}", pp);
+        //         pp[0] = coord[0];
+        //         pp[1] = coord[1];
+        //         // println!("new params {}", pp);
+        //         // println!("new lp {}", lp);
+        //         pose.origin.set_params(&pp);
+        //     }
+        // }
 
-    let mut params = LevenbergMarquardtOptimizerParams::default();
-    params.base.verbosity_level = NonlinearOptimizerVerbosityLevel::Iteration;
-    let mut optimizer = NonlinearOptimizer::new(LevenbergMarquardtOptimizer::with_params(params));
-    // let mut params = GaussNewtonOptimizerParams::default();
-    // params.base.verbosity_level = NonlinearOptimizerVerbosityLevel::Iteration;
-    // let mut optimizer = NonlinearOptimizer::new(GaussNewtonOptimizer::with_params(params));
-    let start = Instant::now();
-    let opt_res = if args.do_viz {
-        let img_w = 1024_i32;
-        let img_h = 768_i32;
-        let root_screen = BitMapBackend::gif(OUTPUT_GIF, (img_w as u32, img_h as u32), 1000)
-            .unwrap()
-            .into_drawing_area();
-        let res = optimizer.optimize_with_callback(
-            &factors,
-            &mut variables,
-            Some(
-                |iteration, error, _factors2: &Factors<_, _>, variables2: &Variables<_, _>| {
-                    let mut min_x = f64::MAX;
-                    let mut max_x = f64::MIN;
-                    let mut min_y = f64::MAX;
-                    let mut max_y = f64::MIN;
-                    for key in variables2.default_variable_ordering().keys() {
-                        let v = variables2.get::<SE2>(*key);
-                        if v.is_some() {
-                            let v = v.unwrap();
-                            min_x = min_x.min(v.origin.params()[0]);
-                            max_x = max_x.max(v.origin.params()[0]);
-                            min_y = min_y.min(v.origin.params()[1]);
-                            max_y = max_y.max(v.origin.params()[1]);
+        let mut params = LevenbergMarquardtOptimizerParams::default();
+        params.base.verbosity_level = NonlinearOptimizerVerbosityLevel::Iteration;
+        let mut optimizer =
+            NonlinearOptimizer::new(LevenbergMarquardtOptimizer::with_params(params));
+        // let mut params = GaussNewtonOptimizerParams::default();
+        // params.base.verbosity_level = NonlinearOptimizerVerbosityLevel::Iteration;
+        // let mut optimizer = NonlinearOptimizer::new(GaussNewtonOptimizer::with_params(params));
+        assert_eq!(factors.unused_variables_count(&variables), 0);
+        let start = Instant::now();
+        let win_size = 6;
+        let opt_res = if args.do_viz {
+            let res = optimizer.optimize_with_callback(
+                &factors,
+                &mut variables,
+                Some(
+                    |iteration, error, factors2: &Factors<_, _>, variables2: &Variables<_, _>| {
+                        let scene_w = max_x - min_x;
+                        let scene_h = max_y - min_y;
+                        let marg = 0;
+                        let root = if scene_h > scene_w {
+                            let scale = img_h as f64 / scene_h;
+                            let sc_w = ((max_x - min_x) * scale) as i32;
+                            root_screen.margin(marg, marg, marg, marg).apply_coord_spec(
+                                Cartesian2d::<RangedCoordf64, RangedCoordf64>::new(
+                                    min_x..max_y,
+                                    max_y..min_y,
+                                    (img_w / 2 - sc_w / 2..sc_w * 2, 0..img_h),
+                                ),
+                            )
+                        } else {
+                            let scale = img_h as f64 / scene_h;
+                            let sc_h = ((max_y - min_y) * scale) as i32;
+                            root_screen.margin(marg, marg, marg, marg).apply_coord_spec(
+                                Cartesian2d::<RangedCoordf64, RangedCoordf64>::new(
+                                    min_x..max_y,
+                                    max_y..min_y,
+                                    (0..img_w, img_h / 2 - sc_h / 2..sc_h * 2),
+                                ),
+                            )
+                        };
+
+                        root.fill(&BLACK).unwrap();
+                        if id >= win_size - 1 {
+                            for wi in 0..win_size {
+                                let p_id = Vkey(id + landmarks_init.len() - win_size + wi + 1);
+                                // let p_id = Key(id + landmarks_init.len());
+                                let v = variables2.get::<SE2>(p_id).unwrap();
+                                let th = v.origin.log()[2];
+                                let R = matrix![th.cos(), -th.sin(); th.sin(), th.cos() ];
+                                for vf in factors2.get_vec::<VisionFactor>() {
+                                    if vf.keys()[VisionFactor::POSE_KEY] == p_id {
+                                        let l = variables2
+                                            .get::<E2>(vf.keys()[VisionFactor::LANDMARK_KEY]);
+                                        if l.is_some() {
+                                            let l = l.unwrap();
+                                            let p0 = v.origin.params().fixed_rows::<2>(0);
+                                            let r = R * vf.ray;
+                                            let p1 = p0 + r * (l.val - p0).norm();
+                                            root.draw(&PathElement::new(
+                                                vec![(p0[0], p0[1]), (p1[0], p1[1])],
+                                                YELLOW,
+                                            ))
+                                            .unwrap();
+                                        }
+                                    }
+                                }
+                            }
                         }
-                        let v = variables2.get::<E2>(*key);
-                        if v.is_some() {
-                            let v = v.unwrap();
-                            min_x = min_x.min(v.val[0]);
-                            max_x = max_x.max(v.val[0]);
-                            min_y = min_y.min(v.val[1]);
-                            max_y = max_y.max(v.val[1]);
-                        }
-                    }
-                    let _scene_w = max_x - min_x;
-                    let _scene_h = max_y - min_y;
-                    // let root = if scene_h > scene_w {
-                    //     let scale = img_h as f64 / scene_h;
-                    //     let sc_w = ((max_x - min_x) * scale) as i32;
-                    //     let marg = 5;
-                    //     root_screen
-                    //         .margin(marg, marg, marg, marg)
-                    //         .apply_coord_spec(Cartesian2d::<RangedCoordf64, RangedCoordf64>::new(
-                    //             min_x..max_y,
-                    //             max_y..min_y,
-                    //             (img_w / 2 - sc_w / 2..sc_w * 2, 0..img_h),
-                    //         ))
-                    // } else {
-                    //     let scale = img_h as f64 / scene_h;
-                    //     let sc_h = ((max_y - min_y) * scale) as i32;
-                    //     let marg = 5;
-                    //     root_screen
-                    //         .margin(marg, marg, marg, marg)
-                    //         .apply_coord_spec(Cartesian2d::<RangedCoordf64, RangedCoordf64>::new(
-                    //             min_x..max_y,
-                    //             max_y..min_y,
-                    //             (0..img_w, img_h / 2 - sc_h / 2..sc_h * 2),
-                    //         ))
-                    // };
-                    let marg = 0;
-                    let root =
-                        root_screen
-                            .margin(marg, marg, marg, marg)
-                            .apply_coord_spec(Cartesian2d::<RangedCoordf64, RangedCoordf64>::new(
-                                min_x..max_y,
-                                max_y..min_y,
-                                (0..img_w, 0..img_h),
-                            ));
-                    root.fill(&BLACK).unwrap();
-                    // println!("iter {}", iteration);
-                    for key in variables2.default_variable_ordering().keys() {
-                        let v = variables2.get::<SE2>(*key);
-                        if v.is_some() {
-                            let v = v.unwrap();
+                        for (_k, v) in variables2.get_map::<SE2>().iter() {
                             root.draw(&Circle::new(
                                 (v.origin.params()[0], v.origin.params()[1]),
                                 3,
@@ -506,9 +600,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                             ))
                             .unwrap();
                         }
-                        let v = variables2.get::<E2>(*key);
-                        if v.is_some() {
-                            let v = v.unwrap();
+                        for (_k, v) in variables2.get_map::<E2>().iter() {
                             root.draw(&Circle::new(
                                 (v.val[0], v.val[1]),
                                 2,
@@ -516,90 +608,94 @@ fn main() -> Result<(), Box<dyn Error>> {
                             ))
                             .unwrap();
                         }
-                    }
-                    // for f_idx in 0..factors2.len() {
-                    //     let keys = factors2.keys_at(f_idx).unwrap();
-                    //     if keys.len() == 1 {
-                    //         continue;
-                    //     }
 
-                    //     let v0: &SE2 = variables2.at(keys[0]).unwrap();
-                    //     let v1: &SE2 = variables2.at(keys[1]).unwrap();
-                    //     root.draw(&PathElement::new(
-                    //         vec![
-                    //             (v0.origin.params()[0], v0.origin.params()[1]),
-                    //             (v1.origin.params()[0], v1.origin.params()[1]),
-                    //         ],
-                    //         &RED,
-                    //     ))
-                    //     .unwrap();
-                    // }
-
-                    for idx in 0..gt_poses.len() - 1 {
-                        let p0 = gt_poses[idx];
-                        let p1 = gt_poses[idx + 1];
-                        let p0 = p0.fixed_rows::<2>(0);
-                        let p1 = p1.fixed_rows::<2>(0);
-                        root.draw(&PathElement::new(
-                            vec![(p0[0], p0[1]), (p1[0], p1[1])],
-                            BLUE,
-                        ))
-                        .unwrap();
-                    }
-                    for idx in 0..poses_keys.len() - 1 {
-                        let key_0 = poses_keys[idx];
-                        let key_1 = poses_keys[idx + 1];
-                        let v0 = variables2.get::<SE2>(key_0);
-                        let v1 = variables2.get::<SE2>(key_1);
-                        if v0.is_some() && v1.is_some() {
-                            let p0 = v0.unwrap().origin.params();
-                            let p1 = v1.unwrap().origin.params();
+                        for idx in 0..gt_poses.len() - 1 {
+                            let p0 = gt_poses[idx];
+                            let p1 = gt_poses[idx + 1];
+                            let p0 = p0.fixed_rows::<2>(0);
+                            let p1 = p1.fixed_rows::<2>(0);
                             root.draw(&PathElement::new(
                                 vec![(p0[0], p0[1]), (p1[0], p1[1])],
-                                GREEN,
+                                BLUE,
                             ))
                             .unwrap();
                         }
-                    }
-                    root_screen
-                        .draw(&Rectangle::new(
-                            [(6, 3), (320, 25)],
-                            ShapeStyle {
-                                color: RGBAColor(255, 165, 0, 1.0),
-                                filled: true,
-                                stroke_width: 2,
-                            },
-                        ))
-                        .unwrap();
-                    root_screen
-                        .draw(&Text::new(
-                            format!(
-                                "iteration: {} error: {}",
-                                iteration,
-                                fmt_f64(error, 10, 3, 2)
-                            ),
-                            (10, 5),
-                            ("sans-serif", 25.0).into_font(),
-                        ))
-                        .unwrap();
-                    root.present().unwrap();
-                },
-            )
-            .as_ref(),
-        );
-        root_screen
-            .present()
-            .expect("Unable to write result to file");
-        println!("{} saved!", OUTPUT_GIF);
+                        for idx in 0..poses_keys.len() - 1 {
+                            let key_0 = poses_keys[idx];
+                            let key_1 = poses_keys[idx + 1];
+                            let v0 = variables2.get::<SE2>(key_0);
+                            let v1 = variables2.get::<SE2>(key_1);
+                            if v0.is_some() && v1.is_some() {
+                                let p0 = v0.unwrap().origin.params();
+                                let p1 = v1.unwrap().origin.params();
+                                root.draw(&PathElement::new(
+                                    vec![(p0[0], p0[1]), (p1[0], p1[1])],
+                                    GREEN,
+                                ))
+                                .unwrap();
+                            }
+                        }
+                        root_screen
+                            .draw(&Rectangle::new(
+                                [(6, 3), (410, 25)],
+                                ShapeStyle {
+                                    color: RGBAColor(255, 165, 0, 1.0),
+                                    filled: true,
+                                    stroke_width: 2,
+                                },
+                            ))
+                            .unwrap();
+                        root_screen
+                            .draw(&Text::new(
+                                format!(
+                                    "step: {} iteration: {} error: {}",
+                                    step,
+                                    iteration,
+                                    fmt_f64(error, 10, 3, 2)
+                                ),
+                                (10, 5),
+                                ("sans-serif", 25.0).into_font(),
+                            ))
+                            .unwrap();
+                        root.present().unwrap();
+                    },
+                )
+                .as_ref(),
+            );
+            root_screen
+                .present()
+                .expect("Unable to write result to file");
+            println!("{} saved!", OUTPUT_GIF);
 
-        res
-    } else {
-        optimizer.optimize(&factors, &mut variables)
-    };
-    // let mut optimizer = NonlinearOptimizer::new(GaussNewtonOptimizer::default());
-    // let start = Instant::now();
-    let duration = start.elapsed();
-    println!("optimize time: {:?}", duration);
-    println!("opt_res {:?}", opt_res);
+            res
+        } else {
+            optimizer.optimize(&factors, &mut variables)
+        };
+
+        if poses_keys.len() >= win_size {
+            let key = poses_keys.pop_front().unwrap();
+            let (rok, _fcnt) = variables.remove(key, &mut factors);
+            assert!(rok);
+
+            landmarks.retain(|_, l| !l.remove_pose(key, &mut factors, &mut variables));
+            // for l in landmarks.values() {
+            //     if l.obs_cnt < 2 {
+            //         println!("low obs cnt");
+            //     }
+            // }
+
+            // let bf = factors.get_vec_mut::<BetweenFactor<DiagonalLoss>>();
+            println!("pose id {:?}", key);
+            // bf.retain(|f| !(f.keys()[0] == key));
+            // let removed_factors_cnt = factors.remove_conneted_factors(key);
+            // assert_eq!(removed_factors_cnt, 0);
+        }
+        // let mut optimizer = NonlinearOptimizer::new(GaussNewtonOptimizer::default());
+        // let start = Instant::now();
+        let duration = start.elapsed();
+        println!("optimize time: {:?}", duration);
+        println!("opt_res {:?}", opt_res);
+        step += 1;
+    }
     Ok(())
 }

@@ -431,7 +431,7 @@ mod tests {
             factor::tests::{FactorA, FactorB},
             factors::Factors,
             factors_container::FactorsContainer,
-            key::Key,
+            key::Vkey,
             variable::tests::{VariableA, VariableB},
             variables::Variables,
             variables_container::VariablesContainer,
@@ -451,14 +451,14 @@ mod tests {
         type Real = f64;
         let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
         let mut variables = Variables::new(container);
-        variables.add(Key(0), VariableA::<Real>::new(0.0));
-        variables.add(Key(1), VariableB::<Real>::new(0.0));
-        variables.add(Key(2), VariableB::<Real>::new(0.0));
+        variables.add(Vkey(0), VariableA::<Real>::new(0.0));
+        variables.add(Vkey(1), VariableB::<Real>::new(0.0));
+        variables.add(Vkey(2), VariableB::<Real>::new(0.0));
 
         let container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
         let mut factors = Factors::new(container);
-        factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
-        factors.add(FactorB::new(2.0, None, Key(1), Key(2)));
+        factors.add(FactorA::new(1.0, None, Vkey(0), Vkey(1)));
+        factors.add(FactorB::new(2.0, None, Vkey(1), Vkey(2)));
         let variable_ordering = variables.default_variable_ordering();
         let mut opt_iter = GaussNewtonOptimizer::default();
         let sparsity = construct_hessian_sparsity(

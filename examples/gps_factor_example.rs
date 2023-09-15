@@ -1,9 +1,6 @@
 use core::cell::RefCell;
 
-
-
 use nalgebra::vector;
-
 
 use nalgebra::Vector2;
 use nalgebra::{DMatrix, DVector, RealField};
@@ -13,7 +10,6 @@ use optigy::core::factor::Jacobians;
 use optigy::core::loss_function::DiagonalLoss;
 use optigy::core::loss_function::ScaleLoss;
 
-
 use optigy::prelude::Factors;
 use optigy::prelude::FactorsContainer;
 
@@ -22,7 +18,7 @@ use optigy::prelude::JacobiansReturn;
 use optigy::prelude::NonlinearOptimizer;
 
 use optigy::prelude::VariablesContainer;
-use optigy::prelude::{Factor, Key, Variables};
+use optigy::prelude::{Factor, Variables, Vkey};
 use optigy::slam::between_factor::BetweenFactor;
 use optigy::slam::se3::SE2;
 
@@ -32,7 +28,7 @@ where
 {
     pub error: RefCell<DVector<R>>,
     pub jacobians: RefCell<Jacobians<R>>,
-    pub keys: Vec<Key>,
+    pub keys: Vec<Vkey>,
     pub pose: Vector2<R>,
     pub loss: DiagonalLoss<R>,
 }
@@ -40,7 +36,7 @@ impl<R> GPSPositionFactor<R>
 where
     R: RealField + Float,
 {
-    pub fn new(key: Key, pose: Vector2<R>, sigmas: Vector2<R>) -> Self {
+    pub fn new(key: Vkey, pose: Vector2<R>, sigmas: Vector2<R>) -> Self {
         let keys = vec![key];
         let jacobians = DMatrix::identity(2, 3 * keys.len());
         GPSPositionFactor {
@@ -82,7 +78,7 @@ where
         2
     }
 
-    fn keys(&self) -> &[Key] {
+    fn keys(&self) -> &[Vkey] {
         &self.keys
     }
 
@@ -115,23 +111,23 @@ fn main() {
     let mut factors = Factors::new(container);
 
     factors.add(GPSPositionFactor::new(
-        Key(1),
+        Vkey(1),
         Vector2::new(0.0, 0.0),
         Vector2::new(2.0, 2.0),
     ));
     factors.add(GPSPositionFactor::new(
-        Key(2),
+        Vkey(2),
         Vector2::new(5.0, 0.0),
         Vector2::new(2.0, 2.0),
     ));
     factors.add(GPSPositionFactor::new(
-        Key(3),
+        Vkey(3),
         Vector2::new(10.0, 0.0),
         Vector2::new(2.0, 2.0),
     ));
     factors.add(BetweenFactor::new(
-        Key(1),
-        Key(2),
+        Vkey(1),
+        Vkey(2),
         5.0,
         0.0,
         0.0,
@@ -139,8 +135,8 @@ fn main() {
         Some(ScaleLoss::scale(1.0)),
     ));
     factors.add(BetweenFactor::new(
-        Key(2),
-        Key(3),
+        Vkey(2),
+        Vkey(3),
         5.0,
         0.0,
         0.0,
@@ -164,9 +160,9 @@ fn main() {
     //     None,
     // ));
 
-    variables.add(Key(1), SE2::new(0.2, -0.3, 0.2));
-    variables.add(Key(2), SE2::new(5.1, 0.3, -0.1));
-    variables.add(Key(3), SE2::new(9.9, -0.1, -0.2));
+    variables.add(Vkey(1), SE2::new(0.2, -0.3, 0.2));
+    variables.add(Vkey(2), SE2::new(5.1, 0.3, -0.1));
+    variables.add(Vkey(3), SE2::new(9.9, -0.1, -0.2));
 
     // let mut optimizer = NonlinearOptimizer::<GaussNewtonOptimizer>::default();
     // let mut optimizer = NonlinearOptimizer::new(GaussNewtonOptimizer::default());
@@ -176,17 +172,17 @@ fn main() {
     // ));
 
     println!("before optimization");
-    let var1: &SE2 = variables.get(Key(1)).unwrap();
-    let var2: &SE2 = variables.get(Key(2)).unwrap();
-    let var3: &SE2 = variables.get(Key(3)).unwrap();
+    let var1: &SE2 = variables.get(Vkey(1)).unwrap();
+    let var2: &SE2 = variables.get(Vkey(2)).unwrap();
+    let var3: &SE2 = variables.get(Vkey(3)).unwrap();
     println!("var 1 {:?}", var1.origin);
     println!("var 2 {:?}", var2.origin);
     println!("var 3 {:?}", var3.origin);
     let opt_res = optimizer.optimize(&factors, &mut variables);
     println!("opt_res {:?}", opt_res);
-    let var1: &SE2 = variables.get(Key(1)).unwrap();
-    let var2: &SE2 = variables.get(Key(2)).unwrap();
-    let var3: &SE2 = variables.get(Key(3)).unwrap();
+    let var1: &SE2 = variables.get(Vkey(1)).unwrap();
+    let var2: &SE2 = variables.get(Vkey(2)).unwrap();
+    let var3: &SE2 = variables.get(Vkey(3)).unwrap();
     println!("after optimization");
     println!("var 1 {:?}", var1.origin);
     println!("var 2 {:?}", var2.origin);

@@ -6,7 +6,7 @@ use sophus_rs::lie::rotation2::{Isometry2, Rotation2};
 
 use crate::core::{
     factor::{compute_numerical_jacobians, ErrorReturn, Factor, Jacobians, JacobiansReturn},
-    key::Key,
+    key::Vkey,
     loss_function::{GaussianLoss, LossFunction},
     variables::Variables,
     variables_container::VariablesContainer,
@@ -21,7 +21,7 @@ where
 {
     pub error: RefCell<DVector<R>>,
     pub jacobians: RefCell<Jacobians<R>>,
-    pub keys: Vec<Key>,
+    pub keys: Vec<Vkey>,
     pub origin: Isometry2,
     pub loss: Option<LF>,
 }
@@ -30,7 +30,7 @@ where
     R: RealField + Float,
     LF: LossFunction<R>,
 {
-    pub fn new(key0: Key, key1: Key, x: f64, y: f64, theta: f64, loss: Option<LF>) -> Self {
+    pub fn new(key0: Vkey, key1: Vkey, x: f64, y: f64, theta: f64, loss: Option<LF>) -> Self {
         let keys = vec![key0, key1];
         let mut jacobians = DMatrix::<R>::zeros(3, 3 * keys.len());
         jacobians.columns_mut(3, 3).fill_diagonal(R::one());
@@ -99,7 +99,7 @@ where
         3
     }
 
-    fn keys(&self) -> &[Key] {
+    fn keys(&self) -> &[Vkey] {
         &self.keys
     }
 

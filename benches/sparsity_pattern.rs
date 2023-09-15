@@ -1,17 +1,15 @@
-
-
 use criterion::{criterion_group, criterion_main, Criterion};
-use nalgebra::{DVector};
+use nalgebra::DVector;
 use optigy::{
     core::{
-        factors::Factors, factors_container::FactorsContainer,
-        loss_function::GaussianLoss, variables_container::VariablesContainer,
+        factors::Factors, factors_container::FactorsContainer, loss_function::GaussianLoss,
+        variables_container::VariablesContainer,
     },
     nonlinear::{
         linearization::linearization_hessian,
         sparsity_pattern::{construct_hessian_sparsity, HessianTriangle},
     },
-    prelude::{Key, Variables},
+    prelude::{Variables, Vkey},
     slam::{between_factor::BetweenFactor, se3::SE2},
 };
 
@@ -21,7 +19,7 @@ fn lower_hessian_sparsity(c: &mut Criterion) {
     let vcnt = 5000;
 
     for i in 0..vcnt {
-        variables.add(Key(i), SE2::new(0.0, 0.0, 0.0));
+        variables.add(Vkey(i), SE2::new(0.0, 0.0, 0.0));
     }
 
     let container = ().and_factor::<BetweenFactor>();
@@ -30,8 +28,8 @@ fn lower_hessian_sparsity(c: &mut Criterion) {
     for i in 0..vcnt {
         for j in 1..6 {
             factors.add(BetweenFactor::new(
-                Key(i),
-                Key((i + j) % vcnt),
+                Vkey(i),
+                Vkey((i + j) % vcnt),
                 0.0,
                 0.0,
                 0.0,
@@ -58,7 +56,7 @@ fn lower_hessian_linearization(c: &mut Criterion) {
     let vcnt = 5000;
 
     for i in 0..vcnt {
-        variables.add(Key(i), SE2::new(0.0, 0.0, 0.0));
+        variables.add(Vkey(i), SE2::new(0.0, 0.0, 0.0));
     }
 
     let container = ().and_factor::<BetweenFactor>();
@@ -67,8 +65,8 @@ fn lower_hessian_linearization(c: &mut Criterion) {
     for i in 0..vcnt {
         for j in 1..6 {
             factors.add(BetweenFactor::new(
-                Key(i),
-                Key((i + j) % vcnt),
+                Vkey(i),
+                Vkey((i + j) % vcnt),
                 0.0,
                 0.0,
                 0.0,

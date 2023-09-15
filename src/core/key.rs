@@ -1,2 +1,5 @@
 #[derive(Hash, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Debug)]
-pub struct Key(pub usize);
+/// variable key
+pub struct Vkey(pub usize);
+/// factor key
+pub struct Fkey(pub usize);

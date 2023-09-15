@@ -11,8 +11,8 @@ use optigy::nonlinear::levenberg_marquardt_optimizer::{
     LevenbergMarquardtOptimizer, LevenbergMarquardtOptimizerParams,
 };
 use optigy::prelude::{
-    Factors, FactorsContainer, GaussNewtonOptimizer, GaussianLoss, Key, NonlinearOptimizer,
-    NonlinearOptimizerVerbosityLevel, Variables, VariablesContainer,
+    Factors, FactorsContainer, GaussNewtonOptimizer, GaussianLoss, NonlinearOptimizer,
+    NonlinearOptimizerVerbosityLevel, Variables, VariablesContainer, Vkey,
 };
 use optigy::slam::between_factor::BetweenFactor;
 use optigy::slam::prior_factor::PriorFactor;
@@ -55,7 +55,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let y = l.next().unwrap().parse::<f64>()?;
                 let th = l.next().unwrap().parse::<f64>()?;
                 // println!("id: {}, x: {} y: {} th: {}", id, x, y, th);
-                variables.add(Key(id), SE2::new(x, y, th));
+                variables.add(Vkey(id), SE2::new(x, y, th));
             }
             "EDGE_SE2" => {
                 let ido = l.next().unwrap().parse::<usize>()?;
@@ -76,8 +76,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                 // );
                 // println!("I: {}", I);
                 factors.add(BetweenFactor::new(
-                    Key(ido),
-                    Key(idi),
+                    Vkey(ido),
+                    Vkey(idi),
                     dx,
                     dy,
                     dth,
@@ -89,9 +89,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
         // println!("line: {}", line);
     }
-    let v0: &SE2 = variables.get(Key(0)).unwrap();
+    let v0: &SE2 = variables.get(Vkey(0)).unwrap();
     factors.add(PriorFactor::from_se2(
-        Key(0),
+        Vkey(0),
         v0.origin,
         Some(ScaleLoss::scale(1.0)),
     ));

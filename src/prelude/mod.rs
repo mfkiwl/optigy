@@ -2,7 +2,7 @@ pub use crate::core::factor::Factor;
 pub use crate::core::factor::JacobiansReturn;
 pub use crate::core::factors::Factors;
 pub use crate::core::factors_container::FactorsContainer;
-pub use crate::core::key::Key;
+pub use crate::core::key::Vkey;
 pub use crate::core::loss_function::GaussianLoss;
 pub use crate::core::loss_function::LossFunction;
 pub use crate::core::variable::Variable;

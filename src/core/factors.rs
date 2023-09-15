@@ -6,8 +6,10 @@ use core::marker::PhantomData;
 
 use super::{
     factor::{ErrorReturn, Factor, JacobiansErrorReturn},
-    factors_container::{get_factor, get_factor_mut, FactorsContainer},
-    key::Key,
+    factors_container::{
+        get_factor, get_factor_mut, get_factor_vec, get_factor_vec_mut, FactorsContainer,
+    },
+    key::Vkey,
     variables_container::VariablesContainer,
 };
 #[derive(Clone)]
@@ -42,7 +44,7 @@ where
     pub fn dim_at(&self, index: usize) -> Option<usize> {
         self.container.dim_at(index, 0)
     }
-    pub fn keys_at(&self, index: usize) -> Option<&[Key]> {
+    pub fn keys_at(&self, index: usize) -> Option<&[Vkey]> {
         self.container.keys_at(index, 0)
     }
     pub fn weight_jacobians_error_in_place_at<VC>(
@@ -134,17 +136,55 @@ where
                 .push(f)
         }
     }
+    pub fn get_vec<F>(&self) -> &Vec<F>
+    where
+        F: Factor<R> + 'static,
+    {
+        get_factor_vec(&self.container)
+    }
     pub fn get<F>(&self, index: usize) -> Option<&F>
     where
         F: Factor<R> + 'static,
     {
         get_factor(&self.container, index)
     }
+    pub fn get_vec_mut<F>(&mut self) -> &mut Vec<F>
+    where
+        F: Factor<R> + 'static,
+    {
+        get_factor_vec_mut(&mut self.container)
+    }
     pub fn get_mut<F>(&mut self, index: usize) -> Option<&mut F>
     where
         F: Factor<R> + 'static,
     {
         get_factor_mut(&mut self.container, index)
+    }
+
+    pub fn remove_conneted_factors(&mut self, key: Vkey) -> usize {
+        self.container.remove_conneted_factors(key, 0)
+    }
+
+    /// for debug goals
+    pub fn type_name_at(&self, index: usize) -> Option<String> {
+        self.container.type_name_at(index, 0)
+    }
+    /// count unconnected variables
+    /// optimization will not work with any unconnected variables
+    pub fn unused_variables_count<VC>(&self, variables: &Variables<VC, R>) -> usize
+    where
+        VC: VariablesContainer<R>,
+    {
+        let mut counter = 0_usize;
+        for f_idx in 0..self.len() {
+            counter += self
+                .keys_at(f_idx)
+                .unwrap()
+                .into_iter()
+                .filter(|key| !variables.default_variable_ordering().keys().contains(key))
+                .count();
+        }
+        counter
     }
 }
 #[cfg(test)]
@@ -158,7 +198,7 @@ mod tests {
             Factor,
         },
         factors_container::{get_factor, FactorsContainer},
-        key::Key,
+        key::Vkey,
         variable::tests::{VariableA, VariableB},
         variables::Variables,
         variables_container::VariablesContainer,
@@ -171,8 +211,8 @@ mod tests {
         type Real = f64;
         let container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
         let mut factors = Factors::new(container);
-        factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
-        factors.add(FactorB::new(2.0, None, Key(0), Key(1)));
+        factors.add(FactorA::new(1.0, None, Vkey(0), Vkey(1)));
+        factors.add(FactorB::new(2.0, None, Vkey(0), Vkey(1)));
         let f0: &FactorA<Real> = get_factor(&factors.container, 0).unwrap();
         assert_eq!(f0.orig, DVector::<Real>::from_element(3, 1.0));
         let f1: &FactorB<Real> = get_factor(&factors.container, 0).unwrap();
@@ -183,8 +223,8 @@ mod tests {
         type Real = f64;
         let container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
         let mut factors = Factors::new(container);
-        factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
-        factors.add(FactorB::new(2.0, None, Key(0), Key(1)));
+        factors.add(FactorA::new(1.0, None, Vkey(0), Vkey(1)));
+        factors.add(FactorB::new(2.0, None, Vkey(0), Vkey(1)));
         assert_eq!(factors.len(), 2);
     }
     #[test]
@@ -192,8 +232,8 @@ mod tests {
         type Real = f64;
         let container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
         let mut factors = Factors::new(container);
-        factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
-        factors.add(FactorB::new(2.0, None, Key(0), Key(1)));
+        factors.add(FactorA::new(1.0, None, Vkey(0), Vkey(1)));
+        factors.add(FactorB::new(2.0, None, Vkey(0), Vkey(1)));
         assert_eq!(factors.dim(), 6);
     }
 
@@ -202,8 +242,8 @@ mod tests {
         type Real = f64;
         let container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
         let mut factors = Factors::new(container);
-        factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
-        factors.add(FactorB::new(2.0, None, Key(0), Key(1)));
+        factors.add(FactorA::new(1.0, None, Vkey(0), Vkey(1)));
+        factors.add(FactorB::new(2.0, None, Vkey(0), Vkey(1)));
         assert_eq!(factors.dim_at(0).unwrap(), 3);
         assert_eq!(factors.dim_at(1).unwrap(), 3);
         assert!(factors.dim_at(2).is_none());
@@ -213,9 +253,9 @@ mod tests {
         type Real = f64;
         let container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
         let mut factors = Factors::new(container);
-        factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
-        factors.add(FactorB::new(2.0, None, Key(0), Key(1)));
-        let keys = vec![Key(0), Key(1)];
+        factors.add(FactorA::new(1.0, None, Vkey(0), Vkey(1)));
+        factors.add(FactorB::new(2.0, None, Vkey(0), Vkey(1)));
+        let keys = vec![Vkey(0), Vkey(1)];
         assert_eq!(factors.keys_at(0).unwrap(), keys);
         assert_eq!(factors.keys_at(1).unwrap(), keys);
         assert!(factors.keys_at(4).is_none());
@@ -226,14 +266,14 @@ mod tests {
         type Real = f64;
         let container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
         let mut factors = Factors::new(container);
-        factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
-        factors.add(FactorB::new(2.0, None, Key(0), Key(1)));
+        factors.add(FactorA::new(1.0, None, Vkey(0), Vkey(1)));
+        factors.add(FactorB::new(2.0, None, Vkey(0), Vkey(1)));
         let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
         let mut variables = Variables::new(container);
-        variables.add(Key(0), VariableA::<Real>::new(0.0));
-        variables.add(Key(1), VariableB::<Real>::new(0.0));
+        variables.add(Vkey(0), VariableA::<Real>::new(0.0));
+        variables.add(Vkey(1), VariableB::<Real>::new(0.0));
         assert_eq!(
-            FactorA::new(1.0, None, Key(0), Key(1))
+            FactorA::new(1.0, None, Vkey(0), Vkey(1))
                 .error(&variables)
                 .norm_squared(),
             3.0
@@ -246,8 +286,8 @@ mod tests {
         let container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
         let mut factors = Factors::new(container);
         assert!(factors.is_empty());
-        factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
-        factors.add(FactorB::new(2.0, None, Key(0), Key(1)));
+        factors.add(FactorA::new(1.0, None, Vkey(0), Vkey(1)));
+        factors.add(FactorB::new(2.0, None, Vkey(0), Vkey(1)));
         assert!(!factors.is_empty());
     }
 }

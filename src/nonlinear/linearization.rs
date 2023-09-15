@@ -1,4 +1,4 @@
-use std::ops::{SubAssign};
+use std::ops::SubAssign;
 
 use hashbrown::HashSet;
 use nalgebra::{DMatrix, DVector, RealField};
@@ -6,8 +6,8 @@ use num::Float;
 
 use crate::{
     core::{
-        factors::Factors, factors_container::FactorsContainer,
-        variables::Variables, variables_container::VariablesContainer,
+        factors::Factors, factors_container::FactorsContainer, variables::Variables,
+        variables_container::VariablesContainer,
     },
     nonlinear::sparsity_pattern::HessianTriangle,
 };
@@ -313,12 +313,10 @@ mod tests {
 
     use crate::{
         core::{
-            factor::{
-                tests::{FactorA, FactorB, RandomBlockFactor},
-            },
+            factor::tests::{FactorA, FactorB, RandomBlockFactor},
             factors::Factors,
             factors_container::FactorsContainer,
-            key::Key,
+            key::Vkey,
             variable::tests::{RandomVariable, VariableA, VariableB},
             variable_ordering::VariableOrdering,
             variables::Variables,
@@ -338,14 +336,14 @@ mod tests {
         type Real = f64;
         let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
         let mut variables = Variables::new(container);
-        variables.add(Key(0), VariableA::<Real>::new(1.0));
-        variables.add(Key(1), VariableB::<Real>::new(5.0));
-        variables.add(Key(2), VariableB::<Real>::new(10.0));
+        variables.add(Vkey(0), VariableA::<Real>::new(1.0));
+        variables.add(Vkey(1), VariableB::<Real>::new(5.0));
+        variables.add(Vkey(2), VariableB::<Real>::new(10.0));
 
         let container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
         let mut factors = Factors::new(container);
-        factors.add(FactorA::new(1.0, None, Key(0), Key(1)));
-        factors.add(FactorB::new(2.0, None, Key(1), Key(2)));
+        factors.add(FactorA::new(1.0, None, Vkey(0), Vkey(1)));
+        factors.add(FactorB::new(2.0, None, Vkey(1), Vkey(2)));
         let variable_ordering = variables.default_variable_ordering();
         let pattern = construct_jacobian_sparsity(&factors, &variables, &variable_ordering);
         let mut A = DMatrix::<Real>::zeros(pattern.base.A_rows, pattern.base.A_cols);
@@ -361,20 +359,20 @@ mod tests {
         type Real = f64;
         let container = ().and_variable::<RandomVariable<Real>>();
         let mut variables = Variables::new(container);
-        variables.add(Key(0), RandomVariable::<Real>::default());
-        variables.add(Key(1), RandomVariable::<Real>::default());
-        variables.add(Key(2), RandomVariable::<Real>::default());
+        variables.add(Vkey(0), RandomVariable::<Real>::default());
+        variables.add(Vkey(1), RandomVariable::<Real>::default());
+        variables.add(Vkey(2), RandomVariable::<Real>::default());
 
         let container =
             ().and_factor::<FactorA<Real>>()
                 .and_factor::<FactorB<Real>>()
                 .and_factor::<RandomBlockFactor<Real>>();
         let mut factors = Factors::new(container);
-        factors.add(RandomBlockFactor::new(Key(0), Key(1)));
-        factors.add(RandomBlockFactor::new(Key(0), Key(2)));
-        factors.add(RandomBlockFactor::new(Key(1), Key(2)));
+        factors.add(RandomBlockFactor::new(Vkey(0), Vkey(1)));
+        factors.add(RandomBlockFactor::new(Vkey(0), Vkey(2)));
+        factors.add(RandomBlockFactor::new(Vkey(1), Vkey(2)));
         // let variable_ordering = variables.default_variable_ordering();
-        let variable_ordering = VariableOrdering::new(vec![Key(0), Key(1), Key(2)].as_slice());
+        let variable_ordering = VariableOrdering::new(vec![Vkey(0), Vkey(1), Vkey(2)].as_slice());
         let pattern = construct_jacobian_sparsity(&factors, &variables, &variable_ordering);
         let _A = DMatrix::<Real>::zeros(pattern.base.A_rows, pattern.base.A_cols);
         let _b = DVector::<Real>::zeros(pattern.base.A_rows);
@@ -440,7 +438,7 @@ mod tests {
             let mut variables = Variables::new(container);
             let variables_cnt = 100;
             for k in 0..variables_cnt {
-                variables.add(Key(k), RandomVariable::<Real>::default());
+                variables.add(Vkey(k), RandomVariable::<Real>::default());
             }
 
             let container = ().and_factor::<RandomBlockFactor<Real>>();
@@ -454,7 +452,7 @@ mod tests {
                 if k0 == k1 {
                     continue;
                 }
-                factors.add(RandomBlockFactor::new(Key(k0), Key(k1)));
+                factors.add(RandomBlockFactor::new(Vkey(k0), Vkey(k1)));
             }
             let variable_ordering = variables.default_variable_ordering();
             let pattern = construct_jacobian_sparsity(&factors, &variables, &variable_ordering);

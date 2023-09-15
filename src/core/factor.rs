@@ -1,6 +1,6 @@
 use core::cell::Ref;
 
-use crate::core::key::Key;
+use crate::core::key::Vkey;
 use crate::core::loss_function::LossFunction;
 use crate::core::variables::Variables;
 use nalgebra::DMatrix;
@@ -8,6 +8,7 @@ use nalgebra::DMatrix;
 use nalgebra::DVector;
 
 use nalgebra::RealField;
+use num::Float;
 
 use super::variables_container::VariablesContainer;
 pub type JacobiansReturn<'a, R> = Ref<'a, DMatrix<R>>;
@@ -30,7 +31,7 @@ where
 }
 pub trait Factor<R = f64>
 where
-    R: RealField,
+    R: RealField + Float,
 {
     type L: LossFunction<R>;
     /// error function
@@ -72,9 +73,15 @@ where
         self.keys().is_empty()
     }
     /// access of keys
-    fn keys(&self) -> &[Key];
-    // const access of noisemodel
+    fn keys(&self) -> &[Vkey];
+    /// const access of noisemodel
     fn loss_function(&self) -> Option<&Self::L>;
+    /// Returns true if needed to keep this factor on variable remove
+    /// # Arguments
+    /// * `key` - A key of variable going to remove
+    fn on_variable_remove(&mut self, _key: Vkey) -> bool {
+        false
+    }
 }
 
 pub fn compute_numerical_jacobians<V, F, R>(
@@ -84,7 +91,7 @@ pub fn compute_numerical_jacobians<V, F, R>(
 ) where
     V: VariablesContainer<R>,
     F: Factor<R>,
-    R: RealField,
+    R: RealField + Float,
 {
     let mut factor_variables = Variables::new(variables.container.empty_clone());
 
@@ -111,7 +118,7 @@ pub fn compute_numerical_jacobians<V, F, R>(
 pub(crate) mod tests {
     use super::{ErrorReturn, Factor, Jacobians, JacobiansReturn};
     use crate::core::{
-        key::Key,
+        key::Vkey,
         loss_function::GaussianLoss,
         variable::tests::{RandomVariable, VariableA, VariableB},
         variables::Variables,
@@ -120,7 +127,7 @@ pub(crate) mod tests {
     use core::cell::RefCell;
 
     use nalgebra::{DMatrix, DVector, Matrix3, RealField};
-    use rand::Rng;
+    use num::Float;
 
     pub struct FactorA<R>
     where
@@ -130,13 +137,13 @@ pub(crate) mod tests {
         pub loss: Option<GaussianLoss<R>>,
         pub error: RefCell<DVector<R>>,
         pub jacobians: RefCell<DMatrix<R>>,
-        pub keys: Vec<Key>,
+        pub keys: Vec<Vkey>,
     }
     impl<R> FactorA<R>
     where
         R: RealField,
     {
-        pub fn new(v: R, loss: Option<GaussianLoss<R>>, var0: Key, var1: Key) -> Self {
+        pub fn new(v: R, loss: Option<GaussianLoss<R>>, var0: Vkey, var1: Vkey) -> Self {
             let keys = vec![var0, var1];
             let jacobians = DMatrix::<R>::zeros(3, 3 * keys.len());
             FactorA {
@@ -151,7 +158,7 @@ pub(crate) mod tests {
 
     impl<R> Factor<R> for FactorA<R>
     where
-        R: RealField,
+        R: RealField + Float,
     {
         type L = GaussianLoss<R>;
         fn error<C>(&self, variables: &Variables<C, R>) -> ErrorReturn<R>
@@ -170,8 +177,8 @@ pub(crate) mod tests {
         where
             C: VariablesContainer<R>,
         {
-            let v0: &VariableA<R> = variables.get(Key(0)).unwrap();
-            let v1: &VariableB<R> = variables.get(Key(1)).unwrap();
+            let v0: &VariableA<R> = variables.get(Vkey(0)).unwrap();
+            let v1: &VariableB<R> = variables.get(Vkey(1)).unwrap();
             {
                 let mut js = self.jacobians.borrow_mut();
                 js.column_mut(0).copy_from(&v0.val);
@@ -184,7 +191,7 @@ pub(crate) mod tests {
             3
         }
 
-        fn keys(&self) -> &[Key] {
+        fn keys(&self) -> &[Vkey] {
             &self.keys
         }
 
@@ -202,13 +209,13 @@ pub(crate) mod tests {
         pub loss: Option<GaussianLoss<R>>,
         pub error: RefCell<DVector<R>>,
         pub jacobians: RefCell<DMatrix<R>>,
-        pub keys: Vec<Key>,
+        pub keys: Vec<Vkey>,
     }
     impl<R> FactorB<R>
     where
         R: RealField,
     {
-        pub fn new(v: R, loss: Option<GaussianLoss<R>>, var0: Key, var1: Key) -> Self {
+        pub fn new(v: R, loss: Option<GaussianLoss<R>>, var0: Vkey, var1: Vkey) -> Self {
             let _jacobians = Vec::<DMatrix<R>>::with_capacity(2);
             let keys = vec![var0, var1];
             let jacobians = DMatrix::<R>::zeros(3, 3 * keys.len());
@@ -223,15 +230,15 @@ pub(crate) mod tests {
     }
     impl<R> Factor<R> for FactorB<R>
     where
-        R: RealField,
+        R: RealField + Float,
     {
         type L = GaussianLoss<R>;
         fn error<C>(&self, variables: &Variables<C, R>) -> ErrorReturn<R>
         where
             C: VariablesContainer<R>,
         {
-            let v0: &VariableA<R> = variables.get(Key(0)).unwrap();
-            let v1: &VariableB<R> = variables.get(Key(1)).unwrap();
+            let v0: &VariableA<R> = variables.get(Vkey(0)).unwrap();
+            let v1: &VariableB<R> = variables.get(Vkey(1)).unwrap();
             {
                 *self.error.borrow_mut() = v0.val.clone() - v1.val.clone() + self.orig.clone();
             }
@@ -241,8 +248,8 @@ pub(crate) mod tests {
         where
             C: VariablesContainer<R>,
         {
-            let v0: &VariableA<R> = variables.get(Key(0)).unwrap();
-            let v1: &VariableB<R> = variables.get(Key(1)).unwrap();
+            let v0: &VariableA<R> = variables.get(Vkey(0)).unwrap();
+            let v1: &VariableB<R> = variables.get(Vkey(1)).unwrap();
             {
                 let mut js = self.jacobians.borrow_mut();
                 js.column_mut(0).copy_from(&v0.val);
@@ -255,7 +262,7 @@ pub(crate) mod tests {
             3
         }
 
-        fn keys(&self) -> &[Key] {
+        fn keys(&self) -> &[Vkey] {
             &self.keys
         }
 
@@ -271,13 +278,13 @@ pub(crate) mod tests {
         pub loss: Option<GaussianLoss<R>>,
         pub error: RefCell<DVector<R>>,
         pub jacobians: RefCell<Jacobians<R>>,
-        pub keys: Vec<Key>,
+        pub keys: Vec<Vkey>,
     }
     impl<R> RandomBlockFactor<R>
     where
         R: RealField,
     {
-        pub fn new(var0: Key, var1: Key) -> Self {
+        pub fn new(var0: Vkey, var1: Vkey) -> Self {
             let _rng = rand::thread_rng();
             let _jacobians = Vec::<DMatrix<R>>::with_capacity(2);
             let keys = vec![var0, var1];
@@ -292,7 +299,7 @@ pub(crate) mod tests {
     }
     impl<R> Factor<R> for RandomBlockFactor<R>
     where
-        R: RealField,
+        R: RealField + Float,
     {
         type L = GaussianLoss<R>;
         fn error<C>(&self, variables: &Variables<C, R>) -> ErrorReturn<R>
@@ -318,7 +325,7 @@ pub(crate) mod tests {
             3
         }
 
-        fn keys(&self) -> &[Key] {
+        fn keys(&self) -> &[Vkey] {
             &self.keys
         }
 
@@ -331,15 +338,15 @@ pub(crate) mod tests {
         type Real = f64;
         let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
         let mut variables = Variables::new(container);
-        variables.add(Key(0), VariableA::<Real>::new(4.0));
-        variables.add(Key(1), VariableB::<Real>::new(2.0));
+        variables.add(Vkey(0), VariableA::<Real>::new(4.0));
+        variables.add(Vkey(1), VariableB::<Real>::new(2.0));
         let loss = GaussianLoss::information(Matrix3::identity().as_view());
-        let f0 = FactorA::new(1.0, Some(loss), Key(0), Key(1));
+        let f0 = FactorA::new(1.0, Some(loss), Vkey(0), Vkey(1));
         {
             let e0 = f0.error(&variables).to_owned();
             assert_eq!(e0, DVector::<Real>::from_element(3, 3.0));
         }
-        let v0: &mut VariableA<Real> = variables.get_mut(Key(0)).unwrap();
+        let v0: &mut VariableA<Real> = variables.get_mut(Vkey(0)).unwrap();
         v0.val.fill(3.0);
         {
             let e0 = f0.error(&variables).to_owned();
