@@ -1,14 +1,24 @@
-pub use crate::core::factor::Factor;
-pub use crate::core::factor::JacobiansReturn;
-pub use crate::core::factors::Factors;
-pub use crate::core::factors_container::FactorsContainer;
-pub use crate::core::key::Vkey;
-pub use crate::core::loss_function::GaussianLoss;
-pub use crate::core::loss_function::LossFunction;
-pub use crate::core::variable::Variable;
-pub use crate::core::variables::Variables;
-pub use crate::core::variables_container::VariablesContainer;
-pub use crate::nonlinear::gauss_newton_optimizer::GaussNewtonOptimizer;
-pub use crate::nonlinear::nonlinear_optimizer::NonlinearOptimizationError;
-pub use crate::nonlinear::nonlinear_optimizer::NonlinearOptimizer;
-pub use crate::nonlinear::nonlinear_optimizer::NonlinearOptimizerVerbosityLevel;
+pub use crate::{
+    core::{
+        factor::{ErrorReturn, Factor, Jacobians, JacobiansReturn},
+        factors::Factors,
+        factors_container::FactorsContainer,
+        key::Vkey,
+        loss_function::{DiagonalLoss, GaussianLoss, LossFunction, ScaleLoss},
+        variable::Variable,
+        variable_ordering::VariableOrdering,
+        variables::Variables,
+        variables_container::VariablesContainer,
+    },
+    factor_graph::factor_graph::{FactorGraph, OptParams},
+    nonlinear::{
+        gauss_newton_optimizer::{GaussNewtonOptimizer, GaussNewtonOptimizerParams},
+        levenberg_marquardt_optimizer::{
+            LevenbergMarquardtOptimizer, LevenbergMarquardtOptimizerParams,
+        },
+        nonlinear_optimizer::{
+            NonlinearOptimizationError, NonlinearOptimizer, NonlinearOptimizerVerbosityLevel,
+            OptIterate,
+        },
+    },
+};

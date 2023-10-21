@@ -107,7 +107,7 @@ where
             );
         }
         {
-            self.factors.borrow_mut().as_mut().unwrap().refactor();
+            self.factors.borrow_mut().as_mut().unwrap().refactor().unwrap();
         }
         {
             self.factors.borrow_mut().as_mut().unwrap().solve(&mut bv);
@@ -148,7 +148,7 @@ where
             A.pattern().minor_indices().to_vec(),
             vals,
         );
-        *self.factors.borrow_mut() = Some(QDLDLFactorisation::new(&A, Some(opts)));
+        *self.factors.borrow_mut() = Some(QDLDLFactorisation::new(&A, Some(opts)).unwrap());
         LinearSolverStatus::Success
     }
 }

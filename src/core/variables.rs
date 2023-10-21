@@ -18,7 +18,8 @@ where
     C: VariablesContainer<R>,
     R: RealField + Float,
 {
-    pub(crate) container: C,
+    // pub(crate) container: C,
+    pub container: C,
     phantom: PhantomData<R>,
 }
 
@@ -49,7 +50,7 @@ where
         let mut d: usize = 0;
         for i in 0..variable_ordering.len() {
             let key = variable_ordering.key(i).unwrap();
-            d = self.container.retract(delta.clone(), key, d);
+            d = self.container.retract(delta, key, d);
         }
     }
     pub fn retracted(&self, delta: DVectorView<R>, variable_ordering: &VariableOrdering) -> Self {
@@ -58,14 +59,21 @@ where
         let mut d: usize = 0;
         for i in 0..variable_ordering.len() {
             let key = variable_ordering.key(i).unwrap();
-            d = variables.container.retract(delta.clone(), key, d);
+            d = variables.container.retract(delta, key, d);
         }
         variables
     }
 
     //TODO: return DVectorView
-    pub fn local(&self, variables: &Self, variable_ordering: &VariableOrdering) -> DVector<R> {
-        let mut delta = DVector::<R>::zeros(self.dim());
+    pub fn local<VC>(
+        &self,
+        variables: &Variables<VC, R>,
+        variable_ordering: &VariableOrdering,
+    ) -> DVector<R>
+    where
+        VC: VariablesContainer<R>,
+    {
+        let mut delta = DVector::<R>::zeros(variables.dim());
         let mut d: usize = 0;
         for i in 0..variable_ordering.len() {
             let key = variable_ordering.key(i).unwrap();
@@ -142,6 +150,15 @@ where
     }
     pub fn dim_at(&self, key: Vkey) -> Option<usize> {
         self.container.dim_at(key)
+    }
+    pub fn from_variables(variables: &Self, keys: &[Vkey]) -> Self {
+        let mut new_variables = Variables::new(variables.container.empty_clone());
+        for key in keys {
+            variables
+                .container
+                .add_variable_to(&mut new_variables, *key);
+        }
+        new_variables
     }
 }
 #[cfg(test)]

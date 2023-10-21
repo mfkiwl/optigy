@@ -5,7 +5,7 @@ use num::Float;
 use sophus_rs::lie::rotation2::{Isometry2, Rotation2};
 
 use crate::core::{
-    factor::{compute_numerical_jacobians, ErrorReturn, Factor, Jacobians, JacobiansReturn},
+    factor::{ErrorReturn, Factor, Jacobians, JacobiansReturn},
     key::Vkey,
     loss_function::{GaussianLoss, LossFunction},
     variables::Variables,
@@ -14,6 +14,7 @@ use crate::core::{
 
 use super::se3::SE2;
 
+#[derive(Clone)]
 pub struct BetweenFactor<LF = GaussianLoss, R = f64>
 where
     R: RealField + Float,

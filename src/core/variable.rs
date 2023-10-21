@@ -4,7 +4,7 @@ where
     R: RealField,
 {
     /// local coordinate
-    fn local(&self, value: &Self) -> DVector<R>
+    fn local(&self, linearization_point: &Self) -> DVector<R>
     where
         R: RealField;
     /// retract

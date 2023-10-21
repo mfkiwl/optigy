@@ -29,7 +29,7 @@ where
         JacobiansErrorReturn { jacobians, error }
     }
 }
-pub trait Factor<R = f64>
+pub trait Factor<R = f64>: Clone
 where
     R: RealField + Float,
 {
@@ -100,7 +100,7 @@ pub fn compute_numerical_jacobians<V, F, R>(
     for (idx, key) in factor.keys().iter().enumerate() {
         variables
             .container
-            .fill_variables(&mut factor_variables, *key);
+            .add_variable_to(&mut factor_variables, *key);
         offsets[idx] = offset;
         offset += variables.dim_at(*key).unwrap();
     }
@@ -129,6 +129,7 @@ pub(crate) mod tests {
     use nalgebra::{DMatrix, DVector, Matrix3, RealField};
     use num::Float;
 
+    #[derive(Clone)]
     pub struct FactorA<R>
     where
         R: RealField,
@@ -201,6 +202,7 @@ pub(crate) mod tests {
     }
     // pub type FactorB<R> = FactorA<R>;
 
+    #[derive(Clone)]
     pub struct FactorB<R>
     where
         R: RealField,
@@ -270,7 +272,7 @@ pub(crate) mod tests {
             self.loss.as_ref()
         }
     }
-
+    #[derive(Clone)]
     pub struct RandomBlockFactor<R>
     where
         R: RealField,

@@ -19,11 +19,13 @@ impl<R> Variable<R> for SE2<R>
 where
     R: RealField + Float,
 {
-    fn local(&self, value: &Self) -> DVector<R>
+    // value is linearization point
+    fn local(&self, linearization_point: &Self) -> DVector<R>
     where
         R: RealField,
     {
-        let d = (self.origin.inverse().multiply(&value.origin)).log();
+        // let d = (self.origin.inverse().multiply(&value.origin)).log();
+        let d = (linearization_point.origin.inverse().multiply(&self.origin)).log();
         // let translation = d.translation;
         // let subgroup_params = d.rotation;
         // let subgroup_tangent = subgroup_params.log();
@@ -32,6 +34,7 @@ where
         l
     }
 
+    //self is linearization point
     fn retract(&mut self, delta: DVectorView<R>)
     where
         R: RealField + Float,

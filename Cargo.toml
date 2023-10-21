@@ -5,7 +5,7 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [workspace]
-members = ["demos/pose_graph_g2o", "demos/slam_2d"]
+members = ["demos/pose_graph_g2o", "demos/slam_2d", "demos/approximation"]
 [dependencies]
 hashbrown = "0.11.2"
 nalgebra = {version="0.32.3", features=["compare"]}
@@ -15,7 +15,7 @@ rand = "0.8.5"
 # sophus-rs= { git = "https://github.com/strasdat/sophus-rs.git",  rev="f632c85" }
 sophus-rs= { git = "https://github.com/Lishen1/sophus-rs.git",  branch="lie-only" }
 tynm = "0.1.8"
-clarabel = "0" 
+clarabel = "0.6.0" 
 [dev-dependencies]
 matrixcompare = "0.3.0"
 criterion = { version = "0.4", features = ["html_reports"] }

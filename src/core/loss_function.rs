@@ -5,7 +5,7 @@ use nalgebra::{
 };
 use num::Float;
 
-pub trait LossFunction<R>
+pub trait LossFunction<R>: Clone
 where
     R: RealField,
 {

@@ -5,23 +5,27 @@ use nalgebra::vector;
 use nalgebra::Vector2;
 use nalgebra::{DMatrix, DVector, RealField};
 use num::Float;
-use optigy::core::factor::ErrorReturn;
-use optigy::core::factor::Jacobians;
-use optigy::core::loss_function::DiagonalLoss;
-use optigy::core::loss_function::ScaleLoss;
 
-use optigy::prelude::Factors;
+use optigy::prelude::DiagonalLoss;
+use optigy::prelude::ErrorReturn;
+use optigy::prelude::FactorGraph;
 use optigy::prelude::FactorsContainer;
+use optigy::prelude::Jacobians;
 
 use optigy::prelude::GaussianLoss;
 use optigy::prelude::JacobiansReturn;
-use optigy::prelude::NonlinearOptimizer;
+use optigy::prelude::LevenbergMarquardtOptimizer;
+use optigy::prelude::LevenbergMarquardtOptimizerParams;
 
+use optigy::prelude::NonlinearOptimizerVerbosityLevel;
+use optigy::prelude::OptParams;
+use optigy::prelude::ScaleLoss;
 use optigy::prelude::VariablesContainer;
 use optigy::prelude::{Factor, Variables, Vkey};
 use optigy::slam::between_factor::BetweenFactor;
 use optigy::slam::se3::SE2;
 
+#[derive(Clone)]
 struct GPSPositionFactor<R = f64>
 where
     R: RealField + Float,
@@ -101,31 +105,37 @@ where
  *     e = pose.translation() - measurement
  */
 fn main() {
-    let container = ().and_variable::<SE2>();
-    let mut variables = Variables::new(container);
-
-    let container =
+    let variables_container = ().and_variable::<SE2>();
+    let factors_container =
         ().and_factor::<GPSPositionFactor>()
             .and_factor::<BetweenFactor<GaussianLoss>>()
             .and_factor::<BetweenFactor<ScaleLoss>>();
-    let mut factors = Factors::new(container);
 
-    factors.add(GPSPositionFactor::new(
+    let mut params = LevenbergMarquardtOptimizerParams::default();
+    params.base.verbosity_level = NonlinearOptimizerVerbosityLevel::Subiteration;
+
+    let mut factor_graph = FactorGraph::new(
+        factors_container,
+        variables_container,
+        LevenbergMarquardtOptimizer::with_params(params),
+    );
+
+    factor_graph.add_factor(GPSPositionFactor::new(
         Vkey(1),
         Vector2::new(0.0, 0.0),
         Vector2::new(2.0, 2.0),
     ));
-    factors.add(GPSPositionFactor::new(
+    factor_graph.add_factor(GPSPositionFactor::new(
         Vkey(2),
         Vector2::new(5.0, 0.0),
         Vector2::new(2.0, 2.0),
     ));
-    factors.add(GPSPositionFactor::new(
+    factor_graph.add_factor(GPSPositionFactor::new(
         Vkey(3),
         Vector2::new(10.0, 0.0),
         Vector2::new(2.0, 2.0),
     ));
-    factors.add(BetweenFactor::new(
+    factor_graph.add_factor(BetweenFactor::new(
         Vkey(1),
         Vkey(2),
         5.0,
@@ -134,7 +144,7 @@ fn main() {
         // Some(GaussianLoss {}),
         Some(ScaleLoss::scale(1.0)),
     ));
-    factors.add(BetweenFactor::new(
+    factor_graph.add_factor(BetweenFactor::new(
         Vkey(2),
         Vkey(3),
         5.0,
@@ -143,49 +153,31 @@ fn main() {
         Some(ScaleLoss::scale(1.0)),
     ));
 
-    // factors.add(BetweenFactor::<GaussianLoss>::new(
-    //     Key(1),
-    //     Key(2),
-    //     5.0,
-    //     0.0,
-    //     0.0,
-    //     None,
-    // ));
-    // factors.add(BetweenFactor::<GaussianLoss>::new(
-    //     Key(2),
-    //     Key(3),
-    //     5.0,
-    //     0.0,
-    //     0.0,
-    //     None,
-    // ));
-
-    variables.add(Vkey(1), SE2::new(0.2, -0.3, 0.2));
-    variables.add(Vkey(2), SE2::new(5.1, 0.3, -0.1));
-    variables.add(Vkey(3), SE2::new(9.9, -0.1, -0.2));
-
-    // let mut optimizer = NonlinearOptimizer::<GaussNewtonOptimizer>::default();
-    // let mut optimizer = NonlinearOptimizer::new(GaussNewtonOptimizer::default());
-    let mut optimizer = NonlinearOptimizer::default();
-    // let mut optimizer = NonlinearOptimizer::new(LevenbergMarquardtOptimizer::with_params(
-    //     LevenbergMarquardtOptimizerParams::default(),
-    // ));
+    factor_graph.add_variable(Vkey(1), SE2::new(0.2, -0.3, 0.2));
+    factor_graph.add_variable(Vkey(2), SE2::new(5.1, 0.3, -0.1));
+    factor_graph.add_variable(Vkey(3), SE2::new(9.9, -0.1, -0.2));
 
     println!("before optimization");
-    let var1: &SE2 = variables.get(Vkey(1)).unwrap();
-    let var2: &SE2 = variables.get(Vkey(2)).unwrap();
-    let var3: &SE2 = variables.get(Vkey(3)).unwrap();
+    let var1: &SE2 = factor_graph.get_variable(Vkey(1)).unwrap();
+    let var2: &SE2 = factor_graph.get_variable(Vkey(2)).unwrap();
+    let var3: &SE2 = factor_graph.get_variable(Vkey(3)).unwrap();
     println!("var 1 {:?}", var1.origin);
     println!("var 2 {:?}", var2.origin);
     println!("var 3 {:?}", var3.origin);
-    let opt_res = optimizer.optimize(&factors, &mut variables);
+    let opt_params = <OptParams<_, _, _>>::builder().build();
+    let opt_res = factor_graph.optimize(opt_params);
     println!("opt_res {:?}", opt_res);
-    let var1: &SE2 = variables.get(Vkey(1)).unwrap();
-    let var2: &SE2 = variables.get(Vkey(2)).unwrap();
-    let var3: &SE2 = variables.get(Vkey(3)).unwrap();
+    let var1: &SE2 = factor_graph.get_variable(Vkey(1)).unwrap();
+    let var2: &SE2 = factor_graph.get_variable(Vkey(1)).unwrap();
+    let var3: &SE2 = factor_graph.get_variable(Vkey(3)).unwrap();
     println!("after optimization");
     println!("var 1 {:?}", var1.origin);
     println!("var 2 {:?}", var2.origin);
     println!("var 3 {:?}", var3.origin);
-    println!("final error {}", factors.error_squared_norm(&variables));
+    println!(
+        "final error {}",
+        factor_graph
+            .factors
+            .error_squared_norm(&factor_graph.variables)
+    );
 }

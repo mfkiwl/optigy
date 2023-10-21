@@ -10,7 +10,7 @@ use std::mem;
 
 use super::factor::Factor;
 
-pub trait VariablesKey<R = f64>
+pub trait VariablesKey<R = f64>: Clone
 where
     R: RealField + Float,
 {
@@ -73,7 +73,7 @@ where
         F: Factor<R>,
         C: VariablesContainer<R>;
     fn empty_clone(&self) -> Self;
-    fn fill_variables<C>(&self, variables: &mut Variables<C, R>, key: Vkey)
+    fn add_variable_to<C>(&self, variables: &mut Variables<C, R>, key: Vkey)
     where
         C: VariablesContainer<R>;
     // fn remove<N>(&mut self, key: Key) -> Option<N::Value>
@@ -161,7 +161,7 @@ where
         }
     }
 
-    fn fill_variables<C>(&self, _variables: &mut Variables<C, R>, key: Vkey)
+    fn add_variable_to<C>(&self, _variables: &mut Variables<C, R>, key: Vkey)
     where
         C: VariablesContainer<R>,
     {
@@ -202,7 +202,7 @@ where
 
 impl<T, P, R> VariablesContainer<R> for VariablesEntry<T, P, R>
 where
-    T: VariablesKey<R> + Clone,
+    T: VariablesKey<R>,
     P: VariablesContainer<R> + Default,
     R: RealField + Float,
 {
@@ -308,7 +308,7 @@ where
                 let delta = R::from_f64(1e-9).unwrap();
                 let mut dx = DVector::<R>::zeros(var.dim());
                 for i in 0..var.dim() {
-                    dx[i] = delta.clone();
+                    dx[i] = delta;
                     let var_ret = var.retracted(dx.as_view());
                     variables
                         .container
@@ -316,7 +316,7 @@ where
                         .unwrap()
                         .insert(key, var_ret);
                     let dy0 = factor.error(variables).to_owned();
-                    dx[i] = -delta.clone();
+                    dx[i] = -delta;
                     let var_ret = var.retracted(dx.as_view());
                     variables
                         .container
@@ -326,7 +326,7 @@ where
                     let dy1 = factor.error(variables).to_owned();
                     jacobians
                         .column_mut(i + offset)
-                        .copy_from(&((dy0 - dy1) / (R::from_f64(2.0).unwrap() * delta.clone())));
+                        .copy_from(&((dy0 - dy1) / (R::from_f64(2.0).unwrap() * delta)));
                     dx[i] = R::zero();
                 }
                 //put original variable back
@@ -346,7 +346,7 @@ where
         Self::default()
     }
 
-    fn fill_variables<C>(&self, variables: &mut Variables<C, R>, key: Vkey)
+    fn add_variable_to<C>(&self, variables: &mut Variables<C, R>, key: Vkey)
     where
         C: VariablesContainer<R>,
     {
@@ -355,7 +355,7 @@ where
             Some(var) => {
                 variables.add(key, var.clone());
             }
-            None => self.parent.fill_variables(variables, key),
+            None => self.parent.add_variable_to(variables, key),
         }
     }
 
@@ -556,8 +556,12 @@ mod tests {
         let variables0 = Variables::new(container);
         let mut variables = Variables::new(variables0.container.empty_clone());
         // let v: &VariableA<Real> = variables0.at(Key(3)).unwrap();
-        variables0.container.fill_variables(&mut variables, Vkey(3));
-        variables0.container.fill_variables(&mut variables, Vkey(4));
+        variables0
+            .container
+            .add_variable_to(&mut variables, Vkey(3));
+        variables0
+            .container
+            .add_variable_to(&mut variables, Vkey(4));
         variables0.container.compute_jacobian_for(
             &f,
             &mut variables,
@@ -601,8 +605,8 @@ mod tests {
 
         let container2 = container.empty_clone();
         let mut variables = Variables::new(container2);
-        container.fill_variables(&mut variables, Vkey(3));
-        container.fill_variables(&mut variables, Vkey(4));
+        container.add_variable_to(&mut variables, Vkey(3));
+        container.add_variable_to(&mut variables, Vkey(4));
         let v0: &VariableA<Real> = variables.get(Vkey(3)).unwrap();
         let v1: &VariableB<Real> = variables.get(Vkey(4)).unwrap();
         assert_matrix_eq!(v0.val, dvector![4.0, 4.0, 4.0]);

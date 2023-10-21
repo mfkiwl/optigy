@@ -32,6 +32,19 @@ where
             __marker: PhantomData,
         }
     }
+    pub fn from_connected_factors(factors: &Factors<C, R>, keys: &[Vkey]) -> Self {
+        // let mut new_factors = factors.clone();
+        // new_factors.retain_conneted_factors(keys);
+        // new_factors
+
+        let mut indexes = Vec::<usize>::default();
+        let mut new_factors = Factors::new(factors.container.empty_clone());
+        factors
+            .container
+            .add_connected_factor_to(&mut new_factors, keys, &mut indexes, 0);
+        new_factors
+    }
+
     pub fn len(&self) -> usize {
         self.container.len(0)
     }
@@ -165,6 +178,10 @@ where
         self.container.remove_conneted_factors(key, 0)
     }
 
+    pub fn retain_conneted_factors(&mut self, keys: &[Vkey]) -> usize {
+        self.container.retain_conneted_factors(keys, 0)
+    }
+
     /// for debug goals
     pub fn type_name_at(&self, index: usize) -> Option<String> {
         self.container.type_name_at(index, 0)
@@ -180,11 +197,35 @@ where
             counter += self
                 .keys_at(f_idx)
                 .unwrap()
-                .into_iter()
+                .iter()
                 .filter(|key| !variables.default_variable_ordering().keys().contains(key))
                 .count();
         }
         counter
+    }
+    pub fn neighborhood_variables(&self, variables_keys: &[Vkey]) -> Vec<Vkey> {
+        let mut neighborhood = Vec::<Vkey>::new();
+        for vk in variables_keys {
+            for f_idx in 0..self.len() {
+                let fkeys = self.keys_at(f_idx).unwrap();
+                // variable connected with factor
+                if fkeys.contains(vk) {
+                    for fk in fkeys {
+                        if fk == vk {
+                            continue; //exclude self
+                        }
+                        //neighborhood can't be in marginalized list
+                        if variables_keys.contains(fk) {
+                            continue;
+                        }
+                        if !neighborhood.contains(fk) {
+                            neighborhood.push(*fk);
+                        }
+                    }
+                }
+            }
+        }
+        neighborhood
     }
 }
 #[cfg(test)]

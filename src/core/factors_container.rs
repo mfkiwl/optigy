@@ -6,12 +6,13 @@ use nalgebra::{DMatrixViewMut, DVectorViewMut, RealField};
 use num::Float;
 
 use super::factor::{ErrorReturn, JacobiansErrorReturn};
+use super::factors::Factors;
 use super::key::Vkey;
 use super::loss_function::LossFunction;
 use super::variables::Variables;
 use super::variables_container::VariablesContainer;
 
-pub trait FactorsKey<R = f64>
+pub trait FactorsKey<R = f64>: Clone
 where
     R: RealField + Float,
 {
@@ -19,7 +20,7 @@ where
 }
 
 /// The building block trait for recursive variadics.
-pub trait FactorsContainer<R = f64>
+pub trait FactorsContainer<R = f64>: Clone + Default
 where
     R: RealField + Float,
 {
@@ -94,11 +95,28 @@ where
     fn type_name_at(&self, index: usize, init: usize) -> Option<String>;
     /// Remove factors connected with variable with key
     /// # Arguments
-    /// * `key` - A key of variable going to remove
+    /// * `key` - A key of variable to remove
     /// * `init` - An initial value for removed factors counter
     /// # Returns
     /// Removed factors count
     fn remove_conneted_factors(&mut self, key: Vkey, init: usize) -> usize;
+
+    /// Remove factors not connected with variables with keys
+    /// # Arguments
+    /// * `keys` - A keys of variables to retain
+    /// * `init` - An initial value for removed factors counter
+    /// # Returns
+    /// Removed factors count
+    fn retain_conneted_factors(&mut self, keys: &[Vkey], init: usize) -> usize;
+    fn empty_clone(&self) -> Self;
+    fn add_connected_factor_to<C>(
+        &self,
+        factors: &mut Factors<C, R>,
+        keys: &[Vkey],
+        indexes: &mut Vec<usize>,
+        init: usize,
+    ) where
+        C: FactorsContainer<R>;
 }
 
 /// The base case for recursive variadics: no fields.
@@ -180,6 +198,21 @@ where
     fn remove_conneted_factors(&mut self, _key: Vkey, init: usize) -> usize {
         init
     }
+
+    fn retain_conneted_factors(&mut self, _keys: &[Vkey], init: usize) -> usize {
+        init
+    }
+    fn empty_clone(&self) -> Self {}
+    fn add_connected_factor_to<C>(
+        &self,
+        _factors: &mut Factors<C, R>,
+        _keys: &[Vkey],
+        _indexes: &mut Vec<usize>,
+        _init: usize,
+    ) where
+        C: FactorsContainer<R>,
+    {
+    }
 }
 
 /// Wraps some field data and a parent, which is either another Entry or Empty
@@ -192,11 +225,24 @@ where
     data: Vec<T::Value>,
     parent: P,
 }
+impl<T, P, R> Default for FactorsEntry<T, P, R>
+where
+    T: FactorsKey<R>,
+    P: FactorsContainer<R> + Default,
+    R: RealField + Float,
+{
+    fn default() -> Self {
+        FactorsEntry::<T, P, R> {
+            data: Vec::<T::Value>::default(),
+            parent: P::default(),
+        }
+    }
+}
 
 impl<T, P, R> FactorsContainer<R> for FactorsEntry<T, P, R>
 where
     T: FactorsKey<R>,
-    P: FactorsContainer<R>,
+    P: FactorsContainer<R> + Default,
     R: RealField + Float,
 {
     fn get<N: FactorsKey<R>>(&self) -> Option<&Vec<N::Value>> {
@@ -333,14 +379,49 @@ where
     fn remove_conneted_factors(&mut self, key: Vkey, init: usize) -> usize {
         let removed = self.data.len();
         self.data.retain_mut(|f| {
-            if f.keys().contains(&key) {
-                f.on_variable_remove(key)
-            } else {
-                true
-            }
+            // if f.keys().contains(&key) {
+            //     f.on_variable_remove(key)
+            // } else {
+            //     true
+            // }
+            !f.keys().contains(&key)
         });
         let removed = removed - self.data.len();
         self.parent.remove_conneted_factors(key, removed + init)
+    }
+
+    fn retain_conneted_factors(&mut self, keys: &[Vkey], init: usize) -> usize {
+        let removed = self.data.len();
+        self.data
+            .retain(|f| keys.iter().any(|key| f.keys().contains(key)));
+        let removed = removed - self.data.len();
+        self.parent.retain_conneted_factors(keys, removed + init)
+    }
+    fn empty_clone(&self) -> Self {
+        Self::default()
+    }
+
+    fn add_connected_factor_to<C>(
+        &self,
+        factors: &mut Factors<C, R>,
+        keys: &[Vkey],
+        indexes: &mut Vec<usize>,
+        init: usize,
+    ) where
+        C: FactorsContainer<R>,
+    {
+        for (i, f) in self.data.iter().enumerate() {
+            let index = i + init;
+            if indexes.contains(&index) {
+                continue;
+            }
+            if keys.iter().any(|key| f.keys().contains(key)) {
+                factors.add(f.clone());
+                indexes.push(index);
+            }
+        }
+        self.parent
+            .add_connected_factor_to(factors, keys, indexes, init + self.data.len())
     }
 }
 
@@ -670,5 +751,25 @@ pub(crate) mod tests {
         fc0.push(FactorA::new(2.0, None, Vkey(0), Vkey(1)));
         fc0.push(FactorA::new(1.0, None, Vkey(0), Vkey(1)));
         assert!(!container.is_empty());
+    }
+    #[test]
+    fn empty_clone() {
+        type Real = f64;
+        let mut container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
+        let fc0 = container.get_mut::<FactorA<Real>>().unwrap();
+        fc0.push(FactorA::new(2.0, None, Vkey(0), Vkey(1)));
+        fc0.push(FactorA::new(1.0, None, Vkey(0), Vkey(1)));
+        let fc1 = container.get_mut::<FactorB<Real>>().unwrap();
+        fc1.push(FactorB::new(2.0, None, Vkey(0), Vkey(1)));
+        fc1.push(FactorB::new(1.0, None, Vkey(0), Vkey(1)));
+
+        let mut container2 = container.empty_clone();
+        assert!(container2.is_empty());
+        let fc0 = container2.get_mut::<FactorA<Real>>().unwrap();
+        fc0.push(FactorA::new(2.0, None, Vkey(0), Vkey(1)));
+        fc0.push(FactorA::new(1.0, None, Vkey(0), Vkey(1)));
+        let fc1 = container2.get_mut::<FactorB<Real>>().unwrap();
+        fc1.push(FactorB::new(2.0, None, Vkey(0), Vkey(1)));
+        fc1.push(FactorB::new(1.0, None, Vkey(0), Vkey(1)));
     }
 }

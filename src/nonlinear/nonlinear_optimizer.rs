@@ -115,13 +115,13 @@ where
         LinSysWrapper { A, b }
     }
 }
-pub enum OptimizerSpasityPattern {
+pub enum LinSpasityPattern {
     Jacobian(JacobianSparsityPattern),
-    LowerHessian(HessianSparsityPattern),
+    Hessian(HessianSparsityPattern),
 }
-impl Default for OptimizerSpasityPattern {
+impl Default for LinSpasityPattern {
     fn default() -> Self {
-        OptimizerSpasityPattern::LowerHessian(HessianSparsityPattern::default())
+        LinSpasityPattern::Hessian(HessianSparsityPattern::default())
     }
 }
 pub struct IterationData {
@@ -177,7 +177,7 @@ where
 {
     __marker: PhantomData<R>,
     /// linearization sparsity pattern
-    pub sparsity: OptimizerSpasityPattern,
+    pub sparsity: LinSpasityPattern,
     /// cached internal optimization status, used by iterate() method
     pub iterations: usize,
     /// error norm of values pass in iterate(), can be used by iterate
@@ -199,7 +199,7 @@ where
     fn default() -> Self {
         NonlinearOptimizer {
             __marker: PhantomData,
-            sparsity: OptimizerSpasityPattern::default(),
+            sparsity: LinSpasityPattern::default(),
             iterations: 0,
             last_err_squared_norm: 0.0,
             err_squared_norm: 0.0,
@@ -217,7 +217,7 @@ where
     pub fn new(opt: O) -> Self {
         NonlinearOptimizer {
             __marker: PhantomData,
-            sparsity: OptimizerSpasityPattern::default(),
+            sparsity: LinSpasityPattern::default(),
             iterations: 0,
             last_err_squared_norm: 0.0,
             err_squared_norm: 0.0,
@@ -252,7 +252,7 @@ where
         let mut A_values = Vec::<R>::new();
         let start = Instant::now();
         if self.opt.linear_solver().is_normal() {
-            self.sparsity = OptimizerSpasityPattern::LowerHessian(construct_hessian_sparsity(
+            self.sparsity = LinSpasityPattern::Hessian(construct_hessian_sparsity(
                 factors,
                 variables,
                 &variable_ordering,
@@ -265,22 +265,20 @@ where
             todo!()
         }
         let csc_pattern = match &self.sparsity {
-            OptimizerSpasityPattern::Jacobian(_sparsity) => {
+            LinSpasityPattern::Jacobian(_sparsity) => {
                 todo!()
             }
-            OptimizerSpasityPattern::LowerHessian(sparsity) => {
-                SparsityPattern::try_from_offsets_and_indices(
-                    sparsity.base.A_cols,
-                    sparsity.base.A_cols,
-                    sparsity.outer_index.clone(),
-                    sparsity.inner_index.clone(),
-                )
-                .unwrap()
-            }
+            LinSpasityPattern::Hessian(sparsity) => SparsityPattern::try_from_offsets_and_indices(
+                sparsity.base.A_cols,
+                sparsity.base.A_cols,
+                sparsity.outer_index.clone(),
+                sparsity.inner_index.clone(),
+            )
+            .unwrap(),
         };
         match &self.sparsity {
-            OptimizerSpasityPattern::Jacobian(_) => todo!(),
-            OptimizerSpasityPattern::LowerHessian(sparsity) => {
+            LinSpasityPattern::Jacobian(_) => todo!(),
+            LinSpasityPattern::Hessian(sparsity) => {
                 A_rows = sparsity.base.A_cols;
                 // A_cols = sparsity.base.A_cols;
                 A_values.resize(sparsity.total_nnz_AtA_cols, R::from_f64(0.0).unwrap());
@@ -291,6 +289,7 @@ where
         // init vars and errors
         self.iterations = 0;
         self.last_err_squared_norm = 0.5 * factors.error_squared_norm(variables);
+        assert!(self.last_err_squared_norm.is_finite());
 
         let params = self.opt.base_params().clone();
         if params.verbosity_level >= NonlinearOptimizerVerbosityLevel::Iteration {
@@ -311,12 +310,12 @@ where
             A_values.fill(R::zero());
             let start = Instant::now();
             match &self.sparsity {
-                OptimizerSpasityPattern::Jacobian(_sparsity) => {
+                LinSpasityPattern::Jacobian(_sparsity) => {
                     // jacobian linearization
                     // linearzation_jacobian(factors, variables, &self.j_sparsity, &mut A, &mut b);
                     todo!()
                 }
-                OptimizerSpasityPattern::LowerHessian(sparsity) => {
+                LinSpasityPattern::Hessian(sparsity) => {
                     if self.opt.linear_solver().is_normal_lower() {
                         // lower hessian linearization
                         linearization_hessian(factors, variables, sparsity, &mut A_values, &mut b);
@@ -371,6 +370,8 @@ where
             } else {
                 curr_err = 0.5 * factors.error_squared_norm(variables);
             }
+            assert!(curr_err.is_finite());
+
             if callback.is_some() {
                 callback.as_ref().unwrap()(self.iterations, curr_err, factors, variables);
             }
