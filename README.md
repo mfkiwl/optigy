@@ -29,6 +29,8 @@ cd optigy/demos/slam_2d
 cargo run -- --do-viz
 ````
 ![2d slam](https://github.com/Lishen1/optigy/blob/master/static/2d-slam.gif)
+## Factor graph visualization
+![2d slam](https://github.com/Lishen1/optigy/blob/master/static/graph_viz.png)
 ## License
 GNU GPLv3
 
