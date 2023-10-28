@@ -9,6 +9,7 @@ OptiGy general purpose [factor graph] optimizer mostly suitable for SLAM tasks ~
 - Static polymorphism
 - Rust only
 - Numerical differentiation
+- Visualization
 
 ## Installation
 
