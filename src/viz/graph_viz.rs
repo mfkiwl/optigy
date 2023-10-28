@@ -122,8 +122,8 @@ impl FactorGraphViz {
                 ],
             )
             .expect("probaly you should install graphviz");
-            let mut output = File::create("graph.svg").unwrap();
-            write!(output, "{}", graph_svg).unwrap();
+            // let mut output = File::create("graph.svg").unwrap();
+            // write!(output, "{}", graph_svg).unwrap();
             self.titles.push(title.to_owned());
             self.svgs.push(graph_svg);
         }
