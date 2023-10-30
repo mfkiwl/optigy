@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::fs::File;
 use std::io::Write;
 use std::iter::zip;
@@ -90,6 +91,8 @@ const PDF_PAGE_H: f32 = 297.0;
 pub struct FactorGraphViz {
     svgs: Vec<String>,
     titles: Vec<String>,
+    nodes_colors: RefCell<Option<Vec<Hsv<f64>>>>,
+    groups_colors: RefCell<Option<Vec<Hsv<f64>>>>,
 }
 impl FactorGraphViz {
     pub fn add_page<FC, VC, O, R>(
@@ -273,13 +276,25 @@ impl FactorGraphViz {
         let mut types: Vec<String> = unique_factors_types.into_iter().collect();
         types.append(&mut unique_variables_types.into_iter().collect::<Vec<String>>());
 
-        let mut colors = generate_colors(types.len(), 1.0);
-        colors.shuffle(&mut thread_rng());
+        if self.nodes_colors.borrow().is_none() {
+            let mut colors = generate_colors(types.len(), 1.0);
+            colors.shuffle(&mut thread_rng());
+            *self.nodes_colors.borrow_mut() = Some(colors);
+        }
+
+        let binding = self.nodes_colors.borrow();
+        let colors = binding.as_ref().unwrap();
 
         let get_color = |idx: usize| -> Hsv<f64> { colors[idx % colors.len()].clone() };
 
-        let mut highlight_colors = generate_colors(30, 0.5);
-        highlight_colors.shuffle(&mut thread_rng());
+        if self.groups_colors.borrow().is_none() {
+            let mut highlight_colors = generate_colors(30, 0.5);
+            highlight_colors.shuffle(&mut thread_rng());
+            *self.groups_colors.borrow_mut() = Some(highlight_colors);
+        }
+
+        let binding = self.groups_colors.borrow();
+        let highlight_colors = binding.as_ref().unwrap();
 
         let get_highlight_color =
             |idx: usize| -> Hsv<f64> { highlight_colors[idx % highlight_colors.len()].clone() };

@@ -1000,25 +1000,28 @@ fn main() -> Result<(), Box<dyn Error>> {
             )
             .unwrap();
             let n_variables = factor_graph.factors.neighborhood_variables(&keys_to_marg);
-            factor_graph_viz.add_page(&factor_graph, None, None, "Step 0");
-            factor_graph_viz.add_page(
-                &factor_graph,
-                Some(vec![
-                    HighlightVariablesGroup::new(keys_to_marg.clone(), "m-variables"),
-                    HighlightVariablesGroup::new(n_variables, "n-variables"),
-                ]),
-                // None,
-                // None,
-                Some(vec![HighlightFactorsGroup::new(
-                    factor_graph
-                        .factors
-                        .connected_factors_indexes(&keys_to_marg),
-                    "m-connected-factors",
-                )]),
-                "Marginalization blanket",
-            );
+            // factor_graph_viz.add_page(&factor_graph, None, None, "Step 0");
+            // factor_graph_viz.add_page(
+            //     &factor_graph,
+            //     Some(vec![
+            //         HighlightVariablesGroup::new(keys_to_marg.clone(), "m-variables"),
+            //         HighlightVariablesGroup::new(n_variables, "n-variables"),
+            //     ]),
+            //     // None,
+            //     // None,
+            //     Some(vec![HighlightFactorsGroup::new(
+            //         factor_graph
+            //             .factors
+            //             .connected_factors_indexes(&keys_to_marg),
+            //         "m-connected-factors",
+            //     )]),
+            //     "Marginalization blanket",
+            // );
+            factor_graph_viz.add_page(&factor_graph, None, None, &format!("Step {}", step));
             factor_graph_viz.save_pdf("fg.pdf");
-            panic!("done");
+            if step > 6 {
+                panic!("done");
+            }
             // panic!("exit");
             factor_graph.add_factor(marg_prior);
             // if !variables.get_map_mut::<E2>().is_empty() {
