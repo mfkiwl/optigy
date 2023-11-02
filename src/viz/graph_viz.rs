@@ -2,6 +2,7 @@ use std::cell::RefCell;
 
 use std::iter::zip;
 
+use crate::core::Real;
 use crate::prelude::{FactorGraph, FactorsContainer, OptIterate, VariablesContainer, Vkey};
 use angular_units::Deg;
 use dot_graph::{Edge, Graph, Kind, Node, Style, Subgraph};
@@ -9,8 +10,6 @@ use graphviz_rust::cmd::CommandArg;
 
 use graphviz_rust::{cmd::Format, exec, parse, printer::PrinterContext};
 use hashbrown::{HashMap, HashSet};
-use nalgebra::RealField;
-use num::Float;
 
 use prisma::{Hsv, Rgb};
 use rand::seq::SliceRandom;
@@ -103,7 +102,7 @@ impl FactorGraphViz {
         FC: FactorsContainer<R>,
         VC: VariablesContainer<R>,
         O: OptIterate<R>,
-        R: RealField + Float,
+        R: Real,
     {
         // for svg convert
         // sudo apt install ttf-mscorefonts-installer
@@ -245,7 +244,7 @@ impl FactorGraphViz {
         FC: FactorsContainer<R>,
         VC: VariablesContainer<R>,
         O: OptIterate<R>,
-        R: RealField + Float,
+        R: Real,
     {
         let mut variables_types = HashMap::<Vkey, String>::default();
         let mut factors_types = HashMap::<usize, String>::default();

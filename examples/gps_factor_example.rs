@@ -3,8 +3,8 @@ use core::cell::RefCell;
 use nalgebra::vector;
 
 use nalgebra::Vector2;
-use nalgebra::{DMatrix, DVector, RealField};
-use num::Float;
+use nalgebra::{DMatrix, DVector};
+
 
 use optigy::prelude::DiagonalLoss;
 use optigy::prelude::ErrorReturn;
@@ -19,6 +19,7 @@ use optigy::prelude::LevenbergMarquardtOptimizerParams;
 
 use optigy::prelude::NonlinearOptimizerVerbosityLevel;
 use optigy::prelude::OptParams;
+use optigy::prelude::Real;
 use optigy::prelude::ScaleLoss;
 use optigy::prelude::VariablesContainer;
 use optigy::prelude::{Factor, Variables, Vkey};
@@ -28,7 +29,7 @@ use optigy::slam::se3::SE2;
 #[derive(Clone)]
 struct GPSPositionFactor<R = f64>
 where
-    R: RealField + Float,
+    R: Real,
 {
     pub error: RefCell<DVector<R>>,
     pub jacobians: RefCell<Jacobians<R>>,
@@ -38,7 +39,7 @@ where
 }
 impl<R> GPSPositionFactor<R>
 where
-    R: RealField + Float,
+    R: Real,
 {
     pub fn new(key: Vkey, pose: Vector2<R>, sigmas: Vector2<R>) -> Self {
         let keys = vec![key];
@@ -54,7 +55,7 @@ where
 }
 impl<R> Factor<R> for GPSPositionFactor<R>
 where
-    R: RealField + Float,
+    R: Real,
 {
     type L = DiagonalLoss<R>;
     fn error<C>(&self, variables: &Variables<C, R>) -> ErrorReturn<R>

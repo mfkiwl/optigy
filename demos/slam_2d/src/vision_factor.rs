@@ -1,10 +1,11 @@
 use std::cell::RefCell;
 
-use nalgebra::{matrix, vector, DMatrix, DMatrixView, DVector, Matrix2, RealField, Vector2};
+use nalgebra::{matrix, vector, DMatrix, DMatrixView, DVector, Matrix2, Vector2};
 use num::Float;
 use optigy::{
     prelude::{
-        ErrorReturn, Factor, GaussianLoss, JacobiansReturn, Variables, VariablesContainer, Vkey,
+        ErrorReturn, Factor, GaussianLoss, JacobiansReturn, Real, Variables, VariablesContainer,
+        Vkey,
     },
     slam::se3::SE2,
 };
@@ -14,7 +15,7 @@ use crate::E2;
 #[derive(Clone)]
 pub struct VisionFactor<R = f64>
 where
-    R: RealField + Float,
+    R: Real,
 {
     keys: [Vkey; 2],
     ray: Vector2<R>,
@@ -24,7 +25,7 @@ where
 }
 impl<R> VisionFactor<R>
 where
-    R: RealField + Float,
+    R: Real,
 {
     pub const LANDMARK_KEY: usize = 0;
     pub const POSE_KEY: usize = 1;
@@ -44,7 +45,7 @@ where
 #[allow(non_snake_case)]
 impl<R> Factor<R> for VisionFactor<R>
 where
-    R: RealField + Float,
+    R: Real,
 {
     type L = GaussianLoss<R>;
 

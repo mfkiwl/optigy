@@ -2,12 +2,11 @@ use std::{marker::PhantomData, time::Instant};
 
 use nalgebra::{DVector, RealField};
 use nalgebra_sparse::{pattern::SparsityPattern, CscMatrix};
-use num::Float;
 
 use crate::{
     core::{
         factors::Factors, factors_container::FactorsContainer, variable_ordering::VariableOrdering,
-        variables::Variables, variables_container::VariablesContainer,
+        variables::Variables, variables_container::VariablesContainer, Real,
     },
     linear::linear_solver::SparseLinearSolver,
     nonlinear::sparsity_pattern::HessianTriangle,
@@ -146,7 +145,7 @@ impl Default for IterationData {
 }
 pub trait OptIterate<R>
 where
-    R: RealField + Float,
+    R: Real,
 {
     type S: SparseLinearSolver<R>;
     /// method to run a single iteration to update variables
@@ -172,7 +171,7 @@ where
 // #[derive(Default)]
 pub struct NonlinearOptimizer<O, R = f64>
 where
-    R: RealField + Float,
+    R: Real,
     O: OptIterate<R>,
 {
     __marker: PhantomData<R>,
@@ -194,7 +193,7 @@ where
 }
 impl<R> Default for NonlinearOptimizer<GaussNewtonOptimizer<R>, R>
 where
-    R: RealField + Float + Default,
+    R: Real + Default,
 {
     fn default() -> Self {
         NonlinearOptimizer {
@@ -211,7 +210,7 @@ where
 
 impl<O, R> NonlinearOptimizer<O, R>
 where
-    R: RealField + Float,
+    R: Real,
     O: OptIterate<R>,
 {
     pub fn new(opt: O) -> Self {

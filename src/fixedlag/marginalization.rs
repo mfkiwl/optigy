@@ -16,6 +16,7 @@ use crate::{
         variable_ordering::VariableOrdering,
         variables::Variables,
         variables_container::VariablesContainer,
+        Real,
     },
     nonlinear::{
         linearization::linearzation_jacobian, sparsity_pattern::construct_jacobian_sparsity,
@@ -26,7 +27,7 @@ use crate::{
 pub struct DenseMarginalizationPriorFactor<VC, R = f64>
 where
     VC: VariablesContainer<R>,
-    R: RealField + Float,
+    R: Real,
 {
     ordering: VariableOrdering,
     pub A_prior: DMatrix<R>,
@@ -38,7 +39,7 @@ where
 impl<VC, R> DenseMarginalizationPriorFactor<VC, R>
 where
     VC: VariablesContainer<R>,
-    R: RealField + Float,
+    R: Real,
 {
     #[allow(non_snake_case)]
     fn new(
@@ -63,7 +64,7 @@ where
 impl<VC, R> Factor<R> for DenseMarginalizationPriorFactor<VC, R>
 where
     VC: VariablesContainer<R>,
-    R: RealField + Float,
+    R: Real,
 {
     type L = GaussianLoss<R>;
     #[allow(non_snake_case)]
@@ -122,7 +123,7 @@ where
 }
 pub fn symmetrize_with_mean<R>(mut m: DMatrixViewMut<R>)
 where
-    R: RealField + Float,
+    R: Real,
 {
     assert_eq!(m.nrows(), m.ncols());
     for i in 0..m.nrows() {
@@ -302,7 +303,7 @@ pub fn linear_system_reorder<VC, R>(
     dst_ordering: &VariableOrdering,
 ) where
     VC: VariablesContainer<R>,
-    R: RealField + Float,
+    R: Real,
 {
     let src_dims = src_ordering
         .keys()
@@ -359,7 +360,7 @@ pub fn marginalize<FC, VC, R>(
 where
     FC: FactorsContainer<R>,
     VC: VariablesContainer<R>,
-    R: RealField + Float,
+    R: Real,
 {
     let m_keys = variables_keys_to_marginalize;
     let n_keys = factors.neighborhood_variables(variables_keys_to_marginalize);
@@ -438,7 +439,7 @@ pub fn add_dense_marginalize_prior_factor<FC, VC, R>(
 where
     FC: FactorsContainer<R> + 'static,
     VC: VariablesContainer<R> + 'static,
-    R: RealField + Float,
+    R: Real,
 {
     factors_container.and_factor::<DenseMarginalizationPriorFactor<VC, R>>()
 }

@@ -2,11 +2,11 @@ use std::{collections::BTreeSet, slice::IterMut};
 
 use crate::core::{
     factors::Factors, factors_container::FactorsContainer, variable_ordering::VariableOrdering,
-    variables::Variables, variables_container::VariablesContainer,
+    variables::Variables, variables_container::VariablesContainer, Real,
 };
 use hashbrown::HashMap;
-use nalgebra::RealField;
-use num::Float;
+
+
 /// base class for A and A'A sparsity pattern, if variable ordering is fixed,
 /// only need to be constructed once for different linearzation runs
 #[cfg_attr(debug_assertions, derive(Debug))]
@@ -79,7 +79,7 @@ pub fn construct_jacobian_sparsity<R, VC, FC>(
     variable_ordering: &VariableOrdering,
 ) -> JacobianSparsityPattern
 where
-    R: RealField + Float,
+    R: Real,
     VC: VariablesContainer<R>,
     FC: FactorsContainer<R>,
 {
@@ -145,7 +145,7 @@ pub fn construct_hessian_sparsity<R, VC, FC>(
     tri: HessianTriangle,
 ) -> HessianSparsityPattern
 where
-    R: RealField + Float,
+    R: Real,
     VC: VariablesContainer<R>,
     FC: FactorsContainer<R>,
 {

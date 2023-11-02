@@ -1,10 +1,8 @@
+use hashbrown::HashMap;
 use std::marker::PhantomData;
 
-use hashbrown::HashMap;
-use nalgebra::RealField;
-use num::Float;
-
 use crate::{
+    core::Real,
     fixedlag::marginalization::marginalize,
     prelude::{
         Factor, Factors, FactorsContainer, NonlinearOptimizationError, NonlinearOptimizer,
@@ -17,7 +15,7 @@ where
     FC: FactorsContainer<R> + 'static,
     VC: VariablesContainer<R> + 'static,
     O: OptIterate<R>,
-    R: RealField + Float,
+    R: Real,
 {
     factors: Factors<FC, R>,
     variables: Variables<VC, R>,
@@ -33,7 +31,7 @@ where
     FC: FactorsContainer<R>,
     VC: VariablesContainer<R>,
     O: OptIterate<R>,
-    R: RealField + Float,
+    R: Real,
 {
     pub fn new(factors_container: FC, varibles_container: VC, optimizer: O) -> Self {
         let variables = Variables::new(varibles_container);
@@ -209,7 +207,7 @@ pub struct OptParams<FC, VC, R, BC = fn(usize, f64, &Factors<FC, R>, &Variables<
 where
     FC: FactorsContainer<R>,
     VC: VariablesContainer<R>,
-    R: RealField + Float,
+    R: Real,
     BC: Fn(usize, f64, &Factors<FC, R>, &Variables<VC, R>),
 {
     callback: Option<BC>,
@@ -220,7 +218,7 @@ impl<FC, VC, CB, R> OptParams<FC, VC, R, CB>
 where
     FC: FactorsContainer<R>,
     VC: VariablesContainer<R>,
-    R: RealField + Float,
+    R: Real,
     CB: Fn(usize, f64, &Factors<FC, R>, &Variables<VC, R>),
 {
     pub fn builder() -> OptParamsBuilder<FC, VC, R, CB> {
@@ -232,7 +230,7 @@ impl<FC, VC, BC, R> Default for OptParams<FC, VC, R, BC>
 where
     FC: FactorsContainer<R>,
     VC: VariablesContainer<R>,
-    R: RealField + Float,
+    R: Real,
     BC: Fn(usize, f64, &Factors<FC, R>, &Variables<VC, R>),
 {
     fn default() -> Self {
@@ -247,7 +245,7 @@ pub struct OptParamsBuilder<
 > where
     FC: FactorsContainer<R>,
     VC: VariablesContainer<R>,
-    R: RealField + Float,
+    R: Real,
     CB: Fn(usize, f64, &Factors<FC, R>, &Variables<VC, R>),
 {
     callback: Option<CB>,
@@ -258,7 +256,7 @@ impl<FC, VC, CB, R> OptParamsBuilder<FC, VC, R, CB>
 where
     FC: FactorsContainer<R>,
     VC: VariablesContainer<R>,
-    R: RealField + Float,
+    R: Real,
     CB: Fn(usize, f64, &Factors<FC, R>, &Variables<VC, R>),
 {
     pub fn callback(mut self, callback: CB) -> Self {
@@ -276,7 +274,7 @@ impl<FC, VC, CB, R> Default for OptParamsBuilder<FC, VC, R, CB>
 where
     FC: FactorsContainer<R>,
     VC: VariablesContainer<R>,
-    R: RealField + Float,
+    R: Real,
     CB: Fn(usize, f64, &Factors<FC, R>, &Variables<VC, R>),
 {
     fn default() -> Self {

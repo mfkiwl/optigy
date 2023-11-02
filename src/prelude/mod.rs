@@ -9,6 +9,7 @@ pub use crate::{
         variable_ordering::VariableOrdering,
         variables::Variables,
         variables_container::VariablesContainer,
+        Real,
     },
     factor_graph::{FactorGraph, OptParams},
     fixedlag::marginalization::add_dense_marginalize_prior_factor,

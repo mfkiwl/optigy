@@ -1,5 +1,4 @@
 use nalgebra::{DMatrixViewMut, DVector, DVectorViewMut, RealField};
-use num::Float;
 
 use crate::core::variables::Variables;
 use core::marker::PhantomData;
@@ -11,12 +10,13 @@ use super::{
     },
     key::Vkey,
     variables_container::VariablesContainer,
+    Real,
 };
 #[derive(Clone)]
 pub struct Factors<C, R = f64>
 where
     C: FactorsContainer<R>,
-    R: RealField + Float,
+    R: Real,
 {
     container: C,
     __marker: PhantomData<R>,
@@ -24,7 +24,7 @@ where
 impl<C, R> Factors<C, R>
 where
     C: FactorsContainer<R>,
-    R: RealField + Float,
+    R: Real,
 {
     pub fn new(container: C) -> Self {
         Factors::<C, R> {

@@ -3,20 +3,20 @@ use crate::core::variable::Variable;
 use crate::core::variable_ordering::VariableOrdering;
 use crate::core::variables_container::{get_variable, get_variable_mut, VariablesContainer};
 use hashbrown::HashMap;
-use nalgebra::{DVector, DVectorView, RealField};
-use num::Float;
+use nalgebra::{DVector, DVectorView};
 
 use std::marker::PhantomData;
 
 use super::factors::Factors;
 use super::factors_container::FactorsContainer;
 use super::variables_container::{get_map, get_map_mut};
+use super::Real;
 
 #[derive(Clone)]
 pub struct Variables<C, R = f64>
 where
     C: VariablesContainer<R>,
-    R: RealField + Float,
+    R: Real,
 {
     // pub(crate) container: C,
     pub container: C,
@@ -26,7 +26,7 @@ where
 impl<C, R> Variables<C, R>
 where
     C: VariablesContainer<R>,
-    R: RealField + Float,
+    R: Real,
 {
     pub fn new(container: C) -> Self {
         Variables::<C, R> {

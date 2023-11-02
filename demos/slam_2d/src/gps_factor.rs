@@ -1,10 +1,11 @@
 use std::cell::RefCell;
 
-use nalgebra::{matrix, vector, DMatrix, DVector, RealField, Vector2};
+use nalgebra::{matrix, vector, DMatrix, DVector, Vector2};
 use num::Float;
 use optigy::{
     prelude::{
-        DiagonalLoss, ErrorReturn, Factor, JacobiansReturn, Variables, VariablesContainer, Vkey,
+        DiagonalLoss, ErrorReturn, Factor, JacobiansReturn, Real, Variables, VariablesContainer,
+        Vkey,
     },
     slam::se3::SE2,
 };
@@ -12,7 +13,7 @@ use optigy::{
 #[derive(Clone)]
 pub struct GPSPositionFactor<R = f64>
 where
-    R: RealField + Float,
+    R: Real,
 {
     pub error: RefCell<DVector<R>>,
     jacobians: RefCell<DMatrix<R>>,
@@ -22,7 +23,7 @@ where
 }
 impl<R> GPSPositionFactor<R>
 where
-    R: RealField + Float,
+    R: Real,
 {
     pub fn new(key: Vkey, pose: Vector2<R>, sigmas: Vector2<R>) -> Self {
         let keys = vec![key];
@@ -39,7 +40,7 @@ where
 #[allow(non_snake_case)]
 impl<R> Factor<R> for GPSPositionFactor<R>
 where
-    R: RealField + Float,
+    R: Real,
 {
     type L = DiagonalLoss<R>;
     fn error<C>(&self, variables: &Variables<C, R>) -> ErrorReturn<R>

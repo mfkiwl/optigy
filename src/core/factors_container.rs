@@ -2,8 +2,7 @@ use crate::core::factor::Factor;
 use core::any::TypeId;
 
 use core::mem;
-use nalgebra::{DMatrixViewMut, DVectorViewMut, RealField};
-use num::Float;
+use nalgebra::{DMatrixViewMut, DVectorViewMut};
 
 use super::factor::{ErrorReturn, JacobiansErrorReturn};
 use super::factors::Factors;
@@ -11,10 +10,11 @@ use super::key::Vkey;
 use super::loss_function::LossFunction;
 use super::variables::Variables;
 use super::variables_container::VariablesContainer;
+use super::Real;
 
 pub trait FactorsKey<R = f64>: Clone
 where
-    R: RealField + Float,
+    R: Real,
 {
     type Value: 'static + Factor<R>;
 }
@@ -22,7 +22,7 @@ where
 /// The building block trait for recursive variadics.
 pub trait FactorsContainer<R = f64>: Clone + Default
 where
-    R: RealField + Float,
+    R: Real,
 {
     /// Try to get the value for N.
     fn get<N: FactorsKey<R>>(&self) -> Option<&Vec<N::Value>>;
@@ -123,7 +123,7 @@ where
 pub type FactorsEmpty = ();
 impl<R> FactorsContainer<R> for FactorsEmpty
 where
-    R: RealField + Float,
+    R: Real,
 {
     fn get<N: FactorsKey<R>>(&self) -> Option<&Vec<N::Value>> {
         None
@@ -220,7 +220,7 @@ where
 pub struct FactorsEntry<T, P, R>
 where
     T: FactorsKey<R>,
-    R: RealField + Float,
+    R: Real,
 {
     data: Vec<T::Value>,
     parent: P,
@@ -229,7 +229,7 @@ impl<T, P, R> Default for FactorsEntry<T, P, R>
 where
     T: FactorsKey<R>,
     P: FactorsContainer<R> + Default,
-    R: RealField + Float,
+    R: Real,
 {
     fn default() -> Self {
         FactorsEntry::<T, P, R> {
@@ -243,7 +243,7 @@ impl<T, P, R> FactorsContainer<R> for FactorsEntry<T, P, R>
 where
     T: FactorsKey<R>,
     P: FactorsContainer<R> + Default,
-    R: RealField + Float,
+    R: Real,
 {
     fn get<N: FactorsKey<R>>(&self) -> Option<&Vec<N::Value>> {
         if TypeId::of::<N::Value>() == TypeId::of::<T::Value>() {
@@ -428,7 +428,7 @@ where
 impl<T, R> FactorsKey<R> for T
 where
     T: 'static + Factor<R>,
-    R: RealField + Float,
+    R: Real,
 {
     type Value = T;
 }
@@ -437,7 +437,7 @@ pub fn get_factor_vec<C, F, R>(container: &C) -> &Vec<F>
 where
     C: FactorsContainer<R>,
     F: Factor<R> + 'static,
-    R: RealField + Float,
+    R: Real,
 {
     #[cfg(not(debug_assertions))]
     {
@@ -458,7 +458,7 @@ pub fn get_factor<C, F, R>(container: &C, index: usize) -> Option<&F>
 where
     C: FactorsContainer<R>,
     F: Factor<R> + 'static,
-    R: RealField + Float,
+    R: Real,
 {
     get_factor_vec(container).get(index)
 }
@@ -466,7 +466,7 @@ pub fn get_factor_vec_mut<C, F, R>(container: &mut C) -> &mut Vec<F>
 where
     C: FactorsContainer<R>,
     F: Factor<R> + 'static,
-    R: RealField + Float,
+    R: Real,
 {
     #[cfg(not(debug_assertions))]
     {
@@ -487,7 +487,7 @@ pub fn get_factor_mut<C, F, R>(container: &mut C, index: usize) -> Option<&mut F
 where
     C: FactorsContainer<R>,
     F: Factor<R> + 'static,
-    R: RealField + Float,
+    R: Real,
 {
     get_factor_vec_mut(container).get_mut(index)
 }

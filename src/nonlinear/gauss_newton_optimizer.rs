@@ -1,10 +1,10 @@
 use nalgebra::{DVector, RealField};
-use num::Float;
+
 
 use crate::{
     core::{
         factors::Factors, factors_container::FactorsContainer, variable_ordering::VariableOrdering,
-        variables::Variables, variables_container::VariablesContainer,
+        variables::Variables, variables_container::VariablesContainer, Real,
     },
     linear::{
         linear_solver::{LinearSolverStatus, SparseLinearSolver},
@@ -28,7 +28,7 @@ impl OptimizerBaseParams for GaussNewtonOptimizerParams {
 #[derive(Default)]
 pub struct GaussNewtonOptimizer<R = f64>
 where
-    R: RealField + Float + Default,
+    R: Real + Default,
 {
     /// linear solver
     pub linear_solver: SparseCholeskySolver<R>,
@@ -36,7 +36,7 @@ where
 }
 impl<R> GaussNewtonOptimizer<R>
 where
-    R: RealField + Float + Default,
+    R: Real + Default,
 {
     pub fn with_params(params: GaussNewtonOptimizerParams) -> Self {
         GaussNewtonOptimizer {
@@ -47,7 +47,7 @@ where
 }
 impl<R> OptIterate<R> for GaussNewtonOptimizer<R>
 where
-    R: RealField + Float + Default,
+    R: Real + Default,
 {
     type S = SparseCholeskySolver<R>;
     #[allow(non_snake_case)]

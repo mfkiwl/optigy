@@ -7,23 +7,21 @@ use nalgebra::DMatrix;
 
 use nalgebra::DVector;
 
-use nalgebra::RealField;
-use num::Float;
-
 use super::variables_container::VariablesContainer;
+use super::Real;
 pub type JacobiansReturn<'a, R> = Ref<'a, DMatrix<R>>;
 pub type ErrorReturn<'a, R> = Ref<'a, DVector<R>>;
 pub type Jacobians<R> = DMatrix<R>;
 pub struct JacobiansErrorReturn<'a, R>
 where
-    R: RealField,
+    R: Real,
 {
     pub jacobians: JacobiansReturn<'a, R>,
     pub error: ErrorReturn<'a, R>,
 }
 impl<'a, R> JacobiansErrorReturn<'a, R>
 where
-    R: RealField,
+    R: Real,
 {
     fn new(jacobians: JacobiansReturn<'a, R>, error: ErrorReturn<'a, R>) -> Self {
         JacobiansErrorReturn { jacobians, error }
@@ -31,7 +29,7 @@ where
 }
 pub trait Factor<R = f64>: Clone
 where
-    R: RealField + Float,
+    R: Real,
 {
     type L: LossFunction<R>;
     /// error function
@@ -91,7 +89,7 @@ pub fn compute_numerical_jacobians<V, F, R>(
 ) where
     V: VariablesContainer<R>,
     F: Factor<R>,
-    R: RealField + Float,
+    R: Real,
 {
     let mut factor_variables = Variables::new(variables.container.empty_clone());
 
@@ -123,16 +121,16 @@ pub(crate) mod tests {
         variable::tests::{RandomVariable, VariableA, VariableB},
         variables::Variables,
         variables_container::VariablesContainer,
+        Real,
     };
     use core::cell::RefCell;
 
-    use nalgebra::{DMatrix, DVector, Matrix3, RealField};
-    use num::Float;
+    use nalgebra::{DMatrix, DVector, Matrix3};
 
     #[derive(Clone)]
     pub struct FactorA<R>
     where
-        R: RealField,
+        R: Real,
     {
         pub orig: DVector<R>,
         pub loss: Option<GaussianLoss<R>>,
@@ -142,7 +140,7 @@ pub(crate) mod tests {
     }
     impl<R> FactorA<R>
     where
-        R: RealField,
+        R: Real,
     {
         pub fn new(v: R, loss: Option<GaussianLoss<R>>, var0: Vkey, var1: Vkey) -> Self {
             let keys = vec![var0, var1];
@@ -159,7 +157,7 @@ pub(crate) mod tests {
 
     impl<R> Factor<R> for FactorA<R>
     where
-        R: RealField + Float,
+        R: Real,
     {
         type L = GaussianLoss<R>;
         fn error<C>(&self, variables: &Variables<C, R>) -> ErrorReturn<R>
@@ -205,7 +203,7 @@ pub(crate) mod tests {
     #[derive(Clone)]
     pub struct FactorB<R>
     where
-        R: RealField,
+        R: Real,
     {
         pub orig: DVector<R>,
         pub loss: Option<GaussianLoss<R>>,
@@ -215,7 +213,7 @@ pub(crate) mod tests {
     }
     impl<R> FactorB<R>
     where
-        R: RealField,
+        R: Real,
     {
         pub fn new(v: R, loss: Option<GaussianLoss<R>>, var0: Vkey, var1: Vkey) -> Self {
             let _jacobians = Vec::<DMatrix<R>>::with_capacity(2);
@@ -232,7 +230,7 @@ pub(crate) mod tests {
     }
     impl<R> Factor<R> for FactorB<R>
     where
-        R: RealField + Float,
+        R: Real,
     {
         type L = GaussianLoss<R>;
         fn error<C>(&self, variables: &Variables<C, R>) -> ErrorReturn<R>
@@ -275,7 +273,7 @@ pub(crate) mod tests {
     #[derive(Clone)]
     pub struct RandomBlockFactor<R>
     where
-        R: RealField,
+        R: Real,
     {
         pub loss: Option<GaussianLoss<R>>,
         pub error: RefCell<DVector<R>>,
@@ -284,7 +282,7 @@ pub(crate) mod tests {
     }
     impl<R> RandomBlockFactor<R>
     where
-        R: RealField,
+        R: Real,
     {
         pub fn new(var0: Vkey, var1: Vkey) -> Self {
             let _rng = rand::thread_rng();
@@ -301,7 +299,7 @@ pub(crate) mod tests {
     }
     impl<R> Factor<R> for RandomBlockFactor<R>
     where
-        R: RealField + Float,
+        R: Real,
     {
         type L = GaussianLoss<R>;
         fn error<C>(&self, variables: &Variables<C, R>) -> ErrorReturn<R>

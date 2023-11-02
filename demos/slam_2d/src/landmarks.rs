@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use nalgebra::{matrix, vector, Matrix2, RealField, Vector2};
+use nalgebra::{matrix, vector, Matrix2, Vector2};
 use num::Float;
 use optigy::{
-    prelude::{Factor, FactorGraph, FactorsContainer, OptIterate, VariablesContainer, Vkey},
+    prelude::{Factor, FactorGraph, FactorsContainer, OptIterate, Real, VariablesContainer, Vkey},
     slam::se3::SE2,
 };
 
@@ -11,7 +11,7 @@ use crate::{vision_factor::VisionFactor, E2};
 
 pub struct Landmark<R>
 where
-    R: RealField + Float,
+    R: Real,
 {
     id: Vkey,
     obs_cnt: usize,
@@ -22,7 +22,7 @@ where
 #[allow(non_snake_case)]
 impl<R> Landmark<R>
 where
-    R: RealField + Float,
+    R: Real,
 {
     pub fn new(id: Vkey) -> Self {
         Landmark {
@@ -174,14 +174,14 @@ where
 #[derive(Default)]
 pub struct Landmarks<R = f64>
 where
-    R: RealField + Float,
+    R: Real,
 {
     landmarks: HashMap<Vkey, Landmark<R>>,
 }
 
 impl<R> Landmarks<R>
 where
-    R: RealField + Float,
+    R: Real,
 {
     pub fn add_observation<FC, VC, O>(
         &mut self,

@@ -11,4 +11,6 @@ pub mod variable_ordering;
 pub mod variables;
 pub mod variables_container;
 
-trait Real: RealField + Float {}
+pub trait Real: RealField + Float {}
+impl Real for f64 {}
+impl Real for f32 {}

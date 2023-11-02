@@ -8,7 +8,7 @@ use nalgebra::DMatrixView;
 use nalgebra::DVectorView;
 
 use nalgebra::Vector2;
-use nalgebra::{DMatrix, DVector, RealField};
+use nalgebra::{DMatrix, DVector};
 use num::Float;
 use optigy::core::factor::ErrorReturn;
 use optigy::core::factor::Jacobians;
@@ -31,6 +31,7 @@ use optigy::prelude::JacobiansReturn;
 use optigy::prelude::NonlinearOptimizer;
 
 use optigy::prelude::NonlinearOptimizerVerbosityLevel;
+use optigy::prelude::Real;
 use optigy::prelude::VariablesContainer;
 use optigy::prelude::{Factor, Variables, Vkey};
 use optigy::slam::between_factor::BetweenFactor;
@@ -42,7 +43,7 @@ use textplots::Shape;
 #[derive(Clone)]
 struct GPSPositionFactor<R = f64>
 where
-    R: RealField + Float,
+    R: Real,
 {
     pub error: RefCell<DVector<R>>,
     pub jacobians: RefCell<Jacobians<R>>,
@@ -52,7 +53,7 @@ where
 }
 impl<R> GPSPositionFactor<R>
 where
-    R: RealField + Float,
+    R: Real,
 {
     pub fn new(key: Vkey, pose: Vector2<R>, sigmas: Vector2<R>) -> Self {
         let keys = vec![key];
@@ -68,7 +69,7 @@ where
 }
 impl<R> Factor<R> for GPSPositionFactor<R>
 where
-    R: RealField + Float,
+    R: Real,
 {
     type L = DiagonalLoss<R>;
     fn error<C>(&self, variables: &Variables<C, R>) -> ErrorReturn<R>
@@ -122,7 +123,7 @@ where
 #[allow(non_snake_case)]
 fn quadratic<R>(H: DMatrixView<R>, b: DVectorView<R>, dx: DVectorView<R>, f0: R) -> R
 where
-    R: RealField + Float,
+    R: Real,
 {
     let f = dx.transpose() * H * dx * R::from_f64(0.5).unwrap() + b.transpose() * dx;
     f[(0, 0)] + f0
@@ -320,7 +321,7 @@ fn main() {
     where
         FC: FactorsContainer<R>,
         VC: VariablesContainer<R>,
-        R: RealField + Float,
+        R: Real,
     {
         let d = DVector::<R>::from_element(dx0.len(), x);
         let dx = dx0.to_owned() + d;
@@ -339,7 +340,7 @@ fn main() {
         m_dim: usize,
     ) -> R
     where
-        R: RealField + Float,
+        R: Real,
     {
         let d = DVector::<R>::from_element(dx0.len(), x);
         let dx = dx0.to_owned() + d;
@@ -373,7 +374,7 @@ fn main() {
     }
     fn approx_F_xmxn<R>(x: R, dx0: DVectorView<R>, H: DMatrixView<R>, b: DVectorView<R>, f0: R) -> R
     where
-        R: RealField + Float,
+        R: Real,
     {
         let d = DVector::<R>::from_element(dx0.len(), x);
         let dx = dx0.to_owned() + d;
@@ -382,7 +383,7 @@ fn main() {
     }
     fn approx_F_xn<R>(x: R, dx0: DVectorView<R>, H: DMatrixView<R>, b: DVectorView<R>, f0: R) -> R
     where
-        R: RealField + Float,
+        R: Real,
     {
         let dx = dx0.to_owned() + DVector::<R>::from_element(dx0.len(), x);
         let e = quadratic(H.as_view(), b.as_view(), dx.as_view(), f0);
@@ -396,7 +397,7 @@ fn main() {
         f0: R,
     ) -> R
     where
-        R: RealField + Float,
+        R: Real,
     {
         let dx = dx0.to_owned() + DVector::<R>::from_element(dx0.len(), x);
         let r = dx + Omega.try_inverse().unwrap() * bt;
@@ -411,7 +412,7 @@ fn main() {
         f0: R,
     ) -> R
     where
-        R: RealField + Float,
+        R: Real,
     {
         let dx = dx0.to_owned() + DVector::<R>::from_element(dx0.len(), x);
         let r = A * dx + b;

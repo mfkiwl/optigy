@@ -1,11 +1,10 @@
-use nalgebra::{DVector, RealField};
+use nalgebra::DVector;
 use nalgebra_sparse::CscMatrix;
-use num::Float;
 
 use crate::{
     core::{
         factors::Factors, factors_container::FactorsContainer, variable_ordering::VariableOrdering,
-        variables::Variables, variables_container::VariablesContainer,
+        variables::Variables, variables_container::VariablesContainer, Real,
     },
     linear::{
         linear_solver::{LinearSolverStatus, SparseLinearSolver},
@@ -64,7 +63,7 @@ impl OptimizerBaseParams for LevenbergMarquardtOptimizerParams {
 #[derive(Default)]
 pub struct LevenbergMarquardtOptimizer<R = f64>
 where
-    R: RealField + Float + Default,
+    R: Real + Default,
 {
     /// linear solver
     pub linear_solver: SparseCholeskySolver<R>,
@@ -79,7 +78,7 @@ where
 }
 impl<R> LevenbergMarquardtOptimizer<R>
 where
-    R: RealField + Float + Default,
+    R: Real + Default,
 {
     pub fn with_params(params: LevenbergMarquardtOptimizerParams) -> Self {
         let mut opt = LevenbergMarquardtOptimizer {
@@ -273,7 +272,7 @@ where
 #[allow(non_snake_case)]
 fn update_dumping_hessian<R>(H: &mut CscMatrix<R>, diag: f64, diag_last: f64)
 where
-    R: RealField + Float + Default,
+    R: Real + Default,
 {
     for i in 0..H.ncols() {
         match H.get_entry_mut(i, i).unwrap() {
@@ -292,7 +291,7 @@ fn update_dumping_hessian_diag<R>(
     lambda: f64,
     lambda_last: f64,
 ) where
-    R: RealField + Float + Default,
+    R: Real + Default,
 {
     for i in 0..H.ncols() {
         match H.get_entry_mut(i, i).unwrap() {
@@ -305,7 +304,7 @@ fn update_dumping_hessian_diag<R>(
 }
 impl<R> OptIterate<R> for LevenbergMarquardtOptimizer<R>
 where
-    R: RealField + Float + Default,
+    R: Real + Default,
 {
     type S = SparseCholeskySolver<R>;
     #[allow(non_snake_case)]

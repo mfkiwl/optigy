@@ -1,7 +1,6 @@
 use std::cell::RefCell;
 
-use nalgebra::{DMatrix, DVector, RealField, SMatrix, Vector2};
-use num::Float;
+use nalgebra::{DMatrix, DVector, SMatrix, Vector2};
 use sophus_rs::lie::rotation2::{Isometry2, Rotation2};
 
 use crate::core::{
@@ -10,6 +9,7 @@ use crate::core::{
     loss_function::{GaussianLoss, LossFunction},
     variables::Variables,
     variables_container::VariablesContainer,
+    Real,
 };
 
 use super::se3::SE2;
@@ -17,7 +17,7 @@ use super::se3::SE2;
 #[derive(Clone)]
 pub struct PriorFactor<LF = GaussianLoss, R = f64>
 where
-    R: RealField + Float,
+    R: Real,
     LF: LossFunction<R>,
 {
     pub error: RefCell<DVector<R>>,
@@ -28,7 +28,7 @@ where
 }
 impl<LF, R> PriorFactor<LF, R>
 where
-    R: RealField + Float,
+    R: Real,
     LF: LossFunction<R>,
 {
     pub fn new(key: Vkey, x: f64, y: f64, theta: f64, loss: Option<LF>) -> Self {
@@ -61,7 +61,7 @@ where
 }
 impl<LF, R> Factor<R> for PriorFactor<LF, R>
 where
-    R: RealField + Float,
+    R: Real,
     LF: LossFunction<R>,
 {
     type L = LF;

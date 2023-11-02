@@ -2,17 +2,18 @@ use crate::core::key::Vkey;
 use crate::core::variable::Variable;
 use crate::core::variables::Variables;
 use hashbrown::HashMap;
-use nalgebra::{DMatrixViewMut, DVector, DVectorView, DVectorViewMut, RealField};
-use num::Float;
+use nalgebra::{DMatrixViewMut, DVector, DVectorView, DVectorViewMut};
+
 use std::any::TypeId;
 
 use std::mem;
 
 use super::factor::Factor;
+use super::Real;
 
 pub trait VariablesKey<R = f64>: Clone
 where
-    R: RealField + Float,
+    R: Real,
 {
     type Value: 'static + Variable<R>;
 }
@@ -20,7 +21,7 @@ where
 /// The building block trait for recursive variadics.
 pub trait VariablesContainer<R = f64>: Clone
 where
-    R: RealField + Float,
+    R: Real,
 {
     /// Try to get the value for N.
     fn get<N: VariablesKey<R>>(&self) -> Option<&HashMap<Vkey, N::Value>>;
@@ -88,7 +89,7 @@ where
 pub type VariablesEmpty = ();
 impl<R> VariablesContainer<R> for VariablesEmpty
 where
-    R: RealField + Float,
+    R: Real,
 {
     fn get<N: VariablesKey<R>>(&self) -> Option<&HashMap<Vkey, N::Value>> {
         None
@@ -187,7 +188,7 @@ where
 pub struct VariablesEntry<T, P, R>
 where
     T: VariablesKey<R>,
-    R: RealField + Float,
+    R: Real,
 {
     data: HashMap<Vkey, T::Value>,
     parent: P,
@@ -196,7 +197,7 @@ impl<T, P, R> Default for VariablesEntry<T, P, R>
 where
     T: VariablesKey<R>,
     P: VariablesContainer<R> + Default,
-    R: RealField + Float,
+    R: Real,
 {
     fn default() -> Self {
         VariablesEntry::<T, P, R> {
@@ -210,7 +211,7 @@ impl<T, P, R> VariablesContainer<R> for VariablesEntry<T, P, R>
 where
     T: VariablesKey<R>,
     P: VariablesContainer<R> + Default,
-    R: RealField + Float,
+    R: Real,
 {
     fn get<N: VariablesKey<R>>(&self) -> Option<&HashMap<Vkey, N::Value>> {
         if TypeId::of::<N::Value>() == TypeId::of::<T::Value>() {
@@ -385,7 +386,7 @@ where
 impl<T, R> VariablesKey<R> for T
 where
     T: 'static + Variable<R>,
-    R: RealField + Float,
+    R: Real,
 {
     type Value = T;
 }
@@ -394,7 +395,7 @@ pub fn get_map<C, V, R>(container: &C) -> &HashMap<Vkey, V>
 where
     C: VariablesContainer<R>,
     V: Variable<R> + 'static,
-    R: RealField + Float,
+    R: Real,
 {
     #[cfg(not(debug_assertions))]
     {
@@ -415,7 +416,7 @@ pub fn get_variable<C, V, R>(container: &C, key: Vkey) -> Option<&V>
 where
     C: VariablesContainer<R>,
     V: Variable<R> + 'static,
-    R: RealField + Float,
+    R: Real,
 {
     get_map(container).get(&key)
 }
@@ -423,7 +424,7 @@ pub fn get_map_mut<C, V, R>(container: &mut C) -> &mut HashMap<Vkey, V>
 where
     C: VariablesContainer<R>,
     V: Variable<R> + 'static,
-    R: RealField + Float,
+    R: Real,
 {
     #[cfg(not(debug_assertions))]
     {
@@ -444,7 +445,7 @@ pub fn get_variable_mut<C, V, R>(container: &mut C, key: Vkey) -> Option<&mut V>
 where
     C: VariablesContainer<R>,
     V: Variable<R> + 'static,
-    R: RealField + Float,
+    R: Real,
 {
     get_map_mut(container).get_mut(&key)
 }

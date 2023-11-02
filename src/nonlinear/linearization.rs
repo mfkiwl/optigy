@@ -1,13 +1,13 @@
 use std::ops::SubAssign;
 
 use hashbrown::HashSet;
-use nalgebra::{DMatrix, DVector, RealField};
-use num::Float;
+use nalgebra::{DMatrix, DVector};
+
 
 use crate::{
     core::{
         factors::Factors, factors_container::FactorsContainer, variables::Variables,
-        variables_container::VariablesContainer,
+        variables_container::VariablesContainer, Real,
     },
     nonlinear::sparsity_pattern::HessianTriangle,
 };
@@ -30,7 +30,7 @@ pub fn linearzation_jacobian<R, VC, FC>(
     A: &mut DMatrix<R>,
     b: &mut DVector<R>,
 ) where
-    R: RealField + Float,
+    R: Real,
     VC: VariablesContainer<R>,
     FC: FactorsContainer<R>,
 {
@@ -103,7 +103,7 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
     AtA_values: &mut [R],
     Atb: &mut DVector<R>,
 ) where
-    R: RealField + Float,
+    R: Real,
     VC: VariablesContainer<R>,
     FC: FactorsContainer<R>,
 {
@@ -280,7 +280,7 @@ pub fn linearization_hessian<R, VC, FC>(
     AtA_values: &mut [R],
     Atb: &mut DVector<R>,
 ) where
-    R: RealField + Float,
+    R: Real,
     VC: VariablesContainer<R>,
     FC: FactorsContainer<R>,
 {
@@ -297,7 +297,7 @@ pub fn linearzation_full_hessian<R, VC, FC>(
     _A: &mut DMatrix<R>,
     _b: &mut DVector<R>,
 ) where
-    R: RealField + Float,
+    R: Real,
     VC: VariablesContainer<R>,
     FC: FactorsContainer<R>,
 {
