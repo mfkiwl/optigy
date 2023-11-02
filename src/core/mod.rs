@@ -1,5 +1,8 @@
 use nalgebra::RealField;
+use nohash_hasher::IsEnabled;
 use num::Float;
+
+use self::key::Vkey;
 
 pub mod factor;
 pub mod factors;
@@ -14,3 +17,8 @@ pub mod variables_container;
 pub trait Real: RealField + Float {}
 impl Real for f64 {}
 impl Real for f32 {}
+
+impl IsEnabled for Vkey {}
+
+// pub type HashMap<K, V> = hashbrown::HashMap<K, V>;
+pub type HashMap<K, V> = std::collections::HashMap<K, V, nohash_hasher::BuildNoHashHasher<Vkey>>;

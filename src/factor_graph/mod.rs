@@ -1,8 +1,7 @@
-use hashbrown::HashMap;
 use std::marker::PhantomData;
 
 use crate::{
-    core::Real,
+    core::{HashMap, Real},
     fixedlag::marginalization::marginalize,
     prelude::{
         Factor, Factors, FactorsContainer, NonlinearOptimizationError, NonlinearOptimizer,

@@ -53,7 +53,7 @@ fn lower_hessian_sparsity(c: &mut Criterion) {
 fn lower_hessian_linearization(c: &mut Criterion) {
     let container = ().and_variable::<SE2>();
     let mut variables = Variables::new(container);
-    let vcnt = 5000;
+    let vcnt = 200;
 
     for i in 0..vcnt {
         variables.add(Vkey(i), SE2::new(0.0, 0.0, 0.0));
@@ -63,7 +63,7 @@ fn lower_hessian_linearization(c: &mut Criterion) {
     let mut factors = Factors::new(container);
 
     for i in 0..vcnt {
-        for j in 1..6 {
+        for j in 1..3000 {
             factors.add(BetweenFactor::new(
                 Vkey(i),
                 Vkey((i + j) % vcnt),

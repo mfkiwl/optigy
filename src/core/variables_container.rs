@@ -1,7 +1,6 @@
 use crate::core::key::Vkey;
 use crate::core::variable::Variable;
 use crate::core::variables::Variables;
-use hashbrown::HashMap;
 use nalgebra::{DMatrixViewMut, DVector, DVectorView, DVectorViewMut};
 
 use std::any::TypeId;
@@ -9,7 +8,7 @@ use std::any::TypeId;
 use std::mem;
 
 use super::factor::Factor;
-use super::Real;
+use super::{HashMap, Real};
 
 pub trait VariablesKey<R = f64>: Clone
 where

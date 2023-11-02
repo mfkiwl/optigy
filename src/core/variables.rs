@@ -2,7 +2,6 @@ use crate::core::key::Vkey;
 use crate::core::variable::Variable;
 use crate::core::variable_ordering::VariableOrdering;
 use crate::core::variables_container::{get_variable, get_variable_mut, VariablesContainer};
-use hashbrown::HashMap;
 use nalgebra::{DVector, DVectorView};
 
 use std::marker::PhantomData;
@@ -10,7 +9,7 @@ use std::marker::PhantomData;
 use super::factors::Factors;
 use super::factors_container::FactorsContainer;
 use super::variables_container::{get_map, get_map_mut};
-use super::Real;
+use super::{HashMap, Real};
 
 #[derive(Clone)]
 pub struct Variables<C, R = f64>
