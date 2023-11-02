@@ -10,7 +10,8 @@ pub use crate::{
         variables::Variables,
         variables_container::VariablesContainer,
     },
-    factor_graph::factor_graph::{FactorGraph, OptParams},
+    factor_graph::{FactorGraph, OptParams},
+    fixedlag::marginalization::add_dense_marginalize_prior_factor,
     nonlinear::{
         gauss_newton_optimizer::{GaussNewtonOptimizer, GaussNewtonOptimizerParams},
         levenberg_marquardt_optimizer::{

@@ -1,24 +1,22 @@
 use std::cell::RefCell;
-use std::fs::File;
-use std::io::Write;
+
 use std::iter::zip;
 
 use crate::prelude::{FactorGraph, FactorsContainer, OptIterate, VariablesContainer, Vkey};
 use angular_units::Deg;
 use dot_graph::{Edge, Graph, Kind, Node, Style, Subgraph};
 use graphviz_rust::cmd::CommandArg;
-use graphviz_rust::print;
+
 use graphviz_rust::{cmd::Format, exec, parse, printer::PrinterContext};
 use hashbrown::{HashMap, HashSet};
 use nalgebra::RealField;
 use num::Float;
-use printpdf::{PdfDocumentReference, PdfLayerIndex, PdfPageIndex};
+
 use prisma::{Hsv, Rgb};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 fn generate_colors(count: usize, saturation: f64) -> Vec<Hsv<f64>> {
     (0..count)
-        .into_iter()
         .map(|i| Hsv::new(Deg((i as f64 / count as f64) * 360.0), saturation, 1.0))
         .collect()
 }
@@ -166,10 +164,10 @@ impl FactorGraphViz {
                 .get_layer(layer.unwrap());
             // let svg = fs::read_to_string("graph.svg").unwrap();
 
-            let svg = Svg::parse(&svg).unwrap();
+            let svg = Svg::parse(svg).unwrap();
             let reference = svg.into_xobject(&current_layer);
-            let svg_w = reference.width.clone();
-            let svg_h = reference.height.clone();
+            let svg_w = reference.width;
+            let svg_h = reference.height;
             // current_layer.set_outline_color(Color::Rgb(printpdf::Rgb::new(1.0, 0.0, 0.0, None)));
             let page_background_poly = Polygon {
                 rings: vec![vec![
@@ -232,7 +230,7 @@ impl FactorGraphViz {
             );
         }
         let pdf_bytes = doc.unwrap().save_to_bytes().unwrap();
-        std::fs::write(path, &pdf_bytes)
+        std::fs::write(path, pdf_bytes)
             .map_err(|_| "Failed to write PDF file")
             .unwrap();
     }
@@ -254,8 +252,8 @@ impl FactorGraphViz {
         let mut unique_variables_types = HashSet::<String>::default();
         let mut unique_factors_types = HashSet::<String>::default();
 
-        for vk in factor_graph.variables.default_variable_ordering().keys() {
-            let mut type_name = factor_graph.variables.type_name_at(*vk).unwrap();
+        for vk in factor_graph.variables().default_variable_ordering().keys() {
+            let mut type_name = factor_graph.variables().type_name_at(*vk).unwrap();
             let s = type_name.split_once('<');
             if let Some(s) = s {
                 type_name = s.0.to_owned();
@@ -263,8 +261,8 @@ impl FactorGraphViz {
             variables_types.insert(*vk, type_name.clone());
             unique_variables_types.insert(type_name);
         }
-        for fi in 0..factor_graph.factors.len() {
-            let mut type_name = factor_graph.factors.type_name_at(fi).unwrap();
+        for fi in 0..factor_graph.factors().len() {
+            let mut type_name = factor_graph.factors().type_name_at(fi).unwrap();
             let s = type_name.split_once('<');
             if let Some(s) = s {
                 type_name = s.0.to_owned();
@@ -275,6 +273,7 @@ impl FactorGraphViz {
         let mut type_to_color = HashMap::<String, Hsv<f64>>::default();
         let mut types: Vec<String> = unique_factors_types.into_iter().collect();
         types.append(&mut unique_variables_types.into_iter().collect::<Vec<String>>());
+        types.sort();
 
         if self.nodes_colors.borrow().is_none() {
             let mut colors = generate_colors(types.len(), 1.0);
@@ -285,7 +284,7 @@ impl FactorGraphViz {
         let binding = self.nodes_colors.borrow();
         let colors = binding.as_ref().unwrap();
 
-        let get_color = |idx: usize| -> Hsv<f64> { colors[idx % colors.len()].clone() };
+        let get_color = |idx: usize| -> Hsv<f64> { colors[idx % colors.len()] };
 
         if self.groups_colors.borrow().is_none() {
             let mut highlight_colors = generate_colors(30, 0.5);
@@ -297,7 +296,7 @@ impl FactorGraphViz {
         let highlight_colors = binding.as_ref().unwrap();
 
         let get_highlight_color =
-            |idx: usize| -> Hsv<f64> { highlight_colors[idx % highlight_colors.len()].clone() };
+            |idx: usize| -> Hsv<f64> { highlight_colors[idx % highlight_colors.len()] };
 
         for (color_idx, t) in types.iter().enumerate() {
             type_to_color.insert(t.to_string(), get_color(color_idx));
@@ -318,8 +317,8 @@ impl FactorGraphViz {
                 if variables_group.is_some() {
                     let vgs = variables_group.as_ref().unwrap();
                     let vg = vgs.iter().position(|g| g.keys.contains(vk));
-                    if vg.is_some() {
-                        get_highlight_color(vg.unwrap())
+                    if let Some(vg) = vg {
+                        get_highlight_color(vg)
                     } else {
                         dimm_color(type_to_color[vt])
                     }
@@ -346,8 +345,8 @@ impl FactorGraphViz {
                 if factors_group.is_some() {
                     let fgs = factors_group.as_ref().unwrap();
                     let fg = fgs.iter().position(|g| g.indexes.contains(fi));
-                    if fg.is_some() {
-                        get_highlight_color(fg.unwrap())
+                    if let Some(fg) = fg {
+                        get_highlight_color(fg)
                     } else {
                         dimm_color(type_to_color[ft])
                     }
@@ -369,9 +368,9 @@ impl FactorGraphViz {
                     .attrib("fillcolor", &quote_string(color_to_hexcode(color))),
             );
         }
-        for f_idx in 0..factor_graph.factors.len() {
-            let f_keys = factor_graph.factors.keys_at(f_idx).unwrap();
-            let mut f_type = factor_graph.factors.type_name_at(f_idx).unwrap();
+        for f_idx in 0..factor_graph.factors().len() {
+            let f_keys = factor_graph.factors().keys_at(f_idx).unwrap();
+            let mut f_type = factor_graph.factors().type_name_at(f_idx).unwrap();
             let s = f_type.split_once('<');
             if let Some(s) = s {
                 f_type = s.0.to_owned();
@@ -380,8 +379,8 @@ impl FactorGraphViz {
                 if factors_group.is_some() {
                     let fgs = factors_group.as_ref().unwrap();
                     let fg = fgs.iter().position(|g| g.indexes.contains(&f_idx));
-                    if fg.is_some() {
-                        get_highlight_color(fg.unwrap())
+                    if let Some(fg) = fg {
+                        get_highlight_color(fg)
                     } else {
                         dimm_color(type_to_color[&f_type])
                     }
@@ -415,7 +414,7 @@ impl FactorGraphViz {
             legend = format!(
                 "{}<tr>\n\t<td>{}</td>\n\t<td bgcolor=\"{}\" width=\"40%\"></td>\n</tr>\n",
                 legend,
-                t.replace("<", "[").replace(">", "]"),
+                t.replace('<', "[").replace('>', "]"),
                 color_to_hexcode(color)
             );
         }
@@ -452,7 +451,6 @@ impl FactorGraphViz {
                 .shape("none"),
         );
         graph.add_subgraph(sg);
-
         graph.to_dot_string().unwrap()
     }
 }

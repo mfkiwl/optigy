@@ -153,9 +153,9 @@ fn main() {
         Some(ScaleLoss::scale(1.0)),
     ));
 
-    factor_graph.add_variable(Vkey(1), SE2::new(0.2, -0.3, 0.2));
-    factor_graph.add_variable(Vkey(2), SE2::new(5.1, 0.3, -0.1));
-    factor_graph.add_variable(Vkey(3), SE2::new(9.9, -0.1, -0.2));
+    factor_graph.add_variable_with_key(Vkey(1), SE2::new(0.2, -0.3, 0.2));
+    factor_graph.add_variable_with_key(Vkey(2), SE2::new(5.1, 0.3, -0.1));
+    factor_graph.add_variable_with_key(Vkey(3), SE2::new(9.9, -0.1, -0.2));
 
     println!("before optimization");
     let var1: &SE2 = factor_graph.get_variable(Vkey(1)).unwrap();
@@ -177,7 +177,7 @@ fn main() {
     println!(
         "final error {}",
         factor_graph
-            .factors
-            .error_squared_norm(&factor_graph.variables)
+            .factors()
+            .error_squared_norm(factor_graph.variables())
     );
 }

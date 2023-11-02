@@ -177,7 +177,7 @@ where
         false
     }
 
-    fn type_name_at(&self, key: Vkey) -> Option<String> {
+    fn type_name_at(&self, _key: Vkey) -> Option<String> {
         None
     }
 }

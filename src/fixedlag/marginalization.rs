@@ -369,7 +369,7 @@ where
     }
     let mn_keys = [m_keys, n_keys.as_slice()].concat();
 
-    let mn_factors = Factors::from_connected_factors(factors, &m_keys);
+    let mn_factors = Factors::from_connected_factors(factors, m_keys);
     let mn_variables = Variables::from_variables(variables, &mn_keys);
 
     let jsparsity =

@@ -6,13 +6,12 @@ use clap::Parser;
 use nalgebra::Matrix3;
 use optigy::core::loss_function::ScaleLoss;
 
-use optigy::nonlinear::gauss_newton_optimizer::GaussNewtonOptimizerParams;
+
 use optigy::nonlinear::levenberg_marquardt_optimizer::{
     LevenbergMarquardtOptimizer, LevenbergMarquardtOptimizerParams,
 };
 use optigy::prelude::{
-    Factors, FactorsContainer, GaussNewtonOptimizer, GaussianLoss, NonlinearOptimizer,
-    NonlinearOptimizerVerbosityLevel, Variables, VariablesContainer, Vkey,
+    Factors, FactorsContainer, GaussianLoss, NonlinearOptimizer, Variables, VariablesContainer, Vkey,
 };
 use optigy::slam::between_factor::BetweenFactor;
 use optigy::slam::prior_factor::PriorFactor;
@@ -98,14 +97,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     const OUTPUT_GIF: &str = "pose_graph.gif";
 
-    let mut params = LevenbergMarquardtOptimizerParams::default();
+    let params = LevenbergMarquardtOptimizerParams::default();
     // params.base.verbosity_level = NonlinearOptimizerVerbosityLevel::Subiteration;
     let mut optimizer = NonlinearOptimizer::new(LevenbergMarquardtOptimizer::with_params(params));
     // let mut optimizer = NonlinearOptimizer::new(LevenbergMarquardtOptimizer::default());
     let start = Instant::now();
     let opt_res = if args.do_viz {
-        let img_w = 1024 as i32;
-        let img_h = 768 as i32;
+        let img_w = 1024_i32;
+        let img_h = 768_i32;
         let root_screen = BitMapBackend::gif(OUTPUT_GIF, (img_w as u32, img_h as u32), 1000)
             .unwrap()
             .into_drawing_area();
@@ -143,7 +142,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         root.draw(&Circle::new(
                             (v.origin.params()[0], v.origin.params()[1]),
                             3,
-                            Into::<ShapeStyle>::into(&GREEN).filled(),
+                            Into::<ShapeStyle>::into(GREEN).filled(),
                         ))
                         .unwrap();
                     }
@@ -160,7 +159,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                                 (v0.origin.params()[0], v0.origin.params()[1]),
                                 (v1.origin.params()[0], v1.origin.params()[1]),
                             ],
-                            &RED,
+                            RED,
                         ))
                         .unwrap();
                     }
