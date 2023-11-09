@@ -209,6 +209,7 @@ where
         // solve
         let mut dx_lm: DVector<R> = DVector::zeros(variables.dim());
         let linear_solver_status = self.linear_solver.solve(&A, &b, &mut dx_lm);
+        dx_lm.neg_mut(); // since Hx=-b
 
         match linear_solver_status {
             LinearSolverStatus::Success => {}
@@ -235,8 +236,8 @@ where
         let nonlinear_err_update = values_curr_err - values_update_err;
 
         // linear error improvement
-        // see imm3215 p.25, just notice here g = -g in the book
-        let linear_err_update = if self.params.diagonal_damping {
+        // see imm3215 p.25, just notice here g = -g in the book(fixed)
+        let linear_err_update = -if self.params.diagonal_damping {
             0.5 * dx_lm
                 .dot(
                     &(hessian_diag

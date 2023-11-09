@@ -1,8 +1,7 @@
-use std::ops::SubAssign;
+use std::ops::AddAssign;
 
 use hashbrown::HashSet;
 use nalgebra::{DMatrix, DVector};
-
 
 use crate::{
     core::{
@@ -89,8 +88,6 @@ pub fn linearzation_jacobian<R, VC, FC>(
 
         err_row_counter += f_dim;
     }
-    //TODO: do better
-    b.neg_mut();
 }
 
 #[allow(non_snake_case)]
@@ -168,7 +165,7 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
 
     for j_idx in 0..f_len {
         Atb.rows_mut(jacobian_col[j_idx], jacobian_ncols[j_idx])
-            .sub_assign(&stackJtb.rows(jacobian_col_local[j_idx], jacobian_ncols[j_idx]));
+            .add_assign(&stackJtb.rows(jacobian_col_local[j_idx], jacobian_ncols[j_idx]));
     }
 
     // #ifdef MINISAM_WITH_MULTI_THREADS

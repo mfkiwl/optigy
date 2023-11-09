@@ -1,6 +1,7 @@
 use nalgebra::{DMatrix, DVector, RealField};
 use nalgebra_sparse::CscMatrix;
-use num::Float;
+
+use crate::prelude::Real;
 
 /// return status of solving linear system
 #[derive(PartialEq, Eq, Debug)]
@@ -14,7 +15,7 @@ pub enum LinearSolverStatus {
 }
 pub trait SparseLinearSolver<R = f64>
 where
-    R: RealField + Float,
+    R: Real,
 {
     /// initialize the solver with sparsity pattern of system Ax = b
     /// call once before solving Ax = b share the same sparsity structure

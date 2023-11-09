@@ -380,7 +380,7 @@ where
     linearzation_jacobian(&mn_factors, &mn_variables, &jsparsity, &mut jA, &mut jb);
 
     let H = jA.transpose() * jA.clone();
-    let b = -jA.transpose() * jb;
+    let b = jA.transpose() * jb;
 
     let m_f = 0_usize;
     let m_cnt = m_keys

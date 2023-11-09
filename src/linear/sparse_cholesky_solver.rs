@@ -1,17 +1,19 @@
 use std::{cell::RefCell, marker::PhantomData, time::Instant};
 
+use crate::prelude::Real;
+
 use super::linear_solver::{LinearSolverStatus, SparseLinearSolver};
 use clarabel::{
     algebra,
     qdldl::{QDLDLFactorisation, QDLDLSettingsBuilder},
 };
-use nalgebra::{DVector, RealField};
+use nalgebra::DVector;
 use nalgebra_sparse::{CooMatrix, CscMatrix};
-use num::Float;
+
 #[derive(Default)]
 pub struct SparseCholeskySolver<R = f64>
 where
-    R: RealField + Float + Default,
+    R: Real + Default,
 {
     __marker: PhantomData<R>,
     factors: RefCell<Option<QDLDLFactorisation>>,
@@ -19,7 +21,7 @@ where
 #[allow(non_snake_case)]
 fn _make_transposed<R>(A: &CscMatrix<R>) -> algebra::CscMatrix
 where
-    R: RealField + Float,
+    R: Real,
 {
     let mut coo = CooMatrix::<R>::zeros(A.nrows(), A.ncols());
     for (i, j, v) in A.triplet_iter() {
@@ -43,7 +45,7 @@ where
 
 impl<R> SparseLinearSolver<R> for SparseCholeskySolver<R>
 where
-    R: RealField + Float + Default,
+    R: Real + Default,
 {
     #[allow(non_snake_case)]
     fn solve(&self, A: &CscMatrix<R>, b: &DVector<R>, x: &mut DVector<R>) -> LinearSolverStatus {

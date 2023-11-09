@@ -1,6 +1,5 @@
 use nalgebra::{DVector, RealField};
 
-
 use crate::{
     core::{
         factors::Factors, factors_container::FactorsContainer, variable_ordering::VariableOrdering,
@@ -67,6 +66,8 @@ where
         let mut dx: DVector<R> = DVector::zeros(variables.dim());
         //WARN sparse cholesky solver not working for lower triangular matrices
         let linear_solver_status = self.linear_solver.solve(lin_sys.A, lin_sys.b, &mut dx);
+        dx.neg_mut(); // since Hx=-b
+
         // let mut A = DMatrix::<R>::from(lin_sys.A);
         // A.fill_upper_triangle_with_lower_triangle();
         // dx = A.clone().cholesky().unwrap().solve(lin_sys.b);
