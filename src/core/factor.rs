@@ -27,61 +27,51 @@ where
         JacobiansErrorReturn { jacobians, error }
     }
 }
+/// Represent factor $f_i(\textbf{x})$ of factor graph.
 pub trait Factor<R = f64>: Clone
 where
     R: Real,
 {
     type L: LossFunction<R>;
-    /// error function
-    /// error vector dimension should meet dim()
+    /// Returns value of factor function $f_i(\textbf{x})$.
+    /// Dimension of $f_i(\textbf{x})$ must be equal to `dim()`.
     fn error<C>(&self, variables: &Variables<C, R>) -> ErrorReturn<R>
     where
         C: VariablesContainer<R>;
-    /// jacobians function
-    /// jacobians vector sequence meets key list, size error.dim x var.dim
+    /// Returns jacobians $\frac{\partial f_i(\textbf{x})}{\partial \textbf{x}_{keys}} \big|_x$
     fn jacobians<C>(&self, variables: &Variables<C, R>) -> JacobiansReturn<R>
     where
         C: VariablesContainer<R>;
-    // fn jacobians<C>(&self, variables: &Variables<R, C>) -> JacobiansReturn<R>
-    // where
-    //     C: VariablesContainer<R>,
-    // {
-    //     todo!()
-    // let mut vars_cpy = variables.clone();
-    // for k in self.keys() {
-    //     // va
-    // }
-    // let jac: RefCell<DMatrix<R>> = RefCell::new(DMatrix::zeros(10, 10));
-    // jac.borrow()
-    // }
-    ///  jacobian matrix
+    /// Returns pair of jacobians with factor function value.
     fn jacobians_error<C>(&self, variables: &Variables<C, R>) -> JacobiansErrorReturn<R>
     where
         C: VariablesContainer<R>,
     {
         JacobiansErrorReturn::new(self.jacobians(variables), self.error(variables))
     }
-    /// error dimension is dim of noisemodel
+    /// Returns dimension $D$ of $f_i(\textbf{x}) \in \mathbb{R}^D$
     fn dim(&self) -> usize;
-    /// size (number of variables connected)
+    /// Returns count of variables corresponded with this factor.
     fn len(&self) -> usize {
         self.keys().len()
     }
+    /// No corresponded variables.
     fn is_empty(&self) -> bool {
         self.keys().is_empty()
     }
-    /// access of keys
+    /// Returns corresponded variables keys.
     fn keys(&self) -> &[Vkey];
-    /// const access of noisemodel
+    /// Returns noise model which performs whitening transformation of factor an its jacobians.
     fn loss_function(&self) -> Option<&Self::L>;
-    /// Returns true if needed to keep this factor on variable remove
+    /// Returns true if needed to keep this factor on variable remove.
     /// # Arguments
-    /// * `key` - A key of variable going to remove
+    /// * `key` - A key of variable going to remove.
     fn on_variable_remove(&mut self, _key: Vkey) -> bool {
         false
     }
 }
 
+/// Performs numerical differentiation of factor function.
 pub fn compute_numerical_jacobians<V, F, R>(
     variables: &Variables<V, R>,
     factor: &F,

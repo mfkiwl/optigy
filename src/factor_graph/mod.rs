@@ -8,7 +8,9 @@ use crate::{
         OptIterate, Variable, Variables, VariablesContainer, Vkey,
     },
 };
-
+/// Representation of optimizable factor graph.
+/// Implements all general operations such addition/removing
+/// variables and factors, consistency checks and optimization process.
 pub struct FactorGraph<FC, VC, O, R = f64>
 where
     FC: FactorsContainer<R> + 'static,
@@ -22,7 +24,6 @@ where
     variables_to_marginalize: Vec<Vkey>,
     variables_keys_counter: usize,
     variables_keys_map: HashMap<Vkey, Vkey>,
-    __marker: PhantomData<R>,
 }
 
 impl<FC, VC, O, R> FactorGraph<FC, VC, O, R>
@@ -42,15 +43,18 @@ where
             variables_to_marginalize: Vec::default(),
             variables_keys_counter: 0usize,
             variables_keys_map: HashMap::default(),
-            __marker: PhantomData,
         }
     }
+    /// Returns factors.
     pub fn factors(&self) -> &Factors<FC, R> {
         &self.factors
     }
+    /// Returns variables
     pub fn variables(&self) -> &Variables<VC, R> {
         &self.variables
     }
+    /// Map external unique key into internal one.
+    /// Returns corresponded mapped key.
     pub fn map_key(&mut self, key: Vkey) -> Vkey {
         if self.variables_keys_map.contains_key(&key) {
             self.variables_keys_map[&key]
@@ -60,15 +64,18 @@ where
             mapped_key
         }
     }
+    /// Returns corresponded mapped key.
     pub fn mapped_key(&self, key: Vkey) -> Option<&Vkey> {
         self.variables_keys_map.get(&key)
     }
+    /// Add factor.
     pub fn add_factor<F>(&mut self, factor: F)
     where
         F: Factor<R> + 'static,
     {
         self.factors.add(factor);
     }
+    /// Add variable.
     pub fn add_variable<V>(&mut self, variable: V) -> Vkey
     where
         V: Variable<R> + 'static,
@@ -77,6 +84,7 @@ where
         self.variables.add(key, variable);
         key
     }
+    /// Add variable with unique internal key.
     pub fn add_variable_with_key<V>(&mut self, key: Vkey, variable: V) -> Vkey
     where
         V: Variable<R> + 'static,
@@ -84,54 +92,63 @@ where
         self.variables.add(key, variable);
         key
     }
+    /// Returns factor by index.
     pub fn get_factor<F>(&self, index: usize) -> Option<&F>
     where
         F: Factor<R> + 'static,
     {
         self.factors.get::<F>(index)
     }
+    /// Returns mutable factor by index.
     pub fn get_factor_mut<F>(&mut self, index: usize) -> Option<&mut F>
     where
         F: Factor<R> + 'static,
     {
         self.factors.get_mut::<F>(index)
     }
+    /// Returns variable by key.
     pub fn get_variable<V>(&self, key: Vkey) -> Option<&V>
     where
         V: Variable<R> + 'static,
     {
         self.variables.get::<V>(key)
     }
+    /// Returns mutable variable by key.
     pub fn get_variable_mut<V>(&mut self, key: Vkey) -> Option<&mut V>
     where
         V: Variable<R> + 'static,
     {
         self.variables.get_mut::<V>(key)
     }
+    /// Returns vector stored all factors of type `F`.
     pub fn get_factors<F>(&self) -> &Vec<F>
     where
         F: Factor<R> + 'static,
     {
         self.factors.get_vec::<F>()
     }
+    /// Returns mutable vector stored all factors of type `F`.
     pub fn get_factors_mut<F>(&mut self) -> &Vec<F>
     where
         F: Factor<R> + 'static,
     {
         self.factors.get_vec_mut::<F>()
     }
+    /// Returns map stored all variables of type `V`.
     pub fn get_variables<V>(&self) -> &HashMap<Vkey, V>
     where
         V: Variable<R> + 'static,
     {
         self.variables.get_map::<V>()
     }
+    /// Returns mutable map stored all variables of type `V`.
     pub fn get_variables_mut<V>(&mut self) -> &mut HashMap<Vkey, V>
     where
         V: Variable<R> + 'static,
     {
         self.variables.get_map_mut::<V>()
     }
+    /// Performs optimization with optimization parameters.
     pub fn optimize<CB>(
         &mut self,
         params: OptParams<FC, VC, R, CB>,
@@ -143,6 +160,8 @@ where
         self.optimizer
             .optimize_with_callback(&self.factors, &mut self.variables, params.callback)
     }
+    /// Returns count of unused variables (without connections).
+    /// Must be zero before optimization call.
     pub fn unused_variables_count(&self) -> usize {
         let mut counter = 0_usize;
         for f_idx in 0..self.factors.len() {
@@ -162,6 +181,7 @@ where
         }
         counter
     }
+    /// Remove variable, disconnect from related factors.
     fn remove_variable_immediately(
         key: Vkey,
         factors: &mut Factors<FC, R>,
@@ -170,6 +190,8 @@ where
         let (ok, _) = variables.remove(key, factors);
         assert!(ok);
     }
+    /// Remove variable. If `marginalize` flag is 'true' variable will be removed
+    /// before optimization.
     pub fn remove_variable(&mut self, key: Vkey, marginalize: bool) {
         if marginalize {
             self.variables_to_marginalize.push(key);
@@ -177,6 +199,7 @@ where
             Self::remove_variable_immediately(key, &mut self.factors, &mut self.variables);
         }
     }
+    /// Performs marginalization of variables removed with  `marginalize=true`.
     fn perform_marginalization(&mut self) {
         let marg_prior = marginalize(
             &self.variables_to_marginalize,
@@ -192,9 +215,13 @@ where
             self.factors.add(marg_prior);
         }
     }
+    /// Process different pended tasks before optimization.
     fn process_pended_tasks(&mut self) {
         self.perform_marginalization();
     }
+    /// Returns next unique variable key.
+    /// Current implementation just increment key value. Maybe it should store
+    /// keys history and do reindexing when needed.
     fn next_variable_key(&mut self) -> Vkey {
         let key = Vkey(self.variables_keys_counter);
         self.variables_keys_counter += 1;

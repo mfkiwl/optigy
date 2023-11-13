@@ -12,6 +12,7 @@ use super::{
     variables_container::VariablesContainer,
     Real,
 };
+/// Representation of factors set with addition/removing bypassing operations.
 #[derive(Clone)]
 pub struct Factors<C, R = f64>
 where
@@ -32,6 +33,7 @@ where
             __marker: PhantomData,
         }
     }
+    /// Creates new `Factors` from subset of `factors` which connected with `keys`.
     pub fn from_connected_factors(factors: &Factors<C, R>, keys: &[Vkey]) -> Self {
         // let mut new_factors = factors.clone();
         // new_factors.retain_conneted_factors(keys);
@@ -44,6 +46,7 @@ where
             .add_connected_factor_to(&mut new_factors, keys, &mut indexes, 0);
         new_factors
     }
+    /// Returns internal indexes of factors connected with `keys`.
     pub fn connected_factors_indexes(&self, keys: &[Vkey]) -> Vec<usize> {
         let mut indexes = Vec::<usize>::default();
         let mut new_factors = Factors::new(self.container.empty_clone());
@@ -52,21 +55,28 @@ where
             .add_connected_factor_to(&mut new_factors, keys, &mut indexes, 0);
         indexes
     }
+    /// Returns count of factors.
     pub fn len(&self) -> usize {
         self.container.len(0)
     }
+    /// No factors.
     pub fn is_empty(&self) -> bool {
         self.container.is_empty()
     }
+    /// Returns sum of factors `dim`.
     pub fn dim(&self) -> usize {
         self.container.dim(0)
     }
+    /// Returns `dim` of factor with index.
     pub fn dim_at(&self, index: usize) -> Option<usize> {
         self.container.dim_at(index, 0)
     }
+    /// Returns `keys` of factor with index.
     pub fn keys_at(&self, index: usize) -> Option<&[Vkey]> {
         self.container.keys_at(index, 0)
     }
+    /// Performs weighting (whitening transformation) of error vector and jacobians matrix
+    /// of factor with index.
     pub fn weight_jacobians_error_in_place_at<VC>(
         &self,
         variables: &Variables<VC, R>,
@@ -79,6 +89,8 @@ where
         self.container
             .weight_jacobians_error_in_place_at(variables, error, jacobians, index, 0)
     }
+    /// Performs weighting (whitening transformation) of error vector matrix
+    /// of factor with index.
     pub fn weight_error_in_place_at<VC>(
         &self,
         variables: &Variables<VC, R>,
@@ -90,6 +102,8 @@ where
         self.container
             .weight_error_in_place_at(variables, error, index, 0)
     }
+    /// Performs weighting (whitening transformation) of jacobians matrix
+    /// of factor with index.
     pub fn jacobians_error_at<VC>(
         &self,
         variables: &Variables<VC, R>,
@@ -100,6 +114,8 @@ where
     {
         self.container.jacobians_error_at(variables, index, 0)
     }
+    /// Returns weighted jacobian matrix and error vector of factor with index.
+    /// NOTE: probably weighted word here wrong.
     pub fn weighted_jacobians_error_at<VC>(
         &self,
         variables: &Variables<VC, R>,
@@ -110,6 +126,7 @@ where
     {
         self.container.jacobians_error_at(variables, index, 0)
     }
+    /// Returns error vector of factor with index.
     pub fn error_at<VC>(&self, variables: &Variables<VC, R>, index: usize) -> Option<ErrorReturn<R>>
     where
         VC: VariablesContainer<R>,
@@ -122,6 +139,8 @@ where
     {
         todo!()
     }
+    /// Computes value of cost function:
+    /// $$F(\textbf{x})=\frac{1}{2}\sum_{i=0}^N \lvert\rvert f_i(\textbf{x}) \lvert\rvert^2$$
     pub fn error_squared_norm<VC>(&self, variables: &Variables<VC, R>) -> f64
     where
         VC: VariablesContainer<R>,
@@ -135,7 +154,7 @@ where
             self.weight_error_in_place_at(variables, error.as_view_mut(), f_index);
             err_squared_norm += error.norm_squared();
         }
-        err_squared_norm.to_f64().unwrap()
+        0.5 * err_squared_norm.to_f64().unwrap()
     }
     pub fn add<F>(&mut self, f: F)
     where
@@ -180,21 +199,20 @@ where
     {
         get_factor_mut(&mut self.container, index)
     }
-
+    /// Remove factors connected with `key`.
     pub fn remove_conneted_factors(&mut self, key: Vkey) -> usize {
         self.container.remove_conneted_factors(key, 0)
     }
-
+    /// Remove factors disconnected with `key`.
     pub fn retain_conneted_factors(&mut self, keys: &[Vkey]) -> usize {
         self.container.retain_conneted_factors(keys, 0)
     }
-
-    /// for debug goals
+    /// Returns type name of factor with index.
     pub fn type_name_at(&self, index: usize) -> Option<String> {
         self.container.type_name_at(index, 0)
     }
-    /// count unconnected variables
-    /// optimization will not work with any unconnected variables
+    /// Returns count of unconnected variables.
+    /// Optimization will not work with any unconnected variables.
     pub fn unused_variables_count<VC>(&self, variables: &Variables<VC, R>) -> usize
     where
         VC: VariablesContainer<R>,
@@ -210,6 +228,9 @@ where
         }
         counter
     }
+    /// Returns keys of neighbor variables.
+    /// Variables contained in factor `keys` of factor connected with key in `variables_keys`
+    /// excluding duplications and self containing (keys from `variables_keys` exludes from returned result).
     pub fn neighborhood_variables(&self, variables_keys: &[Vkey]) -> Vec<Vkey> {
         let mut neighborhood = Vec::<Vkey>::new();
         for vk in variables_keys {

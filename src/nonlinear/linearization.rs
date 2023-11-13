@@ -269,6 +269,8 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
     }
 }
 
+/// Computes hessian of cost function such:
+/// $$H \Delta {\textbf{x}}=-\textbf{g}$$
 #[allow(non_snake_case)]
 pub fn linearization_hessian<R, VC, FC>(
     factors: &Factors<FC, R>,

@@ -3,16 +3,18 @@ use nalgebra_sparse::CscMatrix;
 
 use crate::prelude::Real;
 
-/// return status of solving linear system
+/// Represents status of solving linear system
 #[derive(PartialEq, Eq, Debug)]
 pub enum LinearSolverStatus {
-    ///problem solve successfully (iterative methods converge)
+    /// problem solve successfully (iterative methods converge)
     Success,
     /// linear system has rank deficiency
     RankDeficiency,
     /// something wrong with the system, e.g. matrix size incompatible
     Invalid,
 }
+/// Provides solving of sparse linear system:
+/// $$A\textbf{x}=\textbf{b}$$
 pub trait SparseLinearSolver<R = f64>
 where
     R: Real,
@@ -42,6 +44,8 @@ where
     fn is_normal_lower(&self) -> bool;
 }
 
+/// Provides solving of dense linear system:
+/// $$A\textbf{x}=\textbf{b}$$
 pub trait DenseLinearSolver<R = f64>
 where
     R: RealField,

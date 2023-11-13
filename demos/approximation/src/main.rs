@@ -226,13 +226,9 @@ fn main() {
 
     let opt_res = optimizer.optimize(&factors, &mut variables);
     println!("opt_res {:?}", opt_res);
-    println!(
-        "final error {}",
-        0.5 * factors.error_squared_norm(&variables)
-    );
+    println!("final error {}", factors.error_squared_norm(&variables));
 
     //marginalization test
-    let half = 0.5;
     let binding = vec![Vkey(2), Vkey(3)];
     let m_keys = binding.as_slice();
     let n_keys = factors.neighborhood_variables(m_keys);
@@ -304,10 +300,10 @@ fn main() {
 
     cprintln!("<rgb(0,255,0)>===============================</>");
 
-    let F_x0 = half * factors.error_squared_norm(&variables);
+    let F_x0 = factors.error_squared_norm(&variables);
     println!("F(x) at x0 {}", F_x0);
-    let F_mn_x0 = half * mn_factors.error_squared_norm(&mn_variables);
-    let F_r_x0 = half * r_factors.error_squared_norm(&nr_variables);
+    let F_mn_x0 = mn_factors.error_squared_norm(&mn_variables);
+    let F_r_x0 = r_factors.error_squared_norm(&nr_variables);
     let F_x0mnr = F_mn_x0 + F_r_x0;
     println!("F(xm, xn)+F(xn, xr) at x0 {}", F_x0mnr);
     println!("F(xm, xn) at x0 {}", F_mn_x0);
@@ -325,11 +321,10 @@ fn main() {
     {
         let d = DVector::<R>::from_element(dx0.len(), x);
         let dx = dx0.to_owned() + d;
-
         let F_mn_dx = mn_factors.error_squared_norm(
             &mn_variables.retracted(dx.as_view(), &mn_variables.default_variable_ordering()),
         );
-        R::from_f64(0.5 * F_mn_dx).unwrap()
+        R::from_f64(F_mn_dx).unwrap()
         // R::from_f64(F_mn_dx).unwrap()
     }
     fn m_est_err<R>(

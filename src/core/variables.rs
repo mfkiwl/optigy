@@ -11,6 +11,7 @@ use super::factors_container::FactorsContainer;
 use super::variables_container::{get_map, get_map_mut};
 use super::{HashMap, Real};
 
+/// Representation of variables set with addition/removing bypassing operations.
 #[derive(Clone)]
 pub struct Variables<C, R = f64>
 where
@@ -33,17 +34,29 @@ where
             phantom: PhantomData,
         }
     }
+    /// Creates new Variables from subset of `variables` with `keys`.
+    pub fn from_variables(variables: &Self, keys: &[Vkey]) -> Self {
+        let mut new_variables = Variables::new(variables.container.empty_clone());
+        for key in keys {
+            variables
+                .container
+                .add_variable_to(&mut new_variables, *key);
+        }
+        new_variables
+    }
+    /// Returns sum of variables `dim`.
     pub fn dim(&self) -> usize {
         self.container.dim(0)
     }
-
+    /// Returns count of variables.
     pub fn len(&self) -> usize {
         self.container.len(0)
     }
+    /// No variables.
     pub fn is_empty(&self) -> bool {
         self.container.is_empty()
     }
-
+    /// Rectract all variables by `delta`. See [Variable::retract].
     pub fn retract(&mut self, delta: DVectorView<R>, variable_ordering: &VariableOrdering) {
         debug_assert_eq!(delta.nrows(), self.dim());
         let mut d: usize = 0;
@@ -52,6 +65,7 @@ where
             d = self.container.retract(delta, key, d);
         }
     }
+    /// Returns retracted copy of self.
     pub fn retracted(&self, delta: DVectorView<R>, variable_ordering: &VariableOrdering) -> Self {
         debug_assert_eq!(delta.nrows(), self.dim());
         let mut variables = self.clone();
@@ -64,6 +78,7 @@ where
     }
 
     //TODO: return DVectorView
+    /// Returns local tangents of all variables. See [Variable::local]
     pub fn local<VC>(
         &self,
         variables: &Variables<VC, R>,
@@ -147,18 +162,11 @@ where
             factors.remove_conneted_factors(key),
         )
     }
+    /// Returns `dim` of variable with key.
     pub fn dim_at(&self, key: Vkey) -> Option<usize> {
         self.container.dim_at(key)
     }
-    pub fn from_variables(variables: &Self, keys: &[Vkey]) -> Self {
-        let mut new_variables = Variables::new(variables.container.empty_clone());
-        for key in keys {
-            variables
-                .container
-                .add_variable_to(&mut new_variables, *key);
-        }
-        new_variables
-    }
+    /// Returns type name of variable with key.
     pub fn type_name_at(&self, key: Vkey) -> Option<String> {
         self.container.type_name_at(key)
     }

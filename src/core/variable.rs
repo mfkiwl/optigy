@@ -1,17 +1,20 @@
 use nalgebra::{DVector, DVectorView, RealField};
+/// Represent variable $\textbf{x}_i$ of factor graph.
 pub trait Variable<R>: Clone
 where
     R: RealField,
 {
-    /// local coordinate
+    /// Returns local tangent such: $\textbf{x}_i \boxminus \breve{\textbf{x}}_i$
+    /// where $\breve{\textbf{x}}_i$ is linearization point in case of marginalization.
     fn local(&self, linearization_point: &Self) -> DVector<R>
     where
         R: RealField;
-    /// retract
+    /// Retract (perturbate) $\textbf{x}_i$ by `delta` such:
+    /// $\textbf{x}_i=\textbf{x}_i \boxplus \delta \textbf{x}_i$
     fn retract(&mut self, delta: DVectorView<R>)
     where
         R: RealField;
-    /// return retracted copy
+    /// Returns retracted copy of `self`.
     fn retracted(&self, delta: DVectorView<R>) -> Self
     where
         R: RealField,
@@ -20,7 +23,7 @@ where
         var.retract(delta);
         var
     }
-
+    /// Returns dimension $D$ of $\delta{\textbf{x}_i} \in \mathbb{R}^D$
     fn dim(&self) -> usize;
 }
 #[cfg(test)]
